@@ -1,0 +1,25 @@
+# OASIS_START
+# DO NOT EDIT (digest: 6892a881c5b85d65d3a8c25d44f1c075)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library mlvm
+"lib/mlvm.cmxs": use_mlvm
+<lib/*.ml{,i}>: pkg_stdext
+<lib/*.ml{,i}>: pkg_rpclib.syntax
+<lib/*.ml{,i}>: pkg_rpclib
+<lib/*.ml{,i}>: pkg_threads
+<lib/*.ml{,i}>: pkg_camldm
+<lib/*.ml{,i}>: pkg_uuidm
+# OASIS_STOP
+<lib/*.ml{,i}>: syntax_camlp4o
