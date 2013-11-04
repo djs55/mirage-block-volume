@@ -1,4 +1,4 @@
-open Debug
+open Lvmdebug
 
 type lvcreate_t = {
   lvc_id : string;

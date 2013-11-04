@@ -126,7 +126,7 @@ module Label = struct
     
     assert(snd header = 32);
 
-    Debug.debug (Printf.sprintf "write_label_and_pv_header:\nPV header:\n%s" (pvh_to_ascii pvh));
+    Lvmdebug.debug (Printf.sprintf "write_label_and_pv_header:\nPV header:\n%s" (pvh_to_ascii pvh));
 
     (* PV header *)
     let header = marshal_string header (Lvm_uuid.remove_hyphens pvh.pvh_id) in
@@ -266,8 +266,8 @@ module MDAHeader = struct
       mdah.mdah_checksum mdah.mdah_magic mdah.mdah_version mdah.mdah_start mdah.mdah_size (String.concat "," (List.map rl2ascii mdah.mdah_raw_locns))
           
   let write_mda_header mdah device  =
-    Debug.debug "Writing MDA header";
-    Debug.debug (Printf.sprintf "Writing: %s" (to_ascii mdah));
+    Lvmdebug.debug "Writing MDA header";
+    Lvmdebug.debug (Printf.sprintf "Writing: %s" (to_ascii mdah));
     let realheader = (String.make mda_header_size '\000', 0) in (* Mda header is 1 sector long *)
     let header = marshal_int32 realheader 0l in (* Write the checksum later *)
     let header = marshal_string header mdah.mdah_magic in
@@ -497,7 +497,7 @@ let of_metadata name config pvdatas =
 (** Find the metadata area on a device and return the text of the metadata *)
 let find_metadata device =
   let label = Label.find device in
-  Debug.debug (Printf.sprintf "Label found: \n%s\n" 
+  Lvmdebug.debug (Printf.sprintf "Label found: \n%s\n" 
     (Label.to_ascii label));
   let mda_locs = Label.get_metadata_locations label in
   let mdahs = List.map (MDAHeader.unmarshal_mda_header device) mda_locs in

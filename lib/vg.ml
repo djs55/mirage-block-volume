@@ -1,6 +1,6 @@
 open Absty
 open Redo
-open Debug
+open Lvmdebug
 
 type status =
     | Read
