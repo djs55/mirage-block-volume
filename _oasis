@@ -8,9 +8,10 @@ Copyrights:   (C) 2012 Citrix
 BuildTools:   ocamlbuild
 Plugins:      DevFiles (0.3), META (0.3)
 
-Library mlvm
+Library lvm
   Path: lib
   Modules: Absty, Allocator, Constants, Crc, Lvmdebug, Lvmconfiglex, Lvmconfigparser, Lv, Lvmmarshal, Lvm_uuid, Pv, Redo, Tag, Utils, Vg 
+  Pack: true
   BuildDepends: stdext,rpclib.syntax,rpclib,threads,camldm,uuidm
 
 

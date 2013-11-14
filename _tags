@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6892a881c5b85d65d3a8c25d44f1c075)
+# DO NOT EDIT (digest: e20b0b04f672309d33f5368486989af2)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -13,8 +13,23 @@
 ".git": not_hygienic
 "_darcs": -traverse
 "_darcs": not_hygienic
-# Library mlvm
-"lib/mlvm.cmxs": use_mlvm
+# Library lvm
+"lib/lvm.cmxs": use_lvm
+"lib/absty.cmx": for-pack(Lvm)
+"lib/allocator.cmx": for-pack(Lvm)
+"lib/constants.cmx": for-pack(Lvm)
+"lib/crc.cmx": for-pack(Lvm)
+"lib/lvmdebug.cmx": for-pack(Lvm)
+"lib/lvmconfiglex.cmx": for-pack(Lvm)
+"lib/lvmconfigparser.cmx": for-pack(Lvm)
+"lib/lv.cmx": for-pack(Lvm)
+"lib/lvmmarshal.cmx": for-pack(Lvm)
+"lib/lvm_uuid.cmx": for-pack(Lvm)
+"lib/pv.cmx": for-pack(Lvm)
+"lib/redo.cmx": for-pack(Lvm)
+"lib/tag.cmx": for-pack(Lvm)
+"lib/utils.cmx": for-pack(Lvm)
+"lib/vg.cmx": for-pack(Lvm)
 <lib/*.ml{,i}>: pkg_stdext
 <lib/*.ml{,i}>: pkg_rpclib.syntax
 <lib/*.ml{,i}>: pkg_rpclib
