@@ -12,35 +12,37 @@
  * GNU Lesser General Public License for more details.
  *)
 
+(* Note according to
+   https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Logical_Volume_Manager_Administration/lvm_tags.html
+
+   after RH 6.1 tags can be 1024 characters and can contain  [/=!:#&]
+*) 
 
 type t = string with rpc
 
 module CharSet = Set.Make(struct type t = char let compare = compare end)
 
-let first_char_list = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+."
-
+(* The first character is drawn from a more limited alphabet *)
 let first_char_set =
+  let first_char_list = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+." in
   let rec loop acc i =
     if i < (String.length first_char_list)
     then loop (CharSet.add first_char_list.[i] acc) (i + 1)
     else acc in
   loop CharSet.empty 0
 
+(* Every other character can be a '-' *)
 let other_char_set = CharSet.add '-' first_char_set
 
-(** This function assumes "String.length s = len" and "len > 0". *)
-let has_valid_chars s len =
-	if not (CharSet.mem s.[0] first_char_set) then false else
-	let rec check_char_at i = (* Tail-recursion. *)
-		(i >= len) || (CharSet.mem s.[i] other_char_set && check_char_at (i + 1)) in
-	check_char_at 1
+let of_string s = match s with
+	| "" -> "empty_tag"
+	| s ->
+		let s = if String.length s > 128 then String.sub s 0 128 else String.copy s in
+		(* Replace any invalid character with a '_' *)
+		if not(CharSet.mem s.[0] first_char_set) then s.[0] <- '_';
+		for i = 1 to String.length s - 1 do
+			if not(CharSet.mem s.[i] other_char_set) then s.[i] <- '_'
+		done;
+		s
 
-let is_valid s =
-	let len = String.length s in
-	(0 < len) && (len <= 128) && (has_valid_chars s len)
-
-let of_string s =
-	if is_valid s then s else failwith "Tag string does not conform to the rules."
-
-let string_of t =
-  t
+let to_string t = t

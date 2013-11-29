@@ -128,6 +128,6 @@ let redo_to_human_readable op =
 			| LvReduce (name,lvrd) -> Printf.sprintf "LvReduce(%s,%Ld)" name lvrd.lvrd_new_extent_count
 			| LvExpand (name,lvex) -> Printf.sprintf "LvExpand(%s,%s)" name (lvexpand_t_to_string lvex)
 			| LvRename (name,lvmv) -> Printf.sprintf "LvRename(%s,%s)" name lvmv.lvmv_new_name
-			| LvAddTag (name,tag)	 -> Printf.sprintf "LvAddTag(%s,%s)" name (Tag.string_of tag)
-			| LvRemoveTag (name,tag) -> Printf.sprintf "LvRemoveTag(%s,%s)" name (Tag.string_of tag) in
+			| LvAddTag (name,tag)	 -> Printf.sprintf "LvAddTag(%s,%s)" name (Tag.to_string tag)
+			| LvRemoveTag (name,tag) -> Printf.sprintf "LvRemoveTag(%s,%s)" name (Tag.to_string tag) in
 	Printf.sprintf "{seqno=%d; op=%s}" op.so_seqno opstr

@@ -17,13 +17,20 @@ open Tag
 
 let test_tag_string (should_be_valid, s) =
   Printf.sprintf "Checking if tag '%s' is %svalid" s (if should_be_valid then "" else "in") >:: (fun () ->
-    let is_valid = is_valid s in
+    let is_valid = Tag.(to_string (of_string s)) = s in
     assert_equal ~printer:string_of_bool should_be_valid is_valid
   )
 
-let test_strings =
-	[false, ""; true, "abc"; false, "----abc"; true, "abc-----"; false, "abc###";
-	 true, String.make 128 'y'; false, String.make 129 'n'; true, "_0m_3+3-3.X"]
+let test_strings = [
+  false, "";
+  true, "abc";
+  false, "----abc";
+  true, "abc-----";
+  false, "abc###";
+  true, String.make 128 'y';
+  false, String.make 129 'n';
+  true, "_0m_3+3-3.X"
+]
 
 let tag_suite = "tags" >::: (List.map test_tag_string test_strings)
 

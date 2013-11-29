@@ -69,7 +69,7 @@ let write_to_buffer b lv =
   bprintf b "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name lv.id 
     (String.concat ", " (List.map (o quote status_to_string) lv.status));
   if List.length lv.tags > 0 then 
-    bprintf b "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.string_of) lv.tags));
+    bprintf b "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
   bprintf b "segment_count = %d\n\n" (List.length lv.segments);
   Listext.List.iteri
     (fun i s -> 
