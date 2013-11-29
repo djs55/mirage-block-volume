@@ -13,8 +13,6 @@
  *)
 
 open Absty
-open Fun
-open Listext
 
 type stat = 
     | Read
@@ -64,6 +62,11 @@ let status_of_string s =
 let sort_segments s =
   List.sort (fun s1 s2 -> compare s1.s_start_extent s2.s_start_extent) s
 
+let iteri f list = ignore (List.fold_left (fun i x -> f i x; i+1) 0 list)
+
+let comp f g x = f (g x)
+let (++) f g x = comp f g x
+
 let write_to_buffer b lv =
   let bprintf = Printf.bprintf in
   bprintf b "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name lv.id 
@@ -71,7 +74,7 @@ let write_to_buffer b lv =
   if List.length lv.tags > 0 then 
     bprintf b "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
   bprintf b "segment_count = %d\n\n" (List.length lv.segments);
-  Listext.List.iteri
+  iteri
     (fun i s -> 
       bprintf b "segment%d {\nstart_extent = %Ld\nextent_count = %Ld\n\n"
 	(i+1) s.s_start_extent s.s_extent_count;

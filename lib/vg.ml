@@ -234,10 +234,12 @@ let dm_map_of_lv vg lv use_pv_id =
 
 let find_lv vg lv_name =
   List.find (fun lv -> lv.Lv.name = lv_name) vg.lvs
-    
+
+let dash = Re_str.regexp_string "-"
+
 let dm_name_of vg lv =
-  let vgname = String.concat "--" (Stringext.String.split '-' vg.name) in
-  let lvname = String.concat "--" (Stringext.String.split '-' lv.Lv.name) in
+  let vgname = String.concat "--" (Re_str.split_delim dash vg.name) in
+  let lvname = String.concat "--" (Re_str.split_delim dash lv.Lv.name) in
   Printf.sprintf "%s-%s" vgname lvname
 
 let dev_path_of vg lv =

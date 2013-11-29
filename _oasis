@@ -12,7 +12,7 @@ Library lvm
   Path: lib
   Modules: Absty, Allocator, Constants, Crc, Lvmdebug, Lvmconfiglex, Lvmconfigparser, Lv, Lvmmarshal, Lvm_uuid, Pv, Redo, Tag, Utils, Vg 
   Pack: true
-  BuildDepends: stdext,rpclib.syntax,rpclib,threads,camldm,uuidm
+  BuildDepends: stdext,rpclib.syntax,rpclib,threads,camldm,uuidm,re.str
 
 Executable tag_test
   CompiledObject:     best
