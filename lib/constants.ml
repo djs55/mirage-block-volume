@@ -26,7 +26,7 @@ let extent_size = Int64.mul 4096L 1024L
 let extent_size_minus_one = Int64.sub extent_size 1L
 let extent_size_in_sectors = Int64.div extent_size sector_sizeL
 
-let fmtt_magic = Stringext.String.implode (List.map Char.chr [0o040;0o114;0o126;0o115;0o062;0o040;0o170;0o133;0o065;0o101;0o045;0o162;0o060;0o116;0o052;0o076])
+let fmtt_magic = " LVM2 x[5A%r0N*>"
 
 let mdah_start = 4096L
 let mdah_size = Int64.mul 10240L 1024L 
