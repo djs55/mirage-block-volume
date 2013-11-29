@@ -68,7 +68,7 @@ module Label = struct
     let offset,b = unmarshal_uint32 b in
     let ty,b = unmarshal_string 8 b in
     let crc_check = String.sub (fst b0) (20 + snd b0) (Constants.label_size - 20) in (* wtf? *)
-    let calculated_crc = Crc.crc crc_check Crc.initial_crc in
+    let calculated_crc = Crc.crc crc_check in
     if calculated_crc <> crc_xl then
       failwith "Bad checksum in PV Label";
     {id=id;
@@ -159,7 +159,7 @@ module Label = struct
     let header = do_disk_locn header pvh.pvh_metadata_areas in
     
     (* Now calc CRC *)
-    let crc = Crc.crc (String.sub do_crc_str do_crc_from (Constants.label_size - do_crc_from)) Crc.initial_crc in
+    let crc = Crc.crc (String.sub do_crc_str do_crc_from (Constants.label_size - do_crc_from)) in
     ignore(marshal_int32 crc_pos crc);
     
     let fd = 
@@ -265,7 +265,7 @@ module MDAHeader = struct
     in
     let raw_locns,b = read_raw_locns b [] in
     let crc_to_check = String.sub buf 4 (mda_header_size - 4) in
-    let crc = Crc.crc crc_to_check Crc.initial_crc in
+    let crc = Crc.crc crc_to_check in
     if crc <> checksum then
       failwith "Bad checksum in MDA header";
     {mdah_checksum=checksum;
@@ -299,7 +299,7 @@ module MDAHeader = struct
     let header = List.fold_left write_raw_locn header mdah.mdah_raw_locns in
     let header = write_raw_locn header {mrl_offset=0L; mrl_size=0L; mrl_checksum=0l; mrl_filler=0l} in
     let crcable = String.sub (fst realheader) 4 (mda_header_size - 4) in
-    let crc = Crc.crc crcable Crc.initial_crc in
+    let crc = Crc.crc crcable in
     let _ = marshal_int32 realheader crc in
     
     let fd = 
@@ -344,7 +344,7 @@ module MDAHeader = struct
 				firstbitstr ^ secondbitstr
 			else
 				really_read fd (Int64.to_int locn.mrl_size) in
-		let checksum = Crc.crc md Crc.initial_crc in
+		let checksum = Crc.crc md in
 		Unix.close fd;
 		if checksum <> locn.mrl_checksum then
 			Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
@@ -404,7 +404,7 @@ module MDAHeader = struct
 
     (* Now we have to update the crc and pointer to the metadata *)
     
-    let checksum = Crc.crc md Crc.initial_crc in
+    let checksum = Crc.crc md in
     let new_raw_locn = {
       mrl_offset=newpos;
       mrl_size=Int64.of_int size;

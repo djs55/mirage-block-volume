@@ -39,3 +39,5 @@ let crc buf init =
   in
 
   loop 0 init
+
+let crc buf = crc buf initial_crc
