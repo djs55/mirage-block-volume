@@ -13,15 +13,18 @@
  *)
 
 
-open Stringext
-
 type t = string with rpc
 
 module CharSet = Set.Make(struct type t = char let compare = compare end)
 
 let first_char_list = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+."
 
-let first_char_set = String.fold_left (fun set x -> CharSet.add x set) CharSet.empty first_char_list
+let first_char_set =
+  let rec loop acc i =
+    if i < (String.length first_char_list)
+    then loop (CharSet.add first_char_list.[i] acc) (i + 1)
+    else acc in
+  loop CharSet.empty 0
 
 let other_char_set = CharSet.add '-' first_char_set
 
