@@ -21,20 +21,7 @@ let format = [6; 4; 4; 4; 4; 4; 6]
 
 let charlist = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#"
 
-let dev_random = "/dev/urandom"
-
-let read_random n = 
-  let ic = open_in_bin dev_random in
-  try
-    let result = Array.init n (fun _ -> input_byte ic) in
-    close_in ic;
-    result
-  with e ->
-    close_in ic;
-    raise e
-
 let create () =
-(*  let bytes = read_random 32 in*)
   let s = String.make (32+6) '-' in
   let rec make i j n f =
     if n=0 then match f with
