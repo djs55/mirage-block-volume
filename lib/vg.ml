@@ -24,7 +24,7 @@ type status =
 
 and vg = {
   name : string;
-  id : string;
+  id : Lvm_uuid.t;
   seqno : int;
   status : status list;
   extent_size : int64;
@@ -55,7 +55,7 @@ let status_of_string s =
 let write_to_buffer b vg =
   let bprintf = Printf.bprintf in
   bprintf b "%s {\nid = \"%s\"\nseqno = %d\n"
-    vg.name vg.id vg.seqno;
+    vg.name (Lvm_uuid.to_string vg.id) vg.seqno;
   bprintf b "status = [%s]\nextent_size = %Ld\nmax_lv = %d\nmax_pv = %d\n\n"
     (String.concat ", " (List.map (o quote status_to_string) vg.status))
     vg.extent_size vg.max_lv vg.max_pv;
@@ -221,7 +221,7 @@ let dm_map_of_lv vg lv use_pv_id =
 		    Camldm.Linear {
 		      Camldm.device = 
 			if use_pv_id 
-			then Camldm.Dereferenced pv.Pv.label.Pv.Label.pv_header.Pv.Label.pvh_id 
+			then Camldm.Dereferenced (Lvm_uuid.to_string pv.Pv.label.Pv.Label.pv_header.Pv.Label.pvh_id)
 			else Camldm.Real pv.Pv.dev; 
 		      offset=extent_to_phys_sector pv l.Lv.l_pv_start_extent }
 		| Lv.Striped st ->
@@ -409,7 +409,7 @@ let of_metadata config pvdatas =
     failwith "Could not find singleton volume group";
   let (name, _) = List.hd vg in
   let alist = expect_mapped_struct name vg in
-  let id = expect_mapped_string "id" alist in
+  let id = Lvm_uuid.of_string (expect_mapped_string "id" alist) in
   let seqno = expect_mapped_int "seqno" alist in
   let status = map_expected_mapped_array "status" 
     (fun a -> status_of_string (expect_string "status" a)) alist in

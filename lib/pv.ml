@@ -49,7 +49,7 @@ module Label = struct
   }
 
   and pv_header = {
-    pvh_id : string; (* 32 bytes, 'uuid' *)
+    pvh_id : Lvm_uuid.t;
     pvh_device_size : int64;
     pvh_extents: disk_locn list;
     pvh_metadata_areas: disk_locn list;
@@ -107,7 +107,7 @@ module Label = struct
     in 
     let disk_areas,b = do_disk_locn b [] in
     let disk_areas2,b = do_disk_locn b [] in
-    { pvh_id=Lvm_uuid.add_hyphens id;
+    { pvh_id=Lvm_uuid.unmarshal id;
       pvh_device_size=size;
       pvh_extents=disk_areas;
       pvh_metadata_areas=disk_areas2},b
@@ -116,7 +116,7 @@ module Label = struct
     let disk_area_list_to_ascii l =
       (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.dl_offset da.dl_size) l)) in  
     Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
-      pvh.pvh_id pvh.pvh_device_size 
+      (Lvm_uuid.to_string pvh.pvh_id) pvh.pvh_device_size 
       (disk_area_list_to_ascii pvh.pvh_extents)
       (disk_area_list_to_ascii pvh.pvh_metadata_areas)
 
@@ -144,7 +144,7 @@ module Label = struct
     Lvmdebug.debug (Printf.sprintf "write_label_and_pv_header:\nPV header:\n%s" (pvh_to_ascii pvh));
 
     (* PV header *)
-    let header = marshal_string header (Lvm_uuid.remove_hyphens pvh.pvh_id) in
+    let header = marshal_string header (Lvm_uuid.marshal pvh.pvh_id) in
     let header = marshal_int64 header pvh.pvh_device_size in
     
     let do_disk_locn header l =       
@@ -442,7 +442,7 @@ type status =
 	
 and physical_volume = {
   name : string;
-  id : string;
+  id : Lvm_uuid.t;
   dev : string;
   real_device : string; (* Actual device we're reading/writing to/from *)
   status : status list;
@@ -464,13 +464,13 @@ let status_of_string s =
 
 let write_to_buffer b pv =
   let bprintf = Printf.bprintf in
-  bprintf b "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name pv.id pv.dev;
+  bprintf b "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Lvm_uuid.to_string pv.id) pv.dev;
   bprintf b "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
     (String.concat ", " (List.map (o quote status_to_string) pv.status))
     pv.dev_size pv.pe_start pv.pe_count
 
 let of_metadata name config pvdatas =
-  let id = expect_mapped_string "id" config in
+  let id = Lvm_uuid.of_string (expect_mapped_string "id" config) in
   let device = expect_mapped_string "device" config in
   let status = map_expected_mapped_array "status" 
     (fun a -> status_of_string (expect_string "status" a)) config in

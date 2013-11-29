@@ -15,7 +15,7 @@
 
 (* LVM uses uuids that aren't really proper uuids. This module manipulates them *)
 
-type t = string
+type t = string with rpc
 
 let format = [6; 4; 4; 4; 4; 4; 6] 
 
@@ -43,3 +43,12 @@ let remove_hyphens str =
   let foldfn (i,j) n = String.blit str i str2 j n; (i+n+1, j+n) in
   ignore(List.fold_left foldfn (0,0) format);
   str2
+
+let unmarshal str =
+  assert (String.length str = 32);
+  add_hyphens str
+
+let marshal = remove_hyphens
+
+let to_string x = x
+let of_string x = x

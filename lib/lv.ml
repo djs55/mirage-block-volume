@@ -40,7 +40,7 @@ and segment =
 
 and logical_volume = {
   name : string;
-  id : string;
+  id : Lvm_uuid.t;
   tags : Tag.t list;
   status : stat list;
   segments : segment list;
@@ -69,7 +69,7 @@ let (++) f g x = comp f g x
 
 let write_to_buffer b lv =
   let bprintf = Printf.bprintf in
-  bprintf b "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name lv.id 
+  bprintf b "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name (Lvm_uuid.to_string lv.id)
     (String.concat ", " (List.map (o quote status_to_string) lv.status));
   if List.length lv.tags > 0 then 
     bprintf b "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
@@ -122,7 +122,7 @@ let segment_of_metadata name config =
 
 (** Builds a logical_volume structure out of a name and metadata. *)
 let of_metadata name config =
-	let id = expect_mapped_string "id" config in
+	let id = Lvm_uuid.of_string (expect_mapped_string "id" config) in
 	let status = map_expected_mapped_array "status"
 		(fun a -> status_of_string (expect_string "status" a)) config in
 	let tags =
