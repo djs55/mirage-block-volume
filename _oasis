@@ -14,5 +14,16 @@ Library lvm
   Pack: true
   BuildDepends: stdext,rpclib.syntax,rpclib,threads,camldm,uuidm
 
+Executable tag_test
+  CompiledObject:     best
+  Path:               lib_test
+  MainIs:             tag_test.ml
+  Custom:             true
+  Install:            false
+  BuildDepends:       lvm, oUnit
+
+Test tag_test
+  Command:            ./tag_test.native
+  Run:                true
 
 
