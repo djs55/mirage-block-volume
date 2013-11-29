@@ -46,21 +46,21 @@ let gen_3area =
     in Gen.map1 f p (Gen.zip2 pv_name_gen (Gen.zip3 pv_pos_size pv_pos_size pv_pos_size))
 
 let prop_contained_reflexive a = contained a a
-let () = Test.add_random_test
+let test_contained_is_reflexive =
+  Test.make_random_test
     ~title:"contained is reflexive"
     gen_area
     Fun.id
     [Spec.always ==> prop_contained_reflexive]
 
-let () = Test.add_random_test
-   ~title:"contained is transitive"
-   gen_3area
-   Fun.id
-   [(fun (a,b,c) -> contained a b && contained b c) ==> (fun (a,b,c) -> contained a c)]
+let test_contained_is_transitive =
+  Test.make_random_test
+    ~title:"contained is transitive"
+    gen_3area
+    Fun.id
+    [(fun (a,b,c) -> contained a b && contained b c) ==> (fun (a,b,c) -> contained a c)]
     
-
 let prop_same_pv a b = (=>>) (contained a b) (get_name a == get_name b);;
-
 
 (* allocate some random stuff.  make sure at all times, that (union
    alloced free) = all, and (intersection alloced free) = empty and
@@ -81,8 +81,8 @@ let foldM op l acc =
 	| None -> None
     in List.fold_right op_ l acc
 
-let () =
-    Test.add_random_test
+let test_alloc_everything =
+    Test.make_random_test
       ~title:"alloc allocs all free space and nothing more.  On a single pv for a start."
       (Gen.zip2
 	 (Gen.make_int64 (-10L) 10L)
@@ -140,16 +140,17 @@ let show_op = function
     | Alloc x -> "Alloc " ^ Kaputt.Utils.make_string_of_tuple3 Int64.to_string Int64.to_string Int64.to_string x
     | DeAlloc x -> "DeAlloc " ^ Kaputt.Utils.make_string_of_tuple2 Int64.to_string Int64.to_string x
 
-let () =
+let test_alloc_works =
     let pv_size = 1000L in
-    Test.add_random_test
+    Test.make_random_test
       ~title:"alloc works when there's enough free space."
       (Gen.list (Gen.make_int 0 300) (size_create_destroy 1000L))
       (Opt.is_boxed ++ Fun.flip simulate_full (create "pv_name0" pv_size) ++ toOps)
       [(fun pOps -> ((simulate_space $ pOps) <= pv_size)) ==> Fun.id;]
-let () =
+
+let test_alloc_fails =
     let pv_size = 1000L in
-    Test.add_random_test
+    Test.make_random_test
       ~title:"and alloc doesn't work when there's not enough free space."
       (Gen.list (Gen.make_int 0 300) (size_create_destroy 1000L))
       (Opt.is_boxed ++ Fun.flip simulate_full (create "pv_name0" pv_size) ++ toOps)
@@ -169,10 +170,10 @@ let () =
 *)
 
 (* This revealed a problem with normalize when allocating 0 bytes! It's fixed now.*)
-let () =
+let test_wtf =
     let pv_size = 79000L
     and numOps = 300 in
-    Test.add_random_test
+    Test.make_random_test
       ~title:"forall size >= 0: (uncurry free <<= alloc size) == Fun.id # modulo Option types"
       ~nb_runs:200
       (Gen.zip3 (Gen.make_int64 0L 300L)
@@ -208,8 +209,29 @@ let _ =
 	     print_endline $ "free_list2: " ^ to_string free_list2;)
 	| None -> print_endline "Not enough space."
 
-
+let tests = [
+    test_contained_is_reflexive;
+    test_contained_is_transitive;
+    test_alloc_everything;
+    test_alloc_works;
+    test_alloc_fails;
+    test_wtf;
+]
 
 
 let () =
-    Test.launch_tests ()
+    let results = Test.exec_tests tests in
+    let passed = ref true in
+    let open Kaputt.Test in
+    List.iter (function
+    | Passed -> ()
+    | Failed _ -> Printf.fprintf stderr "BAD: Kaputt.Assertion.failure\n%!"; passed := false
+    | Uncaught (exn, str) -> Printf.fprintf stderr "BAD: Uncaught %s %s\n%!" (Printexc.to_string exn) str; passed := false
+    | Report(passed_cases, total_cases, 0, _, _) when passed_cases = total_cases -> ()
+    | Report(_, _, uncaught_exns, _, _) when uncaught_exns > 0 -> Printf.fprintf stderr "BAD: %d uncaught exceptions\n%!" uncaught_exns; passed := false
+    | Report(passed_cases, total_cases, _, _, _) -> Printf.fprintf stderr "BAD: %d out of %d cases passed\n%!" passed_cases total_cases; passed := false
+    | Report(passed_cases, total_cases, uncaught_exns, total_counterexamples, _) -> Printf.fprintf stderr "-- not sure what kind of 'report' this is, ignoring\n%!"
+    | Exit_code 0 -> ()
+    | Exit_code n -> Printf.fprintf stderr "BAD: Exit code %d\n%!" n; passed := false
+    ) results;
+    if not !passed then exit 1
