@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 38c1f1b10ee7edfeb00f14b9c93f1b26)
+# DO NOT EDIT (digest: 99be9e0140d4fd32dd07924a8d351c9e)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -36,6 +36,7 @@
 <lib/*.ml{,i}>: pkg_threads
 <lib/*.ml{,i}>: pkg_camldm
 <lib/*.ml{,i}>: pkg_uuidm
+<lib/*.ml{,i}>: pkg_re.str
 # Executable tag_test
 <lib_test/tag_test.{native,byte}>: use_lvm
 <lib_test/tag_test.{native,byte}>: pkg_oUnit
@@ -45,6 +46,7 @@
 <lib_test/tag_test.{native,byte}>: pkg_threads
 <lib_test/tag_test.{native,byte}>: pkg_camldm
 <lib_test/tag_test.{native,byte}>: pkg_uuidm
+<lib_test/tag_test.{native,byte}>: pkg_re.str
 <lib_test/*.ml{,i}>: pkg_oUnit
 <lib_test/tag_test.{native,byte}>: custom
 # Executable allocator_test
@@ -56,6 +58,7 @@
 <lib_test/allocator_test.{native,byte}>: pkg_threads
 <lib_test/allocator_test.{native,byte}>: pkg_camldm
 <lib_test/allocator_test.{native,byte}>: pkg_uuidm
+<lib_test/allocator_test.{native,byte}>: pkg_re.str
 <lib_test/*.ml{,i}>: use_lvm
 <lib_test/*.ml{,i}>: pkg_kaputt
 <lib_test/*.ml{,i}>: pkg_stdext
@@ -64,6 +67,7 @@
 <lib_test/*.ml{,i}>: pkg_threads
 <lib_test/*.ml{,i}>: pkg_camldm
 <lib_test/*.ml{,i}>: pkg_uuidm
+<lib_test/*.ml{,i}>: pkg_re.str
 <lib_test/allocator_test.{native,byte}>: custom
 # OASIS_STOP
 <lib/*.ml{,i}>: syntax_camlp4o

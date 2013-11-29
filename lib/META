@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7f7b1b76771164a02cd6444fda068a3c)
+# DO NOT EDIT (digest: 0c24433af0c5dcc4b5c424aa3970f77c)
 version = "0.1"
 description = "LVM library"
-requires = "stdext rpclib.syntax rpclib threads camldm uuidm"
+requires = "stdext rpclib.syntax rpclib threads camldm uuidm re.str"
 archive(byte) = "lvm.cma"
 archive(byte, plugin) = "lvm.cma"
 archive(native) = "lvm.cmxa"
