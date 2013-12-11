@@ -12,7 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 
-open Lvmdebug
+open Logging
 
 type lvcreate_t = {
   lvc_id : Lvm_uuid.t;
@@ -78,7 +78,7 @@ let write fd offset size ops =
     match ops with
       | op::ops ->
 	  let str = redo_to_string op in
-	  debug ("LVM REDO: " ^ str);
+	  debug "LVM REDO: %s" str;
 	  let len = String.length str in
 	  if (Int64.add ofs (Int64.of_int len)) > (Int64.add offset size) then
 	    raise (OutOfSize op.so_seqno)
@@ -97,11 +97,11 @@ let read fd offset size =
   let end_ofs = read_initial_pos fd offset in
   let start_ofs = Int64.add offset 12L in
   let size = Int64.sub end_ofs start_ofs in
-  debug (Printf.sprintf "start_ofs: %Ld end_ofs: %Ld size: %Ld" start_ofs end_ofs size);
+  debug "start_ofs: %Ld end_ofs: %Ld size: %Ld" start_ofs end_ofs size;
   ignore(Unix.LargeFile.lseek fd start_ofs Unix.SEEK_SET);
   let string = Unixext.really_read_string fd (Int64.to_int size) in
   let rec read_ops pos ops =
-    debug (Printf.sprintf "Reading from pos: %d" pos);
+    debug "Reading from pos: %d" pos;
     if pos>=String.length string 
     then ops 
     else 

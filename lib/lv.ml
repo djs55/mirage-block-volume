@@ -13,6 +13,7 @@
  *)
 
 open Absty
+open Logging
 
 type stat = 
     | Read
@@ -172,13 +173,13 @@ let size_in_extents lv =
 	    
 let reduce_size_to lv new_seg_count =
   let cur_size = size_in_extents lv in
-  Lvmdebug.debug "Beginning reduce_size_to:";
+  debug "Beginning reduce_size_to:";
   if cur_size < new_seg_count then (failwith (Printf.sprintf "Cannot reduce size: current size (%Ld) is less than requested size (%Ld)" cur_size new_seg_count));
   let rec doit segs left acc =
     match segs with 
       | s::ss ->
-	  Lvmdebug.debug (Printf.sprintf "Lv.reduce_size_to: s.s_start_extent=%Ld s.s_extent_count=%Ld left=%Ld" 
-			  s.s_start_extent s.s_extent_count left);
+	  debug "Lv.reduce_size_to: s.s_start_extent=%Ld s.s_extent_count=%Ld left=%Ld" 
+			  s.s_start_extent s.s_extent_count left;
 	  if left > s.s_extent_count then
 	    doit ss (Int64.sub left s.s_extent_count) (s::acc)
 	  else

@@ -14,7 +14,7 @@
 
 open Absty
 open Redo
-open Lvmdebug
+open Logging
 
 type status =
     | Read
@@ -260,7 +260,7 @@ let dev_path_of_dm_name dm_name =
 let lv_activate_internal name dm_map dereference_table use_tmp dev =
   let realname = if use_tmp then Uuidm.to_string (Uuidm.create `V4) else name in
   let nod = dev_path_of_dm_name realname in
-  debug (Printf.sprintf "Using dm_name=%s (use_tmp=%b)" realname use_tmp);
+  debug "Using dm_name=%s (use_tmp=%b)" realname use_tmp;
   if not !Constants.dummy_mode then begin
     Camldm.create realname dm_map dereference_table;
     let s = Camldm.table realname in
@@ -363,10 +363,10 @@ let apply_redo vg  =
       | op::ops ->
 	  if op.so_seqno=vg.seqno 
 	  then begin
-	    debug (Printf.sprintf "Applying operation op=%s" (Redo.redo_to_human_readable op));
+	    debug "Applying operation op=%s" (Redo.redo_to_human_readable op);
 	    apply (do_op vg op) ops
 	  end else begin
-	    debug (Printf.sprintf "Ignoring operation op=%s" (Redo.redo_to_human_readable op));
+	    debug "Ignoring operation op=%s" (Redo.redo_to_human_readable op);
 	    apply vg ops
 	  end
       | _ -> vg
@@ -426,7 +426,7 @@ let of_metadata config pvdatas =
 
   let free_space = List.fold_left (fun free_space lv -> 
     let lv_allocations = Lv.allocation_of_lv lv in
-    debug (Printf.sprintf "Allocations for lv %s:\n%s\n" lv.Lv.name (Allocator.to_string lv_allocations));
+    debug "Allocations for lv %s:\n%s\n" lv.Lv.name (Allocator.to_string lv_allocations);
     Allocator.alloc_specified_areas free_space lv_allocations) free_space lvs in
   
   let got_redo_lv = List.exists (fun lv -> lv.Lv.name = Constants.redo_log_lv_name) lvs in

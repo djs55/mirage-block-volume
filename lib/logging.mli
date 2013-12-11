@@ -12,5 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 
-let debug_hook : (('b, unit, string, unit) format4 -> 'b) option ref = ref None
-let debug string = match !debug_hook with Some x -> x "%s" string | None -> Printf.fprintf stderr "%s\n" string
+val destination: (string -> unit) ref
+(** the destination function is called with every line of log output *)
+
+val debug: ('a, unit, string, unit) format4 -> 'a
