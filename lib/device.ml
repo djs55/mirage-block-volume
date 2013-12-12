@@ -88,3 +88,24 @@ let get_md device offset offset' firstbit secondbit =
   Unix.close fd;
   firstbitstr ^ secondbitstr
 
+let put_md device offset offset' firstbitstr secondbitstr =
+  let fd =
+    if !Constants.dummy_mode then begin
+      Unix.openfile (dummy_fname device "md") [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
+    end else begin
+      let fd = Unix.openfile device [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
+      ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
+      fd
+    end
+  in
+  let firstbitstr' = String.length firstbitstr in
+  if Unix.write fd firstbitstr 0 firstbitstr'  <> firstbitstr'
+  then failwith "Wrote short!";
+
+  if not !Constants.dummy_mode then ignore(Unix.LargeFile.lseek fd offset' Unix.SEEK_SET);
+  let secondbitstr' = String.length secondbitstr in
+  if Unix.write fd secondbitstr 0 secondbitstr' <> secondbitstr'
+  then failwith "Wrote short!";
+  Unix.close fd
+
+

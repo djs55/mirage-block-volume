@@ -137,32 +137,18 @@ let read_md dev mdah n =
     let absnewpos = Int64.add newpos mdah.mdah_start in
 
     let size = String.length md in
+    let firstbit, secondbit =
+      if Int64.add newpos (Int64.of_int size) > mdah.mdah_size
+      then
+        let firstbit = Int64.to_int (Int64.sub mdah.mdah_size newpos) in
+        let secondbit = size - firstbit in
+        firstbit, secondbit
+      else
+        size, 0 in
+    let firstbitstr = String.sub md 0 firstbit in
+    let secondbitstr = String.sub md firstbit secondbit in
 
-    let fd = 
-      if !Constants.dummy_mode then begin
-	Unix.openfile (dummy_fname device "md") [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
-      end else begin
-	let fd = Unix.openfile device [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
-	ignore(Unix.LargeFile.lseek fd absnewpos Unix.SEEK_SET);          
-	fd
-      end
-    in
-
-    (* Check whether we're going to wrap or not *)
-    if Int64.add newpos (Int64.of_int size) > mdah.mdah_size 
-    then begin
-      let firstbit = Int64.to_int (Int64.sub mdah.mdah_size newpos) in
-      if (Unix.write fd md 0 firstbit) <> firstbit then failwith "Wrote short!";
-      let secondbit = size - firstbit in
-      if not !Constants.dummy_mode then ignore(Unix.LargeFile.lseek fd (Int64.add 512L mdah.mdah_start) Unix.SEEK_SET);
-      if (Unix.write fd md firstbit secondbit) <> secondbit then failwith "Wrote short!"; 
-      Unix.close fd;
-    end else begin    
-      if (Unix.write fd md 0 size) <> size then 
-	failwith "Wrote short!";
-      Unix.close fd;
-    end;
-
+    Device.put_md device absnewpos (Int64.add mdah.mdah_start 512L) firstbitstr secondbitstr;
 
     (* Now we have to update the crc and pointer to the metadata *)
     
