@@ -40,7 +40,7 @@ and physical_volume = {
   pe_start : int64;
   pe_count : int64;
   label : Label.t;  (* The one label for this PV *)
-  mda_headers : MDAHeader.mda_header list; 
+  mda_headers : MDAHeader.t list; 
 } with rpc 
 
 let status_to_string s =
@@ -77,7 +77,7 @@ let of_metadata name config pvdatas =
 	Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" device;
 	let label = Label.find device in
 	let mda_locs = Label.get_metadata_locations label in
-	let mdahs = List.map (MDAHeader.unmarshal_mda_header device) mda_locs in
+	let mdahs = List.map (MDAHeader.unmarshal device) mda_locs in
 	(label,mdahs)
       with e ->
 	Printf.fprintf stderr "Error: Could not find label and/or MDA headers on device '%s'\n" 
@@ -104,7 +104,7 @@ let find_metadata device =
   let label = Label.find device in
   debug "Label found: \n%s\n" (Label.to_ascii label);
   let mda_locs = Label.get_metadata_locations label in
-  let mdahs = List.map (MDAHeader.unmarshal_mda_header device) mda_locs in
+  let mdahs = List.map (MDAHeader.unmarshal device) mda_locs in
   let mdt = MDAHeader.read_md device (List.hd mdahs) 0 in  
   (mdt, (label, mdahs))
 
@@ -112,7 +112,7 @@ let human_readable pv =
   let label=pv.label in
   let b=Buffer.create 1000 in
   let label_str=Label.to_ascii label in
-  let mdah_ascii = String.concat "\n" (List.map MDAHeader.to_ascii pv.mda_headers) in
+  let mdah_ascii = String.concat "\n" (List.map MDAHeader.to_string pv.mda_headers) in
   write_to_buffer b pv;
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
     label_str mdah_ascii (Buffer.contents b)
@@ -133,9 +133,9 @@ let create_new dev name =
   let label = Label.create dev id size pe_start_sector 
     (Int64.mul pe_count Constants.extent_size)
     mda_pos mda_len in
-  let mda_header = MDAHeader.create_blank () in
+  let mda_header = MDAHeader.create () in
   Label.write_label_and_pv_header label;
-  MDAHeader.write_mda_header mda_header dev;
+  MDAHeader.write mda_header dev;
   let pv = { name=name;
 	     id=id;
 	     dev=dev;

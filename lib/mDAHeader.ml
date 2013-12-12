@@ -23,7 +23,7 @@ open Logging
 open Device
 open Lvmmarshal
 
-  let mda_header_size = Constants.sector_size
+  let sizeof = Constants.sector_size
 
   type mda_raw_locn = {
     mrl_offset: int64;
@@ -32,7 +32,7 @@ open Lvmmarshal
     mrl_filler: int32;
   }
 
-  and mda_header = {
+  and t = {
     mdah_checksum : int32;
     mdah_magic : string;
     mdah_version : int32;
@@ -41,8 +41,8 @@ open Lvmmarshal
     mdah_raw_locns : mda_raw_locn list;
   } with rpc
 
-  let unmarshal_mda_header device location =
-    let buf = get_mda_header device location.Label.dl_offset mda_header_size in 
+  let unmarshal device location =
+    let buf = get_mda_header device location.Label.dl_offset sizeof in 
     let checksum,b = unmarshal_uint32 (buf,0) in
     let magic,b = unmarshal_string 16 b in
     let version,b = unmarshal_uint32 b in
@@ -59,7 +59,7 @@ open Lvmmarshal
 	read_raw_locns b ({mrl_offset=offset;mrl_size=size;mrl_checksum=checksum;mrl_filler=filler}::acc)
     in
     let raw_locns,b = read_raw_locns b [] in
-    let crc_to_check = String.sub buf 4 (mda_header_size - 4) in
+    let crc_to_check = String.sub buf 4 (sizeof - 4) in
     let crc = Crc.crc crc_to_check in
     if crc <> checksum then
       failwith "Bad checksum in MDA header";
@@ -70,15 +70,15 @@ open Lvmmarshal
      mdah_size=size;
      mdah_raw_locns=raw_locns}
 
-  let to_ascii mdah =
+  let to_string mdah =
     let rl2ascii r = Printf.sprintf "{offset:%Ld,size:%Ld,checksum:%ld,filler:%ld}" r.mrl_offset r.mrl_size r.mrl_checksum r.mrl_filler in
     Printf.sprintf "checksum: %ld\nmagic: %s\nversion: %ld\nstart: %Ld\nsize: %Ld\nraw_locns:[%s]\n"
       mdah.mdah_checksum mdah.mdah_magic mdah.mdah_version mdah.mdah_start mdah.mdah_size (String.concat "," (List.map rl2ascii mdah.mdah_raw_locns))
           
-  let write_mda_header mdah device  =
+  let write mdah device  =
     debug "Writing MDA header";
-    debug "Writing: %s" (to_ascii mdah);
-    let realheader = (String.make mda_header_size '\000', 0) in (* Mda header is 1 sector long *)
+    debug "Writing: %s" (to_string mdah);
+    let realheader = (String.make sizeof '\000', 0) in (* Mda header is 1 sector long *)
     let header = marshal_int32 realheader 0l in (* Write the checksum later *)
     let header = marshal_string header mdah.mdah_magic in
     let header = marshal_int32 header mdah.mdah_version in
@@ -93,11 +93,11 @@ open Lvmmarshal
     in
     let header = List.fold_left write_raw_locn header mdah.mdah_raw_locns in
     let header = write_raw_locn header {mrl_offset=0L; mrl_size=0L; mrl_checksum=0l; mrl_filler=0l} in
-    let crcable = String.sub (fst realheader) 4 (mda_header_size - 4) in
+    let crcable = String.sub (fst realheader) 4 (sizeof - 4) in
     let crc = Crc.crc crcable in
     let _ = marshal_int32 realheader crc in
 
-    let header = String.sub (fst header) 0 mda_header_size in   
+    let header = String.sub (fst header) 0 sizeof in   
     put_mda_header device mdah.mdah_start header
 
 let read_md dev mdah n =
@@ -158,11 +158,11 @@ let read_md dev mdah n =
     } in
 
     let mdah = {mdah with mdah_raw_locns=[new_raw_locn]} in
-    write_mda_header mdah device;
+    write mdah device;
     mdah
 
 
-  let create_blank () =
+  let create () =
     let mda_raw_locn = {
       mrl_offset = 512L;
       mrl_size = 0L;

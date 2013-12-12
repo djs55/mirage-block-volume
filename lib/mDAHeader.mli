@@ -23,21 +23,21 @@ open Logging
 open Device
 open Lvmmarshal
 
-val mda_header_size: int
+val sizeof: int
 
-type mda_header
+type t
 
-val rpc_of_mda_header: mda_header -> Rpc.t
-val mda_header_of_rpc: Rpc.t -> mda_header
+val rpc_of_t: t -> Rpc.t
+val t_of_rpc: Rpc.t -> t
 
-val unmarshal_mda_header: string -> Label.disk_locn -> mda_header
+val unmarshal: string -> Label.disk_locn -> t
 
-val to_ascii: mda_header -> string
+val to_string: t -> string
 
-val write_mda_header: mda_header -> string -> unit
+val write: t -> string -> unit
 
-val read_md: string -> mda_header -> int -> string
+val read_md: string -> t -> int -> string
 
-val write_md: string -> mda_header -> string -> mda_header
+val write_md: string -> t -> string -> t
  
-val create_blank: unit -> mda_header
+val create: unit -> t
