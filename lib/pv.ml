@@ -45,13 +45,7 @@ module MDAHeader = struct
   } with rpc
 
   let unmarshal_mda_header device location =
-    let offset,fd = 
-      if !Constants.dummy_mode 
-      then (0L,Unix.openfile (dummy_fname device "mdah") [Unix.O_RDONLY] 0o000) 
-      else (location.Label.dl_offset,Unix.openfile device [Unix.O_RDONLY] 0o000) in
-    ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
-    let buf = really_read fd (mda_header_size) in
-    Unix.close fd;
+    let buf = get_mda_header device location.Label.dl_offset mda_header_size in 
     let checksum,b = unmarshal_uint32 (buf,0) in
     let magic,b = unmarshal_string 16 b in
     let version,b = unmarshal_uint32 b in
@@ -105,19 +99,9 @@ module MDAHeader = struct
     let crcable = String.sub (fst realheader) 4 (mda_header_size - 4) in
     let crc = Crc.crc crcable in
     let _ = marshal_int32 realheader crc in
-    
-    let fd = 
-      if !Constants.dummy_mode then begin
-	Unix.openfile (dummy_fname device "mdah") [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
-      end else begin
-        let fd = Unix.openfile device [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
-	ignore(Unix.LargeFile.lseek fd mdah.mdah_start Unix.SEEK_SET);
-	fd
-      end
-    in
-    let written = Unix.write fd (fst header) 0 mda_header_size in
-    if written <> Constants.sector_size then failwith "Wrote short!";
-    Unix.close fd
+
+    let header = String.sub (fst header) 0 mda_header_size in   
+    put_mda_header device mdah.mdah_start header
       
 	let read_md dev mdah n =
 		(* debug *)
