@@ -102,37 +102,20 @@ module MDAHeader = struct
 
     let header = String.sub (fst header) 0 mda_header_size in   
     put_mda_header device mdah.mdah_start header
-      
-	let read_md dev mdah n =
-		(* debug *)
-		let locn = List.nth mdah.mdah_raw_locns n in
-		let fd =
-			if !Constants.dummy_mode then begin
-				Unix.openfile (dummy_fname dev "md") [Unix.O_RDONLY] 0o000
-			end else begin
-				let fd = Unix.openfile dev [Unix.O_RDONLY] 0o000 in
-				ignore(Unix.LargeFile.lseek fd (Int64.add mdah.mdah_start locn.mrl_offset) Unix.SEEK_SET);
-				fd
-			end
-		in
-		let md =
-			(* Include terminating \0 in this string.
-			 * The checksum calculation in original lvm does so, too.*)
-			if(Int64.add locn.mrl_offset locn.mrl_size > mdah.mdah_size)
-			then (* wrap around *)
-				let firstbit = Int64.to_int (Int64.sub mdah.mdah_size locn.mrl_offset) in
-				let firstbitstr = really_read fd firstbit in
-				let secondbit = (Int64.to_int locn.mrl_size) - firstbit in
-				if not !Constants.dummy_mode then ignore(Unix.LargeFile.lseek fd (Int64.add mdah.mdah_start 512L) Unix.SEEK_SET);
-				let secondbitstr = really_read fd secondbit in
-				firstbitstr ^ secondbitstr
-			else
-				really_read fd (Int64.to_int locn.mrl_size) in
-		let checksum = Crc.crc md in
-		Unix.close fd;
-		if checksum <> locn.mrl_checksum then
-			Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
-		md
+
+let read_md dev mdah n =
+	let locn = List.nth mdah.mdah_raw_locns n in
+	let firstbit, secondbit =
+		if Int64.add locn.mrl_offset locn.mrl_size > mdah.mdah_size
+		then
+			let firstbit = Int64.(to_int (sub mdah.mdah_size locn.mrl_offset)) in
+			firstbit, Int64.to_int locn.mrl_size - firstbit
+		else Int64.to_int locn.mrl_size, 0 in
+	let md = Device.get_md dev (Int64.add mdah.mdah_start locn.mrl_offset) (Int64.add mdah.mdah_start 512L) firstbit secondbit in
+	let checksum = Crc.crc md in
+	if checksum <> locn.mrl_checksum then
+		Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
+	md
       
   let write_md device mdah md =
     (* Find the current raw location of the metadata, assuming there's only one copy *)

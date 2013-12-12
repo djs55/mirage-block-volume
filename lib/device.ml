@@ -72,3 +72,19 @@ let put_mda_header device offset header =
   let written = Unix.write fd header 0 (String.length header) in
   if written <> (String.length header) then failwith "Wrote short!";
   Unix.close fd
+
+let get_md device offset offset' firstbit secondbit =
+  let fd =
+    if !Constants.dummy_mode then begin
+      Unix.openfile (dummy_fname device "md") [Unix.O_RDONLY] 0o000
+    end else begin
+      let fd = Unix.openfile device [Unix.O_RDONLY] 0o000 in
+      ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
+      fd
+    end in
+  let firstbitstr = really_read_string fd firstbit in
+  if not !Constants.dummy_mode then ignore(Unix.LargeFile.lseek fd offset' Unix.SEEK_SET);
+  let secondbitstr = really_read_string fd secondbit in
+  Unix.close fd;
+  firstbitstr ^ secondbitstr
+
