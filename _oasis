@@ -10,7 +10,7 @@ Plugins:      DevFiles (0.3), META (0.3)
 
 Library lvm
   Path: lib
-  Modules: Absty, Allocator, Constants, Crc, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Lvmmarshal, Lvm_uuid, Pv, Redo, Tag, Utils, Vg 
+  Modules: Absty, Allocator, Constants, Label, Crc, Device, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Lvmmarshal, Lvm_uuid, Pv, Redo, Tag, Utils, Vg 
   Pack: true
   BuildDepends: stdext,rpclib.syntax,rpclib,threads,camldm,uuidm,re.str
 

@@ -220,7 +220,7 @@ let dm_map_of_lv vg lv use_pv_id =
 		    Camldm.Linear {
 		      Camldm.device = 
 			if use_pv_id 
-			then Camldm.Dereferenced (Lvm_uuid.to_string pv.Pv.label.Pv.Label.pv_header.Pv.Label.pvh_id)
+			then Camldm.Dereferenced (Lvm_uuid.to_string pv.Pv.label.Label.pv_header.Label.pvh_id)
 			else Camldm.Real pv.Pv.dev; 
 		      offset=extent_to_phys_sector pv l.Lv.l_pv_start_extent }
 		| Lv.Striped st ->
@@ -376,7 +376,7 @@ let write_full vg =
   let md = to_string vg in
   let vg = 
     {vg with pvs = List.map (fun pv -> 
-      Pv.Label.write_label_and_pv_header pv.Pv.label;
+      Label.write_label_and_pv_header pv.Pv.label;
       { pv with Pv.mda_headers = 
 	  List.map (fun mdah -> 
 	    Pv.MDAHeader.write_md pv.Pv.real_device mdah md) pv.Pv.mda_headers}) pvs}
