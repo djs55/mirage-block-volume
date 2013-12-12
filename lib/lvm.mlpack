@@ -1,9 +1,10 @@
 # OASIS_START
-# DO NOT EDIT (digest: be2d7953f048ad2480a8f05cfa2427ef)
+# DO NOT EDIT (digest: a4b2123b3e34686b3a1f445ea9388932)
 Absty
 Allocator
 Constants
 Label
+MDAHeader
 Crc
 Device
 Logging
