@@ -15,14 +15,8 @@
 
 (** Physical Volume module *)
 
-type label_header = {
-  id : string; (* 8 bytes, equal to label_id in Constants *)
-  sector : int64;
-  crc : int32;
-  offset : int32;
-  ty : string (* 8 bytes, equal to "LVM2 001" - Constants.label_type*)
-}
-      
+type label_header
+
 type disk_locn = {
   dl_offset : int64;
   dl_size : int64;
