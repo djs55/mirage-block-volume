@@ -307,15 +307,7 @@ let human_readable pv =
     label_str mdah_ascii (Buffer.contents b)
 
 let create_new dev name =
-  let size = 
-    if !Constants.dummy_mode then 
-      Constants.tib
-    else 
-      let fd = Unix.openfile dev [Unix.O_RDONLY] 0 in
-      let size = Unixext.blkgetsize64 fd in
-      Unix.close fd;
-      size
-  in
+  let size = Device.get_size dev in
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
   let dev_size = Int64.div size (Int64.of_int Constants.sector_size) in
   let mda_pos = Constants.mdah_start in

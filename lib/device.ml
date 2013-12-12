@@ -19,6 +19,15 @@ let dummy_fname dev ty =
   Unixext.mkdir_rec basedir 0o755;
   fname
 
+let get_size device =
+  if !Constants.dummy_mode then 
+    Constants.tib
+  else 
+    let fd = Unix.openfile device [Unix.O_RDONLY] 0 in
+    let size = Unixext.blkgetsize64 fd in
+    Unix.close fd;
+    size
+
 let get_label device =
   let fd = Unix.openfile (if !Constants.dummy_mode then dummy_fname device "pvh" else device) [Unix.O_RDONLY] 0o000 in
   let buf = really_read_string fd (if !Constants.dummy_mode then (Constants.sector_size * 2) else Constants.label_scan_size) in
