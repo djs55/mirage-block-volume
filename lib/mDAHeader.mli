@@ -32,6 +32,8 @@ val t_of_rpc: Rpc.t -> t
 
 val unmarshal: string -> Label.disk_locn -> t
 
+val marshal: t -> string
+
 val to_string: t -> string
 
 val write: t -> string -> unit

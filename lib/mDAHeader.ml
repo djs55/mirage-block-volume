@@ -74,10 +74,8 @@ open Lvmmarshal
     let rl2ascii r = Printf.sprintf "{offset:%Ld,size:%Ld,checksum:%ld,filler:%ld}" r.mrl_offset r.mrl_size r.mrl_checksum r.mrl_filler in
     Printf.sprintf "checksum: %ld\nmagic: %s\nversion: %ld\nstart: %Ld\nsize: %Ld\nraw_locns:[%s]\n"
       mdah.mdah_checksum mdah.mdah_magic mdah.mdah_version mdah.mdah_start mdah.mdah_size (String.concat "," (List.map rl2ascii mdah.mdah_raw_locns))
-          
-  let write mdah device  =
-    debug "Writing MDA header";
-    debug "Writing: %s" (to_string mdah);
+
+let marshal mdah =
     let realheader = (String.make sizeof '\000', 0) in (* Mda header is 1 sector long *)
     let header = marshal_int32 realheader 0l in (* Write the checksum later *)
     let header = marshal_string header mdah.mdah_magic in
@@ -96,8 +94,12 @@ open Lvmmarshal
     let crcable = String.sub (fst realheader) 4 (sizeof - 4) in
     let crc = Crc.crc crcable in
     let _ = marshal_int32 realheader crc in
+    String.sub (fst header) 0 sizeof
 
-    let header = String.sub (fst header) 0 sizeof in   
+  let write mdah device  =
+    debug "Writing MDA header";
+    debug "Writing: %s" (to_string mdah);
+    let header = marshal mdah in
     put_mda_header device mdah.mdah_start header
 
 let read_md dev mdah n =
