@@ -25,6 +25,21 @@ let get_label device =
   Unix.close fd;
   buf
 
+let put_label device offset buf =
+  let fd =
+    if !Constants.dummy_mode then begin
+      let fname = dummy_fname device "pvh" in
+      Unix.openfile fname [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
+    end else begin
+      let fd = Unix.openfile device [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
+      fd
+    end
+  in
+  ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
+  let len = String.length buf in
+  if len <> (Unix.write fd buf 0 len) then failwith "Short write!";
+  Unix.close fd
+
 let get_mda_header device offset mda_header_size =
   let offset,fd = 
   if !Constants.dummy_mode 

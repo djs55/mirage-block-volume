@@ -143,24 +143,8 @@ let write_label_and_pv_header l =
   (* Now calc CRC *)
   let crc = Crc.crc (String.sub do_crc_str do_crc_from (Constants.label_size - do_crc_from)) in
   ignore(marshal_int32 crc_pos crc);
-    
-  let fd = 
-    if !Constants.dummy_mode then begin
-      let fname = dummy_fname dev "pvh" in 
-      Unix.openfile fname [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
-    end else begin
-      let fd = Unix.openfile dev [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
-      fd
-    end
-  in
-
-  ignore(Unix.LargeFile.lseek fd pos Unix.SEEK_SET);
-      
-  let str = fst header in
-  let len = String.length str in
-  if len <> (Unix.write fd str 0 len) then failwith "Short write!";
-    
-  Unix.close fd
+  
+  Device.put_label dev pos (fst header)
 
 let get_metadata_locations label = 
   label.pv_header.pvh_metadata_areas
