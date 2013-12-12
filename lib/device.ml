@@ -19,6 +19,12 @@ let dummy_fname dev ty =
   Unixext.mkdir_rec basedir 0o755;
   fname
 
+let get_label device =
+  let fd = Unix.openfile (if !Constants.dummy_mode then dummy_fname device "pvh" else device) [Unix.O_RDONLY] 0o000 in
+  let buf = really_read_string fd (if !Constants.dummy_mode then (Constants.sector_size * 2) else Constants.label_scan_size) in
+  Unix.close fd;
+  buf
+
 let get_mda_header device offset mda_header_size =
   let offset,fd = 
   if !Constants.dummy_mode 

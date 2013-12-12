@@ -63,9 +63,7 @@ let unmarshal_header b0 =
    ty=ty}
       
 let find_label dev =
-  let fd = Unix.openfile (if !Constants.dummy_mode then dummy_fname dev "pvh" else dev) [Unix.O_RDONLY] 0o000 in
-  let buf = really_read fd (if !Constants.dummy_mode then (Constants.sector_size * 2) else Constants.label_scan_size) in
-  Unix.close fd;
+  let buf = get_label dev in
   let rec find n =
     if n>3 then failwith "No label found" else begin
       let b = (buf,n*Constants.sector_size) in
