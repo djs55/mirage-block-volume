@@ -77,7 +77,7 @@ let of_metadata name config pvdatas =
 	Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" device;
 	let label = Label.find device in
 	let mda_locs = Label.get_metadata_locations label in
-	let mdahs = List.map (MDAHeader.unmarshal device) mda_locs in
+	let mdahs = List.map (MDAHeader.read device) mda_locs in
 	(label,mdahs)
       with e ->
 	Printf.fprintf stderr "Error: Could not find label and/or MDA headers on device '%s'\n" 
@@ -104,7 +104,7 @@ let find_metadata device =
   let label = Label.find device in
   debug "Label found: \n%s\n" (Label.to_ascii label);
   let mda_locs = Label.get_metadata_locations label in
-  let mdahs = List.map (MDAHeader.unmarshal device) mda_locs in
+  let mdahs = List.map (MDAHeader.read device) mda_locs in
   let mdt = MDAHeader.read_md device (List.hd mdahs) 0 in  
   (mdt, (label, mdahs))
 

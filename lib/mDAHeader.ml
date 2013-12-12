@@ -41,8 +41,15 @@ open Lvmmarshal
     mdah_raw_locns : mda_raw_locn list;
   } with rpc
 
-  let unmarshal device location =
-    let buf = get_mda_header device location.Label.dl_offset sizeof in 
+  let equals a b =
+    (* the checksum is filled in by marshal, and verified by unmarshal *)
+    a.mdah_magic = b.mdah_magic
+    && (a.mdah_version = b.mdah_version)
+    && (a.mdah_start = b.mdah_start)
+    && (a.mdah_size = b.mdah_size)
+    && (a.mdah_raw_locns = b.mdah_raw_locns)
+
+  let unmarshal buf =
     let checksum,b = unmarshal_uint32 (buf,0) in
     let magic,b = unmarshal_string 16 b in
     let version,b = unmarshal_uint32 b in
@@ -69,6 +76,10 @@ open Lvmmarshal
      mdah_start=start;
      mdah_size=size;
      mdah_raw_locns=raw_locns}
+
+  let read device location =
+    let buf = get_mda_header device location.Label.dl_offset sizeof in 
+    unmarshal buf
 
   let to_string mdah =
     let rl2ascii r = Printf.sprintf "{offset:%Ld,size:%Ld,checksum:%ld,filler:%ld}" r.mrl_offset r.mrl_size r.mrl_checksum r.mrl_filler in

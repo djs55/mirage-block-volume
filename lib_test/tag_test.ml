@@ -41,8 +41,17 @@ let well_known_mdaheader () =
   let mda' = MDAHeader.marshal empty in
   assert_equal mda mda'
 
+let unmarshal_marshal_mdaheader () =
+  let open MDAHeader in
+  let empty = create () in
+  let empty' = unmarshal(marshal(empty)) in
+  assert_equal ~printer:MDAHeader.to_string ~cmp:equals empty empty';
+  let empty'' = unmarshal(marshal(empty')) in
+  assert_equal ~printer:MDAHeader.to_string ~cmp:equals empty' empty''
+
 let mda_suite = "MDAHeader" >::: [
   "well known MDA header" >:: well_known_mdaheader;
+  "unmarshal(marshal(MDAHeader.create()))" >:: unmarshal_marshal_mdaheader;
 ]
 
 let _ =
