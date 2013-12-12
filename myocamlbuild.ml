@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: cef5a1cea4d0e621e511edcd6c2629a1) *)
+(* DO NOT EDIT (digest: f0c65a35adad1c11255d30b045e876b7) *)
 module OASISGettext = struct
 (* # 21 "src/oasis/OASISGettext.ml" *)
 
@@ -477,7 +477,7 @@ end
 open Ocamlbuild_plugin;;
 let package_default =
   {
-     MyOCamlbuildBase.lib_ocaml = [("lvm", ["lib"])];
+     MyOCamlbuildBase.lib_ocaml = [("lvm", ["lib"]); ("lvm_mapper", ["lib"])];
      lib_c = [];
      flags = [];
      includes = [("lib_test", ["lib"])];
