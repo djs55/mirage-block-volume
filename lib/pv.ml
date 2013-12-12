@@ -318,10 +318,6 @@ module MDAHeader = struct
       
 	let read_md dev mdah n =
 		(* debug *)
-		let oc = open_out "/tmp/hdr" in
-		Printf.fprintf oc "%s\n%!" (to_ascii mdah);
-		close_out oc;
-
 		let locn = List.nth mdah.mdah_raw_locns n in
 		let fd =
 			if !Constants.dummy_mode then begin
@@ -366,11 +362,6 @@ module MDAHeader = struct
       else 
 	newpos
     in
-
-    (* debug *)
-    let oc = open_out "/tmp/hdr" in
-    Printf.fprintf oc "%s\n%!" (to_ascii mdah);
-    close_out oc;
 
     (* Add on the position of the metadata area *)
     let absnewpos = Int64.add newpos mdah.mdah_start in

@@ -89,7 +89,6 @@ let to_string vg =
 
 let do_op vg op =
 	(if vg.seqno <> op.so_seqno then failwith "Failing to do VG operation out-of-order");
-	Unixext.write_string_to_file (Printf.sprintf "/tmp/redo_op.%d" op.so_seqno) (Redo.redo_to_human_readable op);
 	let rec createsegs ss lstart =
 		match ss with
 			| a::ss ->
@@ -382,7 +381,6 @@ let write_full vg =
 	  List.map (fun mdah -> 
 	    Pv.MDAHeader.write_md pv.Pv.real_device mdah md) pv.Pv.mda_headers}) pvs}
   in
-  Unixext.write_string_to_file (Printf.sprintf "/tmp/metadata.%d" vg.seqno) md;
   (match vg.redo_lv with Some _ -> reset_redo vg | None -> ());
   vg
 
@@ -479,9 +477,6 @@ let load devices =
   let mds_and_pvdatas = List.map Pv.find_metadata devices in
   let md = fst (List.hd mds_and_pvdatas) in
   let pvdatas = List.map snd mds_and_pvdatas in
-  let oc = open_out "/tmp/metadata" in
-  Printf.fprintf oc "%s" md;
-  close_out oc;
   parse md pvdatas
 
 let set_dummy_mode base_dir mapper_name full_provision =
