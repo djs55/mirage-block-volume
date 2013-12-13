@@ -15,7 +15,15 @@
 
 (** Physical Volume module *)
 
-type label_header
+module Label_header : sig
+  type t
+
+  val create: unit -> t
+
+  val marshal: t -> string * int
+
+  val unmarshal: string * int -> t
+end
 
 type disk_locn = {
   dl_offset : int64;
@@ -31,7 +39,7 @@ type pv_header = {
 
 type t = {
   device : string;
-  label_header : label_header;
+  label_header : Label_header.t;
   pv_header : pv_header;
 }
 

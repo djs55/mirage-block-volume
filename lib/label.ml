@@ -20,15 +20,65 @@ open Logging
 open Device
 open Lvmmarshal
 
-type label_header = {
-  id : string; (* 8 bytes, equal to label_id in Constants *)
-  sector : int64;
-  crc : int32;
-  offset : int32;
-  ty : string (* 8 bytes, equal to "LVM2 001" - Constants.label_type*)
-}
+let crc_pos = 8 + 8
+let do_crc_from = crc_pos + 4
+
+module Label_header = struct
+  type t = {
+    id : string; (* 8 bytes, equal to label_id in Constants *)
+    sector : int64;
+    crc : int32;
+    offset : int32;
+    ty : string (* 8 bytes, equal to "LVM2 001" - Constants.label_type*)
+  } with rpc
+
+  let create () = {
+    id=Constants.label_id;
+    sector=1L;
+    crc=0l;
+    offset=32l;
+    ty=Constants.label_type;
+  }
+    
+  let unmarshal b0 =
+    let id,b = unmarshal_string 8 b0 in
+    let sector_xl,b = unmarshal_uint64 b in
+    let crc_xl,b = unmarshal_uint32 b in
+    let offset,b = unmarshal_uint32 b in
+    let ty,b = unmarshal_string 8 b in
+    let crc_check = String.sub (fst b0) (20 + snd b0) (Constants.label_size - 20) in (* wtf? *)
+    let calculated_crc = Crc.crc crc_check in
+    if calculated_crc <> crc_xl then
+      failwith "Bad checksum in PV Label";
+    {id=id;
+     sector=sector_xl;
+     crc=crc_xl;
+     offset=offset;
+     ty=ty}
+
+  let marshal label =
+    let header = (String.make Constants.sector_size '\000', 0) in (* label header is 1 sector long *)
+    assert(label.offset=32l);
+    
+    let header = marshal_string header label.id in
+    let header = marshal_int64  header label.sector in
+  
+    assert(snd header = crc_pos); (* fill in later *)
+    let header = marshal_int32  header 0l in
+    
+    let header = marshal_int32  header label.offset in
+    let header = marshal_string header label.ty in
+    
+    assert(snd header = 32);
+    header
+
+  let to_string t =
+    Printf.sprintf "id: %s\nsector: %Ld\ncrc: %ld\noffset: %ld\nty: %s\n"
+      t.id t.sector t.crc t.offset t.ty
       
-and disk_locn = {
+end
+
+type disk_locn = {
   dl_offset : int64;
   dl_size : int64;
 }
@@ -42,25 +92,10 @@ and pv_header = {
 
 and t = {
   device : string;
-  label_header : label_header;
+  label_header : Label_header.t;
   pv_header : pv_header;
 } with rpc 
 
-let unmarshal_header b0 =
-  let id,b = unmarshal_string 8 b0 in
-  let sector_xl,b = unmarshal_uint64 b in
-  let crc_xl,b = unmarshal_uint32 b in
-  let offset,b = unmarshal_uint32 b in
-  let ty,b = unmarshal_string 8 b in
-  let crc_check = String.sub (fst b0) (20 + snd b0) (Constants.label_size - 20) in (* wtf? *)
-  let calculated_crc = Crc.crc crc_check in
-  if calculated_crc <> crc_xl then
-    failwith "Bad checksum in PV Label";
-  {id=id;
-   sector=sector_xl;
-   crc=crc_xl;
-   offset=offset;
-   ty=ty}
       
 let find_label dev =
   let buf = get_label dev in
@@ -69,15 +104,12 @@ let find_label dev =
       let b = (buf,n*Constants.sector_size) in
       let (s,b') = unmarshal_string 8 b in
       Printf.fprintf stderr "String='%s' (looking for %s)\n" s Constants.label_id;
-      if s=Constants.label_id then (unmarshal_header b,b) else find (n+1)
+      if s=Constants.label_id then (Label_header.unmarshal b,b) else find (n+1)
     end
   in find 0
     
-let label_header_to_ascii label =
-  Printf.sprintf "id: %s\nsector: %Ld\ncrc: %ld\noffset: %ld\nty: %s\n" label.id label.sector label.crc label.offset label.ty
-      
 let read_pv_header label b =
-  let b = skip (Int32.to_int label.offset) b in
+  let b = skip (Int32.to_int label.Label_header.offset) b in
   let id,b = unmarshal_string 32 b in
   let size,b = unmarshal_uint64 b in
   let rec do_disk_locn b acc =
@@ -108,26 +140,16 @@ let write_label_and_pv_header l =
   let pvh = l.pv_header in
   let dev = l.device in
 
-  let header = (String.make Constants.sector_size '\000', 0) in (* label header is 1 sector long *)
-  let pos = Int64.mul label.sector (Int64.of_int Constants.sector_size) in
-  assert(label.offset=32l);
-    
-  let header = marshal_string header label.id in
-  let header = marshal_int64  header label.sector in
-    
-  let crc_pos = header in (* Set later! *)
-  let header = marshal_int32  header 0l in
-    
-  let (do_crc_str,do_crc_from) = header in
-  let header = marshal_int32  header label.offset in
-  let header = marshal_string header label.ty in
+  let header = Label_header.marshal label in
+  assert(label.Label_header.offset=32l);
     
   assert(snd header = 32);
 
   debug "write_label_and_pv_header:\nPV header:\n%s" (pvh_to_ascii pvh);
 
   (* PV header *)
-  let header = marshal_string header (Lvm_uuid.marshal pvh.pvh_id) in   let header = marshal_int64 header pvh.pvh_device_size in
+  let header = marshal_string header (Lvm_uuid.marshal pvh.pvh_id) in
+  let header = marshal_int64 header pvh.pvh_device_size in
     
   let do_disk_locn header l =
     let header = List.fold_left (fun header e ->
@@ -141,9 +163,10 @@ let write_label_and_pv_header l =
   let header = do_disk_locn header pvh.pvh_metadata_areas in
     
   (* Now calc CRC *)
-  let crc = Crc.crc (String.sub do_crc_str do_crc_from (Constants.label_size - do_crc_from)) in
-  ignore(marshal_int32 crc_pos crc);
+  let crc = Crc.crc (String.sub (fst header) do_crc_from (Constants.label_size - do_crc_from)) in
+  ignore(marshal_int32 (fst header, crc_pos) crc);
   
+  let pos = Int64.mul label.Label_header.sector (Int64.of_int Constants.sector_size) in
   Device.put_label dev pos (fst header)
 
 let get_metadata_locations label = 
@@ -163,13 +186,7 @@ let find device =
     pv_header = pvh; }
       
 let create device id size extents_start extents_size mda_start mda_size =
-  let label = {
-    id=Constants.label_id;
-    sector=1L;
-    crc=0l;
-    offset=32l;
-    ty=Constants.label_type;
-  } in
+  let label = Label_header.create () in
   let pvh = {
     pvh_id=id;
     pvh_device_size=size;
@@ -182,5 +199,5 @@ let create device id size extents_start extents_size mda_start mda_size =
 
 let to_ascii label =
   Printf.sprintf "Label header:\n%s\nPV Header:\n%s\n" 
-    (label_header_to_ascii label.label_header)
+    (Label_header.to_string label.label_header)
     (pvh_to_ascii label.pv_header)

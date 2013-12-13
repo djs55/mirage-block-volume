@@ -54,6 +54,18 @@ let mda_suite = "MDAHeader" >::: [
   "unmarshal(marshal(MDAHeader.create()))" >:: unmarshal_marshal_mdaheader;
 ]
 
+let label_header = "LABELONE\001\000\000\000\000\000\000\000\000\000\000\000 \000\000\000LVM2 001"
+
+let well_known_label_header () =
+  let open Label.Label_header in
+  let sector = marshal (create ()) in
+  let label_header' = String.sub (fst sector) 0 (snd sector) in
+  assert_equal label_header label_header'
+
+let label_suite = "Label header" >::: [
+  "well known label header" >:: well_known_label_header;
+]
+
 let _ =
   let verbose = ref false in
   Arg.parse [
@@ -62,5 +74,6 @@ let _ =
     "MLVM test suite";
 
   run_test_tt ~verbose:!verbose tag_suite;
-  run_test_tt ~verbose:!verbose mda_suite
+  run_test_tt ~verbose:!verbose mda_suite;
+  run_test_tt ~verbose:!verbose label_suite
 
