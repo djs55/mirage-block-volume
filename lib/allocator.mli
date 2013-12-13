@@ -16,8 +16,8 @@ type area = string * (int64 * int64)
 
 type t = area list
 
-val t_of_rpc: Rpc.t -> t
-val rpc_of_t: t -> Rpc.t
+include S.RPC with type t := t
+include S.PRINT with type t := t
 
 (* Needed only for the test case: *)
 val make_area: string -> int64 -> int64 -> area
@@ -28,8 +28,6 @@ val make_area_by_end: string -> int64 -> int64 -> area
 val safe_alloc: t -> int64 -> (area list * t) option
 val normalize: t -> t
 (* ---- *)
-
-val to_string: t -> string
 
 val create: string -> int64 -> t
 
