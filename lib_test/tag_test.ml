@@ -39,15 +39,19 @@ let mda = "\186\233\186\158 LVM2 x[5A%r0N*>\001\000\000\000\000\016\000\000\000\
 let well_known_mdaheader () =
   let open Metadata.Header in
   let empty = create () in
-  let mda' = marshal empty in
-  assert_equal mda mda'
+  let data = String.make sizeof '\000', 0 in
+  let _ = marshal empty data in
+  assert_equal mda (fst data)
 
 let unmarshal_marshal_mdaheader () =
   let open Metadata.Header in
   let empty = create () in
-  let empty' = unmarshal(marshal(empty)) in
+  let data = String.make sizeof '\000', 0 in
+  let _ = marshal empty data in
+  let empty', _ = unmarshal data in
   assert_equal ~printer:to_string ~cmp:equals empty empty';
-  let empty'' = unmarshal(marshal(empty')) in
+  let _ = marshal empty' data in
+  let empty'', _ = unmarshal data in
   assert_equal ~printer:to_string ~cmp:equals empty' empty''
 
 let mda_suite = "Metadata" >::: [

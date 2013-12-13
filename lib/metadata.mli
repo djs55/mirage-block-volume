@@ -21,20 +21,10 @@ module Header: sig
   val sizeof: int
   (** The MDA header is always of fixed size *)
 
-  val equals: t -> t -> bool
-  (** [equals a b] if [a] and [b] represent the same MDA header *)
-
-  val rpc_of_t: t -> Rpc.t
-  val t_of_rpc: Rpc.t -> t
-
-  val marshal: t -> string
-  (** [marshal t] writes [t] to a binary string *)
-
-  val unmarshal: string -> t
-  (** [unmarshal buf] returns an instance of [t] read from [buf] *)
-
-  val to_string: t -> string
-  (** [to_string t] returns a pretty-printable version of [t] *)
+  include S.EQUALS with type t := t
+  include S.RPC with type t := t
+  include S.PRINT with type t := t
+  include S.MARSHAL with type t := t
 
   val write: t -> string -> unit
   (** [write t device] writes [t] to the [device] *)

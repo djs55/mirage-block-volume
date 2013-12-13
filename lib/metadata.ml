@@ -54,7 +54,7 @@ module Header = struct
     && (a.mdah_raw_locns = b.mdah_raw_locns)
 
   let unmarshal buf =
-    let checksum,b = unmarshal_uint32 (buf,0) in
+    let checksum,b = unmarshal_uint32 buf in
     let magic,b = unmarshal_string 16 b in
     let version,b = unmarshal_uint32 b in
     let start,b = unmarshal_uint64 b in
@@ -70,7 +70,7 @@ module Header = struct
 	read_raw_locns b ({mrl_offset=offset;mrl_size=size;mrl_checksum=checksum;mrl_filler=filler}::acc)
     in
     let raw_locns,b = read_raw_locns b [] in
-    let crc_to_check = String.sub buf 4 (sizeof - 4) in
+    let crc_to_check = String.sub (fst buf) (snd buf + 4) (sizeof - 4) in
     let crc = Crc.crc crc_to_check in
     if crc <> checksum then
       failwith "Bad checksum in MDA header";
@@ -79,20 +79,19 @@ module Header = struct
      mdah_version=version;
      mdah_start=start;
      mdah_size=size;
-     mdah_raw_locns=raw_locns}
+     mdah_raw_locns=raw_locns}, b
 
   let read device location =
     let buf = get_mda_header device location.Label.dl_offset sizeof in 
-    unmarshal buf
+    fst (unmarshal (buf, 0))
 
   let to_string mdah =
     let rl2ascii r = Printf.sprintf "{offset:%Ld,size:%Ld,checksum:%ld,filler:%ld}" r.mrl_offset r.mrl_size r.mrl_checksum r.mrl_filler in
     Printf.sprintf "checksum: %ld\nmagic: %s\nversion: %ld\nstart: %Ld\nsize: %Ld\nraw_locns:[%s]\n"
       mdah.mdah_checksum mdah.mdah_magic mdah.mdah_version mdah.mdah_start mdah.mdah_size (String.concat "," (List.map rl2ascii mdah.mdah_raw_locns))
 
-let marshal mdah =
-    let realheader = (String.make sizeof '\000', 0) in (* Mda header is 1 sector long *)
-    let header = marshal_int32 realheader 0l in (* Write the checksum later *)
+let marshal mdah wholeheader =
+    let header = marshal_int32 wholeheader 0l in (* Write the checksum later *)
     let header = marshal_string header mdah.mdah_magic in
     let header = marshal_int32 header mdah.mdah_version in
     let header = marshal_int64 header mdah.mdah_start in
@@ -106,16 +105,17 @@ let marshal mdah =
     in
     let header = List.fold_left write_raw_locn header mdah.mdah_raw_locns in
     let header = write_raw_locn header {mrl_offset=0L; mrl_size=0L; mrl_checksum=0l; mrl_filler=0l} in
-    let crcable = String.sub (fst realheader) 4 (sizeof - 4) in
+    let crcable = String.sub (fst wholeheader) 4 (sizeof - 4) in
     let crc = Crc.crc crcable in
-    let _ = marshal_int32 realheader crc in
-    String.sub (fst header) 0 sizeof
+    let _ = marshal_int32 wholeheader crc in
+    header
 
   let write mdah device  =
     debug "Writing MDA header";
     debug "Writing: %s" (to_string mdah);
-    let header = marshal mdah in
-    put_mda_header device mdah.mdah_start header
+    let sector = String.make sizeof '\000' in
+    let _ = marshal mdah (sector, 0) in
+    put_mda_header device mdah.mdah_start sector
 
   let create () =
     let mda_raw_locn = {
