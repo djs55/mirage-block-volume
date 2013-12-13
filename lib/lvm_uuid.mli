@@ -20,6 +20,7 @@ type t
 
 include S.PRINT with type t := t
 include S.RPC with type t := t
+include S.MARSHAL with type t := t
 
 val create: unit -> t
 (** [create ()] generates a fresh uuid *)
@@ -27,8 +28,3 @@ val create: unit -> t
 val of_string: string -> t
 (** [of_string s] returns [t] corresponding to [s] *)
 
-val unmarshal: string -> t
-(** [unmarshal s] unmarshals a binary-encoded uuid *)
-
-val marshal: t -> string
-(** [marshal s] marshals the uuid to binary *)

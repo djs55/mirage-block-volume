@@ -111,7 +111,7 @@ module Pv_header = struct
   }
 
   let unmarshal b =
-    let id,b = unmarshal_string 32 b in
+    let id,b = Lvm_uuid.unmarshal b in
     let size,b = unmarshal_uint64 b in
     let rec do_disk_locn b acc =
       let offset,b = unmarshal_uint64 b in
@@ -123,13 +123,13 @@ module Pv_header = struct
     in 
     let disk_areas,b = do_disk_locn b [] in
     let disk_areas2,b = do_disk_locn b [] in
-    { pvh_id=Lvm_uuid.unmarshal id;
+    { pvh_id=id;
       pvh_device_size=size;
       pvh_extents=disk_areas;
       pvh_metadata_areas=disk_areas2},b
 
   let marshal t buf =
-    let buf = marshal_string buf (Lvm_uuid.marshal t.pvh_id) in
+    let buf = Lvm_uuid.marshal t.pvh_id buf in
     let buf = marshal_int64 buf t.pvh_device_size in
     
     let do_disk_locn buf l =

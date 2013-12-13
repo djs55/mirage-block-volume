@@ -44,11 +44,16 @@ let remove_hyphens str =
   ignore(List.fold_left foldfn (0,0) format);
   str2
 
-let unmarshal str =
-  assert (String.length str = 32);
-  add_hyphens str
+let sizeof = 32
 
-let marshal = remove_hyphens
+open Lvmmarshal
+let unmarshal buf =
+  let str, buf = unmarshal_string sizeof buf in
+  add_hyphens str, buf
+
+let marshal t buf =
+  let str = remove_hyphens t in
+  marshal_string buf str 
 
 let to_string x = x
 let of_string x = x
