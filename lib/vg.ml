@@ -237,7 +237,7 @@ let write_full vg =
   let md = to_string vg in
   let vg = 
     {vg with pvs = List.map (fun pv -> 
-      Label.write_label_and_pv_header pv.Pv.label;
+      Label.write pv.Pv.label;
       { pv with Pv.mda_headers = 
 	  List.map (fun mdah -> 
 	    MDAHeader.write_md pv.Pv.real_device mdah md) pv.Pv.mda_headers}) pvs}

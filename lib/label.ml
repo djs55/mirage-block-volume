@@ -191,13 +191,6 @@ let unmarshal (buf, ofs) =
     label_header = label;
     pv_header = pvh; }, buf
       
-let write_label_and_pv_header t =
-  let buf = String.make 512 '\000' in
-  let _ = marshal t (buf, 0) in
-  
-  let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
-  Device.put_label t.device pos buf
-
 let get_metadata_locations label = 
   label.pv_header.Pv_header.pvh_metadata_areas
 
@@ -207,11 +200,18 @@ let get_pv_id label =
 let get_device label = 
   label.device
 
-let find device =
+let read device =
   let buf = get_label device in
   let t = fst (unmarshal (buf, 0)) in
   { t with device }
       
+let write t =
+  let buf = String.make 512 '\000' in
+  let _ = marshal t (buf, 0) in
+  
+  let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
+  Device.put_label t.device pos buf
+
 let create device id size mda_start mda_size =
   let label = Label_header.create () in
   let pvh = Pv_header.create id size mda_start mda_size in

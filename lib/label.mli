@@ -58,14 +58,11 @@ type t = {
   pv_header : Pv_header.t;
 }
 
-val t_of_rpc: Rpc.t -> t
-val rpc_of_t: t -> Rpc.t
+val create: string -> Lvm_uuid.t -> int64 -> int64 -> int64 -> t
 
-val marshal: t -> string * int -> string * int
+val to_string: t -> string
 
-val unmarshal: string * int -> t * (string * int)
-
-val write_label_and_pv_header: t -> unit
+val equals: t -> t -> bool
 
 val get_metadata_locations: t -> disk_locn list
 
@@ -73,10 +70,14 @@ val get_pv_id: t -> Lvm_uuid.t
 
 val get_device: t -> string
 
-val find: string -> t
+val t_of_rpc: Rpc.t -> t
+val rpc_of_t: t -> Rpc.t
 
-val create: string -> Lvm_uuid.t -> int64 -> int64 -> int64 -> t
+val marshal: t -> string * int -> string * int
 
-val to_string: t -> string
+val unmarshal: string * int -> t * (string * int)
 
-val equals: t -> t -> bool
+val read: string -> t
+
+val write: t -> unit
+

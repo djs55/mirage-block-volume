@@ -75,7 +75,7 @@ let of_metadata name config pvdatas =
     with Not_found -> 
       try
 	Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" device;
-	let label = Label.find device in
+	let label = Label.read device in
 	let mda_locs = Label.get_metadata_locations label in
 	let mdahs = List.map (MDAHeader.read device) mda_locs in
 	(label,mdahs)
@@ -101,7 +101,7 @@ let of_metadata name config pvdatas =
 
 (** Find the metadata area on a device and return the text of the metadata *)
 let find_metadata device =
-  let label = Label.find device in
+  let label = Label.read device in
   debug "Label found: \n%s\n" (Label.to_string label);
   let mda_locs = Label.get_metadata_locations label in
   let mdahs = List.map (MDAHeader.read device) mda_locs in
@@ -132,7 +132,7 @@ let create_new dev name =
   let id=Lvm_uuid.create () in
   let label = Label.create dev id size mda_pos mda_len in
   let mda_header = MDAHeader.create () in
-  Label.write_label_and_pv_header label;
+  Label.write label;
   MDAHeader.write mda_header dev;
   let pv = { name=name;
 	     id=id;
