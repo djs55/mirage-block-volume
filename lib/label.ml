@@ -81,19 +81,77 @@ end
 type disk_locn = {
   dl_offset : int64;
   dl_size : int64;
-}
+} with rpc
 
-and pv_header = {
-  pvh_id : Lvm_uuid.t;
-  pvh_device_size : int64;
-  pvh_extents: disk_locn list;
-  pvh_metadata_areas: disk_locn list;
-}
+module Pv_header = struct
+  type t = {
+    pvh_id : Lvm_uuid.t;
+    pvh_device_size : int64;
+    pvh_extents: disk_locn list;
+    pvh_metadata_areas: disk_locn list;
+  } with rpc
 
-and t = {
+  let equals a b =
+    a.pvh_id = b.pvh_id
+    && (a.pvh_device_size = b.pvh_device_size)
+    && (a.pvh_extents = b.pvh_extents)
+    && (a.pvh_metadata_areas = b.pvh_metadata_areas)
+
+  let create id size mda_start mda_size = {
+    pvh_id=id;
+    pvh_device_size=size;
+    pvh_extents=[{dl_offset=(Int64.add mda_start mda_size); dl_size=0L}];
+    pvh_metadata_areas=[{dl_offset=mda_start; dl_size=mda_size}];
+  }
+
+  let unmarshal b =
+    let id,b = unmarshal_string 32 b in
+    let size,b = unmarshal_uint64 b in
+    let rec do_disk_locn b acc =
+      let offset,b = unmarshal_uint64 b in
+      if offset=0L 
+      then (List.rev acc,skip 8 b) 
+      else 
+        let size,b = unmarshal_uint64 b in
+        do_disk_locn b ({dl_offset=offset; dl_size=size}::acc)
+    in 
+    let disk_areas,b = do_disk_locn b [] in
+    let disk_areas2,b = do_disk_locn b [] in
+    { pvh_id=Lvm_uuid.unmarshal id;
+      pvh_device_size=size;
+      pvh_extents=disk_areas;
+      pvh_metadata_areas=disk_areas2},b
+
+  let marshal t buf =
+    let buf = marshal_string buf (Lvm_uuid.marshal t.pvh_id) in
+    let buf = marshal_int64 buf t.pvh_device_size in
+    
+    let do_disk_locn buf l =
+      let buf = List.fold_left (fun buf e ->
+        let buf = marshal_int64 buf e.dl_offset in
+        marshal_int64 buf e.dl_size) buf l
+      in
+      marshal_int64 (marshal_int64 buf 0L) 0L
+    in
+    
+    let buf = do_disk_locn buf t.pvh_extents in
+    let buf = do_disk_locn buf t.pvh_metadata_areas in
+    buf
+
+  let to_string t =
+    let disk_area_list_to_ascii l =
+      (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.dl_offset da.dl_size) l)) in  
+    Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
+      (Lvm_uuid.to_string t.pvh_id) t.pvh_device_size 
+      (disk_area_list_to_ascii t.pvh_extents)
+      (disk_area_list_to_ascii t.pvh_metadata_areas)
+
+end
+
+type t = {
   device : string;
   label_header : Label_header.t;
-  pv_header : pv_header;
+  pv_header : Pv_header.t;
 } with rpc 
 
       
@@ -108,32 +166,6 @@ let find_label dev =
     end
   in find 0
     
-let read_pv_header label b =
-  let b = skip (Int32.to_int label.Label_header.offset) b in
-  let id,b = unmarshal_string 32 b in
-  let size,b = unmarshal_uint64 b in
-  let rec do_disk_locn b acc =
-    let offset,b = unmarshal_uint64 b in
-    if offset=0L 
-    then (List.rev acc,skip 8 b) 
-    else 
-      let size,b = unmarshal_uint64 b in
-      do_disk_locn b ({dl_offset=offset; dl_size=size}::acc)
-  in 
-  let disk_areas,b = do_disk_locn b [] in
-  let disk_areas2,b = do_disk_locn b [] in
-  { pvh_id=Lvm_uuid.unmarshal id;
-    pvh_device_size=size;
-    pvh_extents=disk_areas;
-    pvh_metadata_areas=disk_areas2},b
-
-let pvh_to_ascii pvh =
-  let disk_area_list_to_ascii l =
-    (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.dl_offset da.dl_size) l)) in  
-  Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
-    (Lvm_uuid.to_string pvh.pvh_id) pvh.pvh_device_size 
-    (disk_area_list_to_ascii pvh.pvh_extents)
-    (disk_area_list_to_ascii pvh.pvh_metadata_areas)
 
 let write_label_and_pv_header l =
   let label = l.label_header in
@@ -145,22 +177,9 @@ let write_label_and_pv_header l =
     
   assert(snd header = 32);
 
-  debug "write_label_and_pv_header:\nPV header:\n%s" (pvh_to_ascii pvh);
+  debug "write_label_and_pv_header:\nPV header:\n%s" (Pv_header.to_string pvh);
 
-  (* PV header *)
-  let header = marshal_string header (Lvm_uuid.marshal pvh.pvh_id) in
-  let header = marshal_int64 header pvh.pvh_device_size in
-    
-  let do_disk_locn header l =
-    let header = List.fold_left (fun header e ->
-      let header = marshal_int64 header e.dl_offset in
-      marshal_int64 header e.dl_size) header l
-    in
-    marshal_int64 (marshal_int64 header 0L) 0L
-  in
-    
-  let header = do_disk_locn header pvh.pvh_extents in
-  let header = do_disk_locn header pvh.pvh_metadata_areas in
+  let header = Pv_header.marshal pvh header in
     
   (* Now calc CRC *)
   let crc = Crc.crc (String.sub (fst header) do_crc_from (Constants.label_size - do_crc_from)) in
@@ -170,29 +189,25 @@ let write_label_and_pv_header l =
   Device.put_label dev pos (fst header)
 
 let get_metadata_locations label = 
-  label.pv_header.pvh_metadata_areas
+  label.pv_header.Pv_header.pvh_metadata_areas
 
 let get_pv_id label =
-  label.pv_header.pvh_id
+  label.pv_header.Pv_header.pvh_id
 
 let get_device label = 
   label.device
 
 let find device =
   let label,b = find_label device in
-  let pvh,b' = read_pv_header label b in    
+  let b = skip (Int32.to_int label.Label_header.offset) b in
+  let pvh,b' = Pv_header.unmarshal b in    
   { device = device;
     label_header = label;
     pv_header = pvh; }
       
 let create device id size extents_start extents_size mda_start mda_size =
   let label = Label_header.create () in
-  let pvh = {
-    pvh_id=id;
-    pvh_device_size=size;
-    pvh_extents=[{dl_offset=(Int64.add mda_start mda_size); dl_size=0L}];
-    pvh_metadata_areas=[{dl_offset=mda_start; dl_size=mda_size}];
-  } in
+  let pvh = Pv_header.create id size mda_start mda_size in
   { device = device;
     label_header = label;
     pv_header = pvh }
@@ -200,4 +215,4 @@ let create device id size extents_start extents_size mda_start mda_size =
 let to_ascii label =
   Printf.sprintf "Label header:\n%s\nPV Header:\n%s\n" 
     (Label_header.to_string label.label_header)
-    (pvh_to_ascii label.pv_header)
+    (Pv_header.to_string label.pv_header)

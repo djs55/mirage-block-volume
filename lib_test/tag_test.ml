@@ -66,6 +66,34 @@ let label_suite = "Label header" >::: [
   "well known label header" >:: well_known_label_header;
 ]
 
+let pv_header = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\000,\001\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000d\000\000\000\000\000\000\000\200\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
+
+let well_known_pv_header () =
+  let open Label.Pv_header in
+  let pvh = {
+    pvh_id = Lvm_uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw";
+    pvh_device_size = 1234L;
+    pvh_extents = [{Label.dl_offset = 300L; Label.dl_size = 0L}];
+    pvh_metadata_areas = [{Label.dl_offset = 100L; Label.dl_size = 200L}]
+  } in
+  let sector = String.make 512 '\000' in
+  let _, len = marshal pvh (sector, 0) in
+  let pv_header' = String.sub sector 0 len in
+  assert_equal pv_header pv_header'
+
+let unmarshal_marshal_pv_header () =
+  let open Label.Pv_header in
+  let pvh = create (Lvm_uuid.create ()) 1234L 100L 50L in
+  let sector = String.make 512 '\000' in
+  let _ = marshal pvh (sector, 0) in
+  let pvh', _ = unmarshal (sector, 0) in
+  assert_equal ~printer:to_string ~cmp:equals pvh pvh'
+
+let pv_header_suite = "PV header" >::: [
+  "well known PV header" >:: well_known_pv_header;
+  "unmarshal(marshal(Pv_header.create()))" >:: unmarshal_marshal_pv_header;
+]
+
 let _ =
   let verbose = ref false in
   Arg.parse [
@@ -75,5 +103,6 @@ let _ =
 
   run_test_tt ~verbose:!verbose tag_suite;
   run_test_tt ~verbose:!verbose mda_suite;
-  run_test_tt ~verbose:!verbose label_suite
+  run_test_tt ~verbose:!verbose label_suite;
+  run_test_tt ~verbose:!verbose pv_header_suite
 

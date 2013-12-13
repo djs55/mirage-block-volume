@@ -30,17 +30,32 @@ type disk_locn = {
   dl_size : int64;
 }
 
-type pv_header = {
-  pvh_id : Lvm_uuid.t;
-  pvh_device_size : int64;
-  pvh_extents: disk_locn list;
-  pvh_metadata_areas: disk_locn list;
-}
+module Pv_header : sig
+  type t = {
+    pvh_id : Lvm_uuid.t;
+    pvh_device_size : int64;
+    pvh_extents: disk_locn list;
+    pvh_metadata_areas: disk_locn list;
+  }
+
+  val create: Lvm_uuid.t -> int64 -> int64 -> int64 -> t
+  (** [create id size mda_start mda_size] creates a Pv_header
+      for PVID [id], disk [size], and with metadata stored from
+      [mda_start] to [mda_start + mda_size] *)
+
+  val equals: t -> t -> bool
+
+  val to_string: t -> string
+
+  val marshal: t -> string * int -> string * int
+
+  val unmarshal: string * int -> t * (string * int)
+end
 
 type t = {
   device : string;
   label_header : Label_header.t;
-  pv_header : pv_header;
+  pv_header : Pv_header.t;
 }
 
 val t_of_rpc: Rpc.t -> t
