@@ -58,12 +58,24 @@ let label_header = "LABELONE\001\000\000\000\000\000\000\000\000\000\000\000 \00
 
 let well_known_label_header () =
   let open Label.Label_header in
-  let sector = marshal (create ()) in
+  let buf = String.make 512 '\000' in
+  let sector = marshal (create ()) (buf, 0) in
   let label_header' = String.sub (fst sector) 0 (snd sector) in
   assert_equal label_header label_header'
 
+let label = "LABELONE\001\000\000\000\000\000\000\000<\131@\179 \000\000\000LVM2 001Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\000,\001\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000d\000\000\000\000\000\000\000\200\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
+
+let well_known_label () =
+  let open Label in
+  let sector = String.make 512 '\000' in
+  let expected = create "foo" (Lvm_uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") 1234L 100L 200L in
+  let _, len = marshal expected (sector, 0) in
+  let label' = String.sub sector 0 len in
+  assert_equal label label'
+
 let label_suite = "Label header" >::: [
   "well known label header" >:: well_known_label_header;
+  "well known label" >:: well_known_label;
 ]
 
 let pv_header = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\000,\001\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000d\000\000\000\000\000\000\000\200\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
@@ -93,6 +105,7 @@ let pv_header_suite = "PV header" >::: [
   "well known PV header" >:: well_known_pv_header;
   "unmarshal(marshal(Pv_header.create()))" >:: unmarshal_marshal_pv_header;
 ]
+
 
 let _ =
   let verbose = ref false in

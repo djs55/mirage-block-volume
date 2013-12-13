@@ -20,7 +20,7 @@ module Label_header : sig
 
   val create: unit -> t
 
-  val marshal: t -> string * int
+  val marshal: t -> string * int -> string * int
 
   val unmarshal: string * int -> t
 end
@@ -61,6 +61,10 @@ type t = {
 val t_of_rpc: Rpc.t -> t
 val rpc_of_t: t -> Rpc.t
 
+val marshal: t -> string * int -> string * int
+
+val unmarshal: string * int -> t * (string * int)
+
 val write_label_and_pv_header: t -> unit
 
 val get_metadata_locations: t -> disk_locn list
@@ -71,6 +75,8 @@ val get_device: t -> string
 
 val find: string -> t
 
-val create: string -> Lvm_uuid.t -> int64 -> 'a -> 'a -> int64 -> int64 -> t
+val create: string -> Lvm_uuid.t -> int64 -> int64 -> int64 -> t
 
-val to_ascii: t -> string
+val to_string: t -> string
+
+val equals: t -> t -> bool

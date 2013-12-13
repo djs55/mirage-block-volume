@@ -21,11 +21,11 @@ type stat =
 	
 and striped_segment = {
   st_stripe_size : int64;             (** In sectors *)
-  st_stripes : (string * int64) list; (** pv name * start extent *)
+  st_stripes : (string * int64) list; (** pv name (LVM uuid) * start extent *)
 }
 
 and linear_segment = {
-  l_pv_name : string;
+  l_pv_name : string; (* LVM uuid *)
   l_pv_start_extent : int64;
 }
 

@@ -32,6 +32,13 @@ module Label_header = struct
     ty : string (* 8 bytes, equal to "LVM2 001" - Constants.label_type*)
   } with rpc
 
+  let equals a b =
+    a.id = b.id
+    && (a.sector = b.sector)
+    && (a.crc = b.crc)
+    && (a.offset = b.offset)
+    && (a.ty = b.ty)
+
   let create () = {
     id=Constants.label_id;
     sector=1L;
@@ -56,21 +63,20 @@ module Label_header = struct
      offset=offset;
      ty=ty}
 
-  let marshal label =
-    let header = (String.make Constants.sector_size '\000', 0) in (* label header is 1 sector long *)
+  let marshal label buf =
     assert(label.offset=32l);
     
-    let header = marshal_string header label.id in
-    let header = marshal_int64  header label.sector in
+    let buf = marshal_string buf label.id in
+    let buf = marshal_int64  buf label.sector in
   
-    assert(snd header = crc_pos); (* fill in later *)
-    let header = marshal_int32  header 0l in
+    assert(snd buf = crc_pos); (* fill in later *)
+    let buf = marshal_int32  buf 0l in
     
-    let header = marshal_int32  header label.offset in
-    let header = marshal_string header label.ty in
+    let buf = marshal_int32  buf label.offset in
+    let buf = marshal_string buf label.ty in
     
-    assert(snd header = 32);
-    header
+    assert(snd buf = 32);
+    buf
 
   let to_string t =
     Printf.sprintf "id: %s\nsector: %Ld\ncrc: %ld\noffset: %ld\nty: %s\n"
@@ -154,39 +160,43 @@ type t = {
   pv_header : Pv_header.t;
 } with rpc 
 
-      
-let find_label dev =
-  let buf = get_label dev in
+let equals a b =
+  a.device = b.device
+  && (Label_header.equals a.label_header b.label_header)
+  && (Pv_header.equals a.pv_header b.pv_header)
+
+let sizeof = Constants.sector_size
+
+let marshal t buf =
+  let buf = Label_header.marshal t.label_header buf in
+  assert(t.label_header.Label_header.offset=32l);
+  assert(snd buf = 32);
+  let buf = Pv_header.marshal t.pv_header buf in
+  (* Now calc CRC *)
+  let crc = Crc.crc (String.sub (fst buf) do_crc_from (Constants.label_size - do_crc_from)) in
+  ignore(marshal_int32 (fst buf, crc_pos) crc);
+  buf
+
+let unmarshal (buf, ofs) =
   let rec find n =
     if n>3 then failwith "No label found" else begin
-      let b = (buf,n*Constants.sector_size) in
+      let b = (buf,ofs + n*Constants.sector_size) in
       let (s,b') = unmarshal_string 8 b in
-      Printf.fprintf stderr "String='%s' (looking for %s)\n" s Constants.label_id;
       if s=Constants.label_id then (Label_header.unmarshal b,b) else find (n+1)
-    end
-  in find 0
-    
-
-let write_label_and_pv_header l =
-  let label = l.label_header in
-  let pvh = l.pv_header in
-  let dev = l.device in
-
-  let header = Label_header.marshal label in
-  assert(label.Label_header.offset=32l);
-    
-  assert(snd header = 32);
-
-  debug "write_label_and_pv_header:\nPV header:\n%s" (Pv_header.to_string pvh);
-
-  let header = Pv_header.marshal pvh header in
-    
-  (* Now calc CRC *)
-  let crc = Crc.crc (String.sub (fst header) do_crc_from (Constants.label_size - do_crc_from)) in
-  ignore(marshal_int32 (fst header, crc_pos) crc);
+    end in
+  let label, buf = find 0 in
+  let buf = skip (Int32.to_int label.Label_header.offset) buf in
+  let pvh, buf = Pv_header.unmarshal buf in
+  { device = "";
+    label_header = label;
+    pv_header = pvh; }, buf
+      
+let write_label_and_pv_header t =
+  let buf = String.make 512 '\000' in
+  let _ = marshal t (buf, 0) in
   
-  let pos = Int64.mul label.Label_header.sector (Int64.of_int Constants.sector_size) in
-  Device.put_label dev pos (fst header)
+  let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
+  Device.put_label t.device pos buf
 
 let get_metadata_locations label = 
   label.pv_header.Pv_header.pvh_metadata_areas
@@ -198,21 +208,18 @@ let get_device label =
   label.device
 
 let find device =
-  let label,b = find_label device in
-  let b = skip (Int32.to_int label.Label_header.offset) b in
-  let pvh,b' = Pv_header.unmarshal b in    
-  { device = device;
-    label_header = label;
-    pv_header = pvh; }
+  let buf = get_label device in
+  let t = fst (unmarshal (buf, 0)) in
+  { t with device }
       
-let create device id size extents_start extents_size mda_start mda_size =
+let create device id size mda_start mda_size =
   let label = Label_header.create () in
   let pvh = Pv_header.create id size mda_start mda_size in
   { device = device;
     label_header = label;
     pv_header = pvh }
 
-let to_ascii label =
+let to_string label =
   Printf.sprintf "Label header:\n%s\nPV Header:\n%s\n" 
     (Label_header.to_string label.label_header)
     (Pv_header.to_string label.pv_header)

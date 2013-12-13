@@ -102,7 +102,7 @@ let of_metadata name config pvdatas =
 (** Find the metadata area on a device and return the text of the metadata *)
 let find_metadata device =
   let label = Label.find device in
-  debug "Label found: \n%s\n" (Label.to_ascii label);
+  debug "Label found: \n%s\n" (Label.to_string label);
   let mda_locs = Label.get_metadata_locations label in
   let mdahs = List.map (MDAHeader.read device) mda_locs in
   let mdt = MDAHeader.read_md device (List.hd mdahs) 0 in  
@@ -111,7 +111,7 @@ let find_metadata device =
 let human_readable pv =
   let label=pv.label in
   let b=Buffer.create 1000 in
-  let label_str=Label.to_ascii label in
+  let label_str=Label.to_string label in
   let mdah_ascii = String.concat "\n" (List.map MDAHeader.to_string pv.mda_headers) in
   write_to_buffer b pv;
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
@@ -130,9 +130,7 @@ let create_new dev name =
   let pe_count = Int64.div (Int64.sub size pe_start_byte) Constants.extent_size in
   let mda_len = Int64.sub pe_start_byte mda_pos in
   let id=Lvm_uuid.create () in
-  let label = Label.create dev id size pe_start_sector 
-    (Int64.mul pe_count Constants.extent_size)
-    mda_pos mda_len in
+  let label = Label.create dev id size mda_pos mda_len in
   let mda_header = MDAHeader.create () in
   Label.write_label_and_pv_header label;
   MDAHeader.write mda_header dev;
