@@ -240,7 +240,7 @@ let write_full vg =
       Label.write pv.Pv.label;
       { pv with Pv.mda_headers = 
 	  List.map (fun mdah -> 
-	    MDAHeader.write_md pv.Pv.real_device mdah md) pv.Pv.mda_headers}) pvs}
+	    Metadata.write pv.Pv.real_device mdah md) pv.Pv.mda_headers}) pvs}
   in
   (match vg.redo_lv with Some _ -> reset_redo vg | None -> ());
   vg

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b1e484fc4c9cd8fc3336fe4312786ac6)
+# DO NOT EDIT (digest: 35201bb8d3c3a2e24fd28c8a404bf12a)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -19,7 +19,7 @@
 "lib/allocator.cmx": for-pack(Lvm)
 "lib/constants.cmx": for-pack(Lvm)
 "lib/label.cmx": for-pack(Lvm)
-"lib/mDAHeader.cmx": for-pack(Lvm)
+"lib/metadata.cmx": for-pack(Lvm)
 "lib/crc.cmx": for-pack(Lvm)
 "lib/device.cmx": for-pack(Lvm)
 "lib/logging.cmx": for-pack(Lvm)

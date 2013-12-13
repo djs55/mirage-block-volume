@@ -23,6 +23,7 @@ open Logging
 open Device
 open Lvmmarshal
 
+module Header = struct
   let sizeof = Constants.sector_size
 
   type mda_raw_locn = {
@@ -113,7 +114,28 @@ let marshal mdah =
     let header = marshal mdah in
     put_mda_header device mdah.mdah_start header
 
-let read_md dev mdah n =
+  let create () =
+    let mda_raw_locn = {
+      mrl_offset = 512L;
+      mrl_size = 0L;
+      mrl_checksum = 0l;
+      mrl_filler=0l;
+    } in
+    let mda_header = {
+      mdah_checksum = 0l;
+      mdah_magic = Constants.fmtt_magic;
+      mdah_version = 1l;
+      mdah_start = Constants.mdah_start;
+      mdah_size = Constants.mdah_size;
+      mdah_raw_locns = [mda_raw_locn]
+    } in
+    mda_header
+
+end
+
+open Header
+
+let read dev mdah n =
 	let locn = List.nth mdah.mdah_raw_locns n in
 	let firstbit, secondbit =
 		if Int64.add locn.mrl_offset locn.mrl_size > mdah.mdah_size
@@ -127,7 +149,7 @@ let read_md dev mdah n =
 		Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
 	md
       
-  let write_md device mdah md =
+  let write device mdah md =
     (* Find the current raw location of the metadata, assuming there's only one copy *)
     let current = List.hd mdah.mdah_raw_locns in
     
@@ -175,19 +197,3 @@ let read_md dev mdah n =
     mdah
 
 
-  let create () =
-    let mda_raw_locn = {
-      mrl_offset = 512L;
-      mrl_size = 0L;
-      mrl_checksum = 0l;
-      mrl_filler=0l;
-    } in
-    let mda_header = {
-      mdah_checksum = 0l;
-      mdah_magic = Constants.fmtt_magic;
-      mdah_version = 1l;
-      mdah_start = Constants.mdah_start;
-      mdah_size = Constants.mdah_size;
-      mdah_raw_locns = [mda_raw_locn]
-    } in
-    mda_header
