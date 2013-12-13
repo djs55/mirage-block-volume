@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 35201bb8d3c3a2e24fd28c8a404bf12a)
+# DO NOT EDIT (digest: 572cdbc0ef23fd855c340edf72400420)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -15,6 +15,7 @@
 "_darcs": not_hygienic
 # Library lvm
 "lib/lvm.cmxs": use_lvm
+"lib/s.cmx": for-pack(Lvm)
 "lib/absty.cmx": for-pack(Lvm)
 "lib/allocator.cmx": for-pack(Lvm)
 "lib/constants.cmx": for-pack(Lvm)

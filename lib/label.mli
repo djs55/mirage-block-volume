@@ -20,9 +20,7 @@ module Label_header : sig
 
   val create: unit -> t
 
-  val marshal: t -> string * int -> string * int
-
-  val unmarshal: string * int -> t
+  include S.MARSHAL with type t := t
 end
 
 type disk_locn = {
@@ -43,13 +41,9 @@ module Pv_header : sig
       for PVID [id], disk [size], and with metadata stored from
       [mda_start] to [mda_start + mda_size] *)
 
-  val equals: t -> t -> bool
-
-  val to_string: t -> string
-
-  val marshal: t -> string * int -> string * int
-
-  val unmarshal: string * int -> t * (string * int)
+  include S.EQUALS with type t := t
+  include S.PRINT with type t := t
+  include S.MARSHAL with type t := t
 end
 
 type t = {
@@ -60,22 +54,16 @@ type t = {
 
 val create: string -> Lvm_uuid.t -> int64 -> int64 -> int64 -> t
 
-val to_string: t -> string
-
-val equals: t -> t -> bool
+include S.EQUALS with type t := t
+include S.PRINT with type t := t
+include S.MARSHAL with type t := t
+include S.RPC with type t := t
 
 val get_metadata_locations: t -> disk_locn list
 
 val get_pv_id: t -> Lvm_uuid.t
 
 val get_device: t -> string
-
-val t_of_rpc: Rpc.t -> t
-val rpc_of_t: t -> Rpc.t
-
-val marshal: t -> string * int -> string * int
-
-val unmarshal: string * int -> t * (string * int)
 
 val read: string -> t
 

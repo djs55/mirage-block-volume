@@ -18,17 +18,14 @@
 type t
 (** An LVM 'uuid'. Note this isn't a valid uuid according to RFC4122 *)
 
-val rpc_of_t: t -> Rpc.t
-val t_of_rpc: Rpc.t -> t
+include S.PRINT with type t := t
+include S.RPC with type t := t
 
 val create: unit -> t
 (** [create ()] generates a fresh uuid *)
 
 val of_string: string -> t
 (** [of_string s] returns [t] corresponding to [s] *)
-
-val to_string: t -> string
-(** [to_string t] returns a printable version of t *)
 
 val unmarshal: string -> t
 (** [unmarshal s] unmarshals a binary-encoded uuid *)

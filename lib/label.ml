@@ -61,7 +61,7 @@ module Label_header = struct
      sector=sector_xl;
      crc=crc_xl;
      offset=offset;
-     ty=ty}
+     ty=ty}, b
 
   let marshal label buf =
     assert(label.offset=32l);
@@ -182,7 +182,7 @@ let unmarshal (buf, ofs) =
     if n>3 then failwith "No label found" else begin
       let b = (buf,ofs + n*Constants.sector_size) in
       let (s,b') = unmarshal_string 8 b in
-      if s=Constants.label_id then (Label_header.unmarshal b,b) else find (n+1)
+      if s=Constants.label_id then (fst (Label_header.unmarshal b),b) else find (n+1)
     end in
   let label, buf = find 0 in
   let buf = skip (Int32.to_int label.Label_header.offset) buf in
