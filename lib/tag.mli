@@ -15,13 +15,10 @@
 type t
 (** A valid LVM volume tag *)
 
-val rpc_of_t : t -> Rpc.t
-val t_of_rpc : Rpc.t -> t
+include S.RPC with type t := t
+include S.PRINT with type t := t
 
 val of_string : string -> t
 (** [of_string string] constructs a tag from a string. Any characters
     which are illegal will be replaced by '_' *)
 
-val to_string : t -> string
-(** [to_string t] returns one of the strings which correspond with the
-    tag *)
