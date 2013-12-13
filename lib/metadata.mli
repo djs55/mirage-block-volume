@@ -46,6 +46,11 @@ module Header: sig
   (** [create ()] returns an instance of [t] *)
 end
 
+val default_start: int64
+(** Default byte offset to place the metadata area *)
+
+val default_size: int64
+(** Default length of the metadata area in bytes *)
 
 val read: string -> Header.t -> int -> string
 

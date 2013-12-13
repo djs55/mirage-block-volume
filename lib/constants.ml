@@ -28,9 +28,6 @@ let extent_size_in_sectors = Int64.div extent_size sector_sizeL
 
 let fmtt_magic = " LVM2 x[5A%r0N*>"
 
-let mdah_start = 4096L
-let mdah_size = Int64.mul 10240L 1024L 
-
 let pe_align = 65536L
 
 let redo_log_lv_name = "mlvm_redo_log"

@@ -23,6 +23,9 @@ open Logging
 open Device
 open Lvmmarshal
 
+let default_start = 4096L
+let default_size = Int64.mul 10240L 1024L (* 10 MiB *)
+
 module Header = struct
   let sizeof = Constants.sector_size
 
@@ -125,8 +128,8 @@ let marshal mdah =
       mdah_checksum = 0l;
       mdah_magic = Constants.fmtt_magic;
       mdah_version = 1l;
-      mdah_start = Constants.mdah_start;
-      mdah_size = Constants.mdah_size;
+      mdah_start = default_start;
+      mdah_size = default_size;
       mdah_raw_locns = [mda_raw_locn]
     } in
     mda_header

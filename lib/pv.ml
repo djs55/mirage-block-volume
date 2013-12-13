@@ -121,8 +121,8 @@ let create_new dev name =
   let size = Device.get_size dev in
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
   let dev_size = Int64.div size (Int64.of_int Constants.sector_size) in
-  let mda_pos = Constants.mdah_start in
-  let mda_len = Constants.mdah_size in
+  let mda_pos = Metadata.default_start in
+  let mda_len = Metadata.default_size in
   let pe_start_byte = 
     Utils.int64_round_up (Int64.add mda_pos mda_len) Constants.pe_align in
   let pe_start_sector = Int64.div pe_start_byte 
