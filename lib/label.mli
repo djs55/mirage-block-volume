@@ -58,6 +58,7 @@ include S.EQUALS with type t := t
 include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 include S.RPC with type t := t
+include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
 val get_metadata_locations: t -> disk_locn list
 
@@ -65,7 +66,7 @@ val get_pv_id: t -> Lvm_uuid.t
 
 val get_device: t -> string
 
-val read: string -> t
+val read: string -> (t, string) Result.result
 
 val write: t -> unit
 

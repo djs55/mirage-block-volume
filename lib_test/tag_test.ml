@@ -48,10 +48,10 @@ let unmarshal_marshal_mdaheader () =
   let empty = create () in
   let data = String.make sizeof '\000', 0 in
   let _ = marshal empty data in
-  let empty', _ = unmarshal data in
+  let empty', _ = Result.ok_or_failwith (unmarshal data) in
   assert_equal ~printer:to_string ~cmp:equals empty empty';
   let _ = marshal empty' data in
-  let empty'', _ = unmarshal data in
+  let empty'', _ = Result.ok_or_failwith (unmarshal data) in
   assert_equal ~printer:to_string ~cmp:equals empty' empty''
 
 let mda_suite = "Metadata" >::: [
@@ -103,7 +103,7 @@ let unmarshal_marshal_pv_header () =
   let pvh = create (Lvm_uuid.create ()) 1234L 100L 50L in
   let sector = String.make 512 '\000' in
   let _ = marshal pvh (sector, 0) in
-  let pvh', _ = unmarshal (sector, 0) in
+  let pvh', _ = Result.ok_or_failwith (unmarshal (sector, 0)) in
   assert_equal ~printer:to_string ~cmp:equals pvh pvh'
 
 let pv_header_suite = "PV header" >::: [

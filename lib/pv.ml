@@ -67,27 +67,23 @@ let of_metadata name config pvdatas =
   let dev_size = expect_mapped_int "dev_size" config in
   let pe_start = expect_mapped_int "pe_start" config in
   let pe_count = expect_mapped_int "pe_count" config in
-  let label,mdahs = 
-    try 
+  let open Label in
+  ( try 
       let res = List.find (fun (label,mdahs) -> id=Label.get_pv_id label) pvdatas in
       Printf.fprintf stderr "Found cached PV label data\n";
-      res
+      return res
     with Not_found -> 
-      try
-	Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" device;
-	let label = Label.read device in
-	let mda_locs = Label.get_metadata_locations label in
-	let mdahs = List.map (Metadata.Header.read device) mda_locs in
-	(label,mdahs)
-      with e ->
-	Printf.fprintf stderr "Error: Could not find label and/or MDA headers on device '%s'\n" 
-	  device;
-	raise e
-  in
+      Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" device;
+      let open Label in
+      read device >>= fun label ->
+      let mda_locs = get_metadata_locations label in
+      Metadata.Header.read_all device mda_locs >>= fun mdahs ->
+      return (label,mdahs)
+  ) >>= fun (label, mdahs) ->
   let real_device = Label.get_device label in
   if real_device <> device then
     Printf.fprintf stderr "WARNING: PV.device and real_device are not the same";
-  {name=name;
+  return {name=name;
    id=id;
    dev=device;
    real_device=real_device;
@@ -101,12 +97,13 @@ let of_metadata name config pvdatas =
 
 (** Find the metadata area on a device and return the text of the metadata *)
 let find_metadata device =
-  let label = Label.read device in
-  debug "Label found: \n%s\n" (Label.to_string label);
-  let mda_locs = Label.get_metadata_locations label in
-  let mdahs = List.map (Metadata.Header.read device) mda_locs in
+  let open Label in
+  read device >>= fun label ->
+  debug "Label found: \n%s\n" (to_string label);
+  let mda_locs = get_metadata_locations label in
+  Metadata.Header.read_all device mda_locs >>= fun mdahs ->
   let mdt = Metadata.read device (List.hd mdahs) 0 in  
-  (mdt, (label, mdahs))
+  return (mdt, (label, mdahs))
 
 let human_readable pv =
   let label=pv.label in

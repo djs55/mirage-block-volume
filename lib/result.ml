@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2013 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -12,20 +12,26 @@
  * GNU Lesser General Public License for more details.
  *)
 
+type ('a, 'b) result = [
+| `Ok of 'a 
+| `Error of 'b
+]
 
-(* LVM uses uuids that aren't really proper uuids. This module manipulates them *)
+let ( >>= ) m f = match m with
+| `Ok x -> f x
+| `Error y -> `Error y
 
-type t
-(** An LVM 'uuid'. Note this isn't a valid uuid according to RFC4122 *)
+let return x = `Ok x
+let ok = return
+let fail x = `Error x
 
-include S.PRINT with type t := t
-include S.RPC with type t := t
-include S.MARSHAL with type t := t
-include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
+let all xs =
+  let rec loop acc = function
+  | [] -> return (List.rev acc)
+  | `Ok x :: xs -> loop (x :: acc) xs
+  | `Error x :: _ -> `Error x in
+  loop [] xs
 
-val create: unit -> t
-(** [create ()] generates a fresh uuid *)
-
-val of_string: string -> t
-(** [of_string s] returns [t] corresponding to [s] *)
-
+let ok_or_failwith = function
+  | `Ok x -> x
+  | `Error x -> failwith x

@@ -46,10 +46,12 @@ let remove_hyphens str =
 
 let sizeof = 32
 
+include Result
+
 open Lvmmarshal
 let unmarshal buf =
   let str, buf = unmarshal_string sizeof buf in
-  add_hyphens str, buf
+  return (add_hyphens str, buf)
 
 let marshal t buf =
   let str = remove_hyphens t in
@@ -57,3 +59,4 @@ let marshal t buf =
 
 let to_string x = x
 let of_string x = x
+

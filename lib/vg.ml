@@ -258,15 +258,17 @@ let write vg force_full =
   else 
     match vg.redo_lv with None -> write_full vg | Some _ -> write_redo vg
 
+include Result
+
 let of_metadata config pvdatas =
-  let config = 
-    match config with 
-      | AStruct c -> c 
-      | _ -> failwith "Bad metadata" in
+  ( match config with
+    | AStruct c -> return c
+    | _ -> fail "VG metadata doesn't begin with a structure element" ) >>= fun config ->
   let vg = filter_structs config in
-  if List.length vg <> 1 then 
-    failwith "Could not find singleton volume group";
-  let (name, _) = List.hd vg in
+  ( match vg with
+    | [ name, _ ] -> return name
+    | [] -> fail "VG metadata contains no defined volume groups"
+    | _ -> fail "VG metadata contains multiple volume groups" ) >>= fun name ->
   let alist = expect_mapped_struct name vg in
   let id = Lvm_uuid.of_string (expect_mapped_string "id" alist) in
   let seqno = expect_mapped_int "seqno" alist in
@@ -276,7 +278,8 @@ let of_metadata config pvdatas =
   let max_lv = Int64.to_int (expect_mapped_int "max_lv" alist) in
   let max_pv = Int64.to_int (expect_mapped_int "max_pv" alist) in
   let pvs = expect_mapped_struct "physical_volumes" alist in
-  let pvs = List.map (fun (a,_) -> Pv.of_metadata a (expect_mapped_struct a pvs) pvdatas) pvs in
+
+  Result.all (List.map (fun (a,_) -> Pv.of_metadata a (expect_mapped_struct a pvs) pvdatas) pvs) >>= fun pvs ->
   let lvs = try expect_mapped_struct "logical_volumes" alist with _ -> [] in
   let lvs = List.map (fun (a,_) -> Lv.of_metadata a (expect_mapped_struct a lvs)) lvs in
 
@@ -305,7 +308,7 @@ let of_metadata config pvdatas =
    ops=[]; 
   } in
   
-  if got_redo_lv then apply_redo vg else vg
+  return (if got_redo_lv then apply_redo vg else vg)
 
 let create_new name devices_and_names =
 	let pvs = List.map (fun (dev,name) -> Pv.create_new dev name) devices_and_names in
@@ -335,7 +338,7 @@ let parse text pvdatas =
 
 let load devices =
   debug "Vg.load";
-  let mds_and_pvdatas = List.map Pv.find_metadata devices in
+  Result.all (List.map Pv.find_metadata devices) >>= fun mds_and_pvdatas ->
   let md = fst (List.hd mds_and_pvdatas) in
   let pvdatas = List.map snd mds_and_pvdatas in
   parse md pvdatas

@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2013 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -12,20 +12,10 @@
  * GNU Lesser General Public License for more details.
  *)
 
-
-(* LVM uses uuids that aren't really proper uuids. This module manipulates them *)
-
-type t
-(** An LVM 'uuid'. Note this isn't a valid uuid according to RFC4122 *)
-
-include S.PRINT with type t := t
-include S.RPC with type t := t
-include S.MARSHAL with type t := t
-include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
-
-val create: unit -> t
-(** [create ()] generates a fresh uuid *)
-
-val of_string: string -> t
-(** [of_string s] returns [t] corresponding to [s] *)
+(* a similar interface to Core's MONAD.S2 *)
+module type S2 = sig
+  type ('a, 'b) t
+  val ( >>= ) : ('a, 'b) t -> ('a -> ('c, 'b) t) -> ('c, 'b) t
+  val return : 'a -> ('a, 'b) t
+end
 

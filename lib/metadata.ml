@@ -45,6 +45,8 @@ module Header = struct
     mdah_raw_locns : mda_raw_locn list;
   } with rpc
 
+  include Result
+
   let equals a b =
     (* the checksum is filled in by marshal, and verified by unmarshal *)
     a.mdah_magic = b.mdah_magic
@@ -72,18 +74,28 @@ module Header = struct
     let raw_locns,b = read_raw_locns b [] in
     let crc_to_check = String.sub (fst buf) (snd buf + 4) (sizeof - 4) in
     let crc = Crc.crc crc_to_check in
-    if crc <> checksum then
-      failwith "Bad checksum in MDA header";
-    {mdah_checksum=checksum;
+    if crc <> checksum
+    then `Error (Printf.sprintf "Bad checksum in metadata area: expected %08lx, got %08lx" checksum crc)
+    else `Ok
+    ({mdah_checksum=checksum;
      mdah_magic=magic;
      mdah_version=version;
      mdah_start=start;
      mdah_size=size;
-     mdah_raw_locns=raw_locns}, b
+     mdah_raw_locns=raw_locns}, b)
 
   let read device location =
-    let buf = get_mda_header device location.Label.dl_offset sizeof in 
-    fst (unmarshal (buf, 0))
+    let buf = get_mda_header device location.Label.dl_offset sizeof in
+    unmarshal (buf, 0) >>= fun (t, _) ->
+    return t
+
+  let read_all device locations =
+    let rec loop acc = function
+    | [] -> return (List.rev acc)
+    | m :: ms ->
+      read device m >>= fun m' ->
+      loop (m' :: acc) ms in
+    loop [] locations
 
   let to_string mdah =
     let rl2ascii r = Printf.sprintf "{offset:%Ld,size:%Ld,checksum:%ld,filler:%ld}" r.mrl_offset r.mrl_size r.mrl_checksum r.mrl_filler in

@@ -20,7 +20,7 @@ end
 module type MARSHAL = sig
   type t
   val marshal: t -> string * int -> string * int
-  val unmarshal: string * int -> t * (string * int)
+  val unmarshal: string * int -> (t * (string * int), string) Result.result
 end
 
 module type EQUALS = sig

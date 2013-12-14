@@ -55,13 +55,13 @@ module Label_header = struct
     let ty,b = unmarshal_string 8 b in
     let crc_check = String.sub (fst b0) (20 + snd b0) (Constants.label_size - 20) in (* wtf? *)
     let calculated_crc = Crc.crc crc_check in
-    if calculated_crc <> crc_xl then
-      failwith "Bad checksum in PV Label";
-    {id=id;
+    if calculated_crc <> crc_xl
+    then `Error (Printf.sprintf "Label_header: bad checksum, expected %08lx, got %08lx" calculated_crc crc_xl)
+    else `Ok ({id=id;
      sector=sector_xl;
      crc=crc_xl;
      offset=offset;
-     ty=ty}, b
+     ty=ty}, b)
 
   let marshal label buf =
     assert(label.offset=32l);
@@ -81,7 +81,8 @@ module Label_header = struct
   let to_string t =
     Printf.sprintf "id: %s\nsector: %Ld\ncrc: %ld\noffset: %ld\nty: %s\n"
       t.id t.sector t.crc t.offset t.ty
-      
+
+  include Result
 end
 
 type disk_locn = {
@@ -111,7 +112,8 @@ module Pv_header = struct
   }
 
   let unmarshal b =
-    let id,b = Lvm_uuid.unmarshal b in
+    let open Lvm_uuid in
+    unmarshal b >>= fun (id, b) ->
     let size,b = unmarshal_uint64 b in
     let rec do_disk_locn b acc =
       let offset,b = unmarshal_uint64 b in
@@ -123,10 +125,10 @@ module Pv_header = struct
     in 
     let disk_areas,b = do_disk_locn b [] in
     let disk_areas2,b = do_disk_locn b [] in
-    { pvh_id=id;
+    return ({ pvh_id=id;
       pvh_device_size=size;
       pvh_extents=disk_areas;
-      pvh_metadata_areas=disk_areas2},b
+      pvh_metadata_areas=disk_areas2},b)
 
   let marshal t buf =
     let buf = Lvm_uuid.marshal t.pvh_id buf in
@@ -152,6 +154,7 @@ module Pv_header = struct
       (disk_area_list_to_ascii t.pvh_extents)
       (disk_area_list_to_ascii t.pvh_metadata_areas)
 
+  include Result
 end
 
 type t = {
@@ -178,19 +181,29 @@ let marshal t buf =
   buf
 
 let unmarshal (buf, ofs) =
+  let open Label_header in
   let rec find n =
-    if n>3 then failwith "No label found" else begin
+    if n > 3
+    then `Error "No PV label found in any of the first 4 sectors"
+    else begin
       let b = (buf,ofs + n*Constants.sector_size) in
       let (s,b') = unmarshal_string 8 b in
-      if s=Constants.label_id then (fst (Label_header.unmarshal b),b) else find (n+1)
+      if s=Constants.label_id
+      then
+        unmarshal b >>= fun (lh, _) ->
+        return (lh, b)
+      else find (n + 1)
     end in
-  let label, buf = find 0 in
+  find 0 >>= fun (label, buf) ->
   let buf = skip (Int32.to_int label.Label_header.offset) buf in
-  let pvh, buf = Pv_header.unmarshal buf in
-  { device = "";
+  let open Pv_header in
+  unmarshal buf >>= fun (pvh, buf) ->
+  return ({ device = "";
     label_header = label;
-    pv_header = pvh; }, buf
-      
+    pv_header = pvh; }, buf)
+
+include Result
+
 let get_metadata_locations label = 
   label.pv_header.Pv_header.pvh_metadata_areas
 
@@ -202,8 +215,8 @@ let get_device label =
 
 let read device =
   let buf = get_label device in
-  let t = fst (unmarshal (buf, 0)) in
-  { t with device }
+  unmarshal (buf, 0) >>= fun (t, _) ->
+  return { t with device }
       
 let write t =
   let buf = String.make 512 '\000' in

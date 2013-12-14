@@ -25,12 +25,17 @@ module Header: sig
   include S.RPC with type t := t
   include S.PRINT with type t := t
   include S.MARSHAL with type t := t
+  include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
   val write: t -> string -> unit
   (** [write t device] writes [t] to the [device] *)
 
-  val read: string -> Label.disk_locn -> t
+  val read: string -> Label.disk_locn -> (t, string) Result.result
   (** [read device location] reads [t] from the [device] *)
+
+  val read_all: string -> Label.disk_locn list -> (t list, string) Result.result
+  (** [read device locations] reads the [t]s found at [location]s,
+      or an error if any single one can't be read. *)
 
   val create: unit -> t
   (** [create ()] returns an instance of [t] *)
