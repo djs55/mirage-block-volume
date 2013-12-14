@@ -44,13 +44,15 @@ let status_to_string s =
     | Read -> "READ"
     | Clustered -> "CLUSTERED"
 
+open Result
+
 let status_of_string s =
   match s with 
-    | "RESIZEABLE" -> Resizeable
-    | "WRITE" -> Write
-    | "READ" -> Read
-    | "CLUSTERED" -> Clustered
-    | _ -> failwith (Printf.sprintf "Unknown VG status string '%s'" s)
+    | "RESIZEABLE" -> return Resizeable
+    | "WRITE" -> return Write
+    | "READ" -> return Read
+    | "CLUSTERED" -> return Clustered
+    | x -> fail (Printf.sprintf "Bad VG status string: %s" x)
 
 let write_to_buffer b vg =
   let bprintf = Printf.bprintf in
@@ -193,7 +195,7 @@ let find_lv vg lv_name =
 let with_open_redo vg f =
 	match vg.redo_lv with
 	| Some lv_name -> 
-		let lv = List.find (fun lv -> lv.Lv.name=lv_name) vg.lvs in
+		(* let lv = List.find (fun lv -> lv.Lv.name=lv_name) vg.lvs in *)
 		let dev = (List.hd vg.pvs).Pv.dev in
 		let (dev,pos) = 
 			if !Constants.dummy_mode
@@ -258,8 +260,6 @@ let write vg force_full =
   else 
     match vg.redo_lv with None -> write_full vg | Some _ -> write_redo vg
 
-include Result
-
 let of_metadata config pvdatas =
   ( match config with
     | AStruct c -> return c
@@ -269,19 +269,31 @@ let of_metadata config pvdatas =
     | [ name, _ ] -> return name
     | [] -> fail "VG metadata contains no defined volume groups"
     | _ -> fail "VG metadata contains multiple volume groups" ) >>= fun name ->
-  let alist = expect_mapped_struct name vg in
-  let id = Lvm_uuid.of_string (expect_mapped_string "id" alist) in
-  let seqno = expect_mapped_int "seqno" alist in
-  let status = map_expected_mapped_array "status" 
-    (fun a -> status_of_string (expect_string "status" a)) alist in
-  let extent_size = expect_mapped_int "extent_size" alist in
-  let max_lv = Int64.to_int (expect_mapped_int "max_lv" alist) in
-  let max_pv = Int64.to_int (expect_mapped_int "max_pv" alist) in
-  let pvs = expect_mapped_struct "physical_volumes" alist in
+  expect_mapped_struct name vg >>= fun alist ->
+  expect_mapped_string "id" alist >>= fun id ->
+  let id = Lvm_uuid.of_string id in
+  expect_mapped_int "seqno" alist >>= fun seqno ->
+  let seqno = Int64.to_int seqno in
+  map_expected_mapped_array "status" 
+    (fun a -> expect_string "status" a >>= fun x ->
+              status_of_string x) alist >>= fun status ->
+  expect_mapped_int "extent_size" alist >>= fun extent_size ->
+  expect_mapped_int "max_lv" alist >>= fun max_lv ->
+  let max_lv = Int64.to_int max_lv in
+  expect_mapped_int "max_pv" alist >>= fun max_pv ->
+  let max_pv = Int64.to_int max_pv in
+  expect_mapped_struct "physical_volumes" alist >>= fun pvs ->
 
-  Result.all (List.map (fun (a,_) -> Pv.of_metadata a (expect_mapped_struct a pvs) pvdatas) pvs) >>= fun pvs ->
-  let lvs = try expect_mapped_struct "logical_volumes" alist with _ -> [] in
-  let lvs = List.map (fun (a,_) -> Lv.of_metadata a (expect_mapped_struct a lvs)) lvs in
+  Result.all (List.map (fun (a,_) ->
+    expect_mapped_struct a pvs >>= fun x ->
+    Pv.of_metadata a x pvdatas
+  ) pvs) >>= fun pvs ->
+  ( match expect_mapped_struct "logical_volumes" alist with
+    | `Ok lvs -> return lvs
+    | `Error _ -> return [] ) >>= fun lvs ->
+  Result.all (List.map (fun (a,_) ->
+    expect_mapped_struct a lvs >>= fun x ->
+    Lv.of_metadata a x) lvs) >>= fun lvs ->
 
   (* Now we need to set up the free space structure in the PVs *)
   let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
@@ -292,21 +304,9 @@ let of_metadata config pvdatas =
     Allocator.alloc_specified_areas free_space lv_allocations) free_space lvs in
   
   let got_redo_lv = List.exists (fun lv -> lv.Lv.name = Constants.redo_log_lv_name) lvs in
-
-  let vg = {
-    name=name;
-   id=id;
-   seqno=Int64.to_int seqno;
-   status=status;
-   extent_size=extent_size;
-   max_lv=max_lv;
-   max_pv=max_pv;
-   pvs=pvs;
-   lvs=lvs; 
-   free_space=free_space; 
-   redo_lv=if got_redo_lv then Some Constants.redo_log_lv_name else None;
-   ops=[]; 
-  } in
+  let redo_lv = if got_redo_lv then Some Constants.redo_log_lv_name else None in
+  let ops = [] in
+  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space;  redo_lv; ops } in
   
   return (if got_redo_lv then apply_redo vg else vg)
 

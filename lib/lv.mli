@@ -51,13 +51,13 @@ val rpc_of_logical_volume: logical_volume -> Rpc.t
 
 val status_to_string: stat -> string
 
-val status_of_string: string -> stat
+val status_of_string: string -> (stat, string) Result.result
 
 val sort_segments: segment list -> segment list
 
 val write_to_buffer: Buffer.t -> logical_volume -> unit
 
-val of_metadata: string -> (string * Absty.absty) list -> logical_volume
+val of_metadata: string -> (string * Absty.absty) list -> (logical_volume, string) Result.result
 
 val allocation_of_segment: segment -> (string * (int64 * int64))  list
 

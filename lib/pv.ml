@@ -47,10 +47,12 @@ let status_to_string s =
   match s with
     | Allocatable -> "ALLOCATABLE"
 
+open Result
+
 let status_of_string s =
   match s with
-    | "ALLOCATABLE" -> Allocatable
-    | _ -> failwith "Bad status string"
+    | "ALLOCATABLE" -> return Allocatable
+    | x -> fail (Printf.sprintf "Bad PV status string: %s" x)
 
 let write_to_buffer b pv =
   let bprintf = Printf.bprintf in
@@ -60,40 +62,32 @@ let write_to_buffer b pv =
     pv.dev_size pv.pe_start pv.pe_count
 
 let of_metadata name config pvdatas =
-  let id = Lvm_uuid.of_string (expect_mapped_string "id" config) in
-  let device = expect_mapped_string "device" config in
-  let status = map_expected_mapped_array "status" 
-    (fun a -> status_of_string (expect_string "status" a)) config in
-  let dev_size = expect_mapped_int "dev_size" config in
-  let pe_start = expect_mapped_int "pe_start" config in
-  let pe_count = expect_mapped_int "pe_count" config in
+  expect_mapped_string "id" config >>= fun id ->
+  let id = Lvm_uuid.of_string id in
+  expect_mapped_string "device" config >>= fun dev ->
+  map_expected_mapped_array "status" 
+    (fun a -> expect_string "status" a >>= fun x ->
+              status_of_string x) config >>= fun status ->
+  expect_mapped_int "dev_size" config >>= fun dev_size ->
+  expect_mapped_int "pe_start" config >>= fun pe_start ->
+  expect_mapped_int "pe_count" config >>= fun pe_count ->
   let open Label in
   ( try 
       let res = List.find (fun (label,mdahs) -> id=Label.get_pv_id label) pvdatas in
       Printf.fprintf stderr "Found cached PV label data\n";
       return res
     with Not_found -> 
-      Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" device;
+      Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" dev;
       let open Label in
-      read device >>= fun label ->
+      read dev >>= fun label ->
       let mda_locs = get_metadata_locations label in
-      Metadata.Header.read_all device mda_locs >>= fun mdahs ->
+      Metadata.Header.read_all dev mda_locs >>= fun mdahs ->
       return (label,mdahs)
-  ) >>= fun (label, mdahs) ->
+  ) >>= fun (label, mda_headers) ->
   let real_device = Label.get_device label in
-  if real_device <> device then
+  if real_device <> dev then
     Printf.fprintf stderr "WARNING: PV.device and real_device are not the same";
-  return {name=name;
-   id=id;
-   dev=device;
-   real_device=real_device;
-   status=status;
-   dev_size=dev_size;
-   pe_start=pe_start;
-   pe_count=pe_count;
-   label=label;
-   mda_headers=mdahs;
-  }
+  return { name; id; dev; real_device; status; dev_size; pe_start; pe_count; label; mda_headers }
 
 (** Find the metadata area on a device and return the text of the metadata *)
 let find_metadata device =

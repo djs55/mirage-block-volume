@@ -53,12 +53,14 @@ let status_to_string s =
     | Write -> "WRITE"
     | Visible -> "VISIBLE"
 
+open Result
+
 let status_of_string s =
   match s with
-    | "READ" -> Read
-    | "WRITE" -> Write
-    | "VISIBLE" -> Visible
-    | _ -> failwith "Bad LV status string"
+    | "READ" -> return Read
+    | "WRITE" -> return Write
+    | "VISIBLE" -> return Visible
+    | x -> fail (Printf.sprintf "Bad LV status string: %s" x)
 
 let sort_segments s =
   List.sort (fun s1 s2 -> compare s1.s_start_extent s2.s_start_extent) s
@@ -92,54 +94,49 @@ let write_to_buffer b lv =
   bprintf b "}\n"
 
 let segment_of_metadata name config =
-  let start_extent = expect_mapped_int "start_extent" config in
-  let extent_count = expect_mapped_int "extent_count" config in
-  let ty = expect_mapped_string "type" config in
-  if ty<>"striped" then failwith (Printf.sprintf "Cannot handle LV segment type '%s'" ty);
-  let stripes = expect_mapped_array "stripes" config in
-  let rec handle_stripes ss =
-    match ss with
-      | name::offset::rest ->
-	  let name = expect_string "name" name in
-	  let offset = expect_int "offset" offset in
-	  (name,offset)::handle_stripes rest
-      | _ -> []
-  in 
-  {s_start_extent = start_extent;
-   s_extent_count = extent_count;
-   s_cls = 
-      if List.length stripes = 2 then 
-	match stripes with 
-	  | [name;offset] ->
-	      Linear { l_pv_name=expect_string "name" name;
-		       l_pv_start_extent=expect_int "offset" offset }
-	  | _ -> failwith "Invalid format of segment"
-      else 
-	let stripe_size = expect_mapped_int "stripe_size" config in
-	let stripes = (handle_stripes stripes) in
-	Striped {st_stripe_size=stripe_size;
-		 st_stripes=stripes}
-  }
+  expect_mapped_int "start_extent" config >>= fun s_start_extent ->
+  expect_mapped_int "extent_count" config >>= fun s_extent_count ->
+  expect_mapped_string "type" config >>= fun ty ->
+  ( if ty = "striped" then return ty
+    else fail (Printf.sprintf "Cannot handle LV segment type '%s'" ty) ) >>= fun ty ->
+  expect_mapped_array "stripes" config >>= fun stripes ->
+  let rec handle_stripes acc = function
+    | [] -> return (List.rev acc)
+    | [ _ ] -> fail "Unexpected attribute found when parsing stripes"
+    | name::offset::rest ->
+      expect_string "name" name >>= fun name ->
+      expect_int "offset" offset >>= fun offset ->
+      handle_stripes ((name, offset) :: acc) rest in
+  ( match stripes with
+    | [ name; offset ] ->
+      expect_string "name" name >>= fun l_pv_name ->
+      expect_int "offset" offset >>= fun l_pv_start_extent ->
+      return (Linear { l_pv_name; l_pv_start_extent })
+    | _ ->
+      expect_mapped_int "stripe_size" config >>= fun st_stripe_size ->
+      handle_stripes [] stripes >>= fun st_stripes ->
+      return (Striped { st_stripe_size; st_stripes }) ) >>= fun s_cls ->
+  return { s_start_extent; s_extent_count; s_cls }
 
 (** Builds a logical_volume structure out of a name and metadata. *)
 let of_metadata name config =
-	let id = Lvm_uuid.of_string (expect_mapped_string "id" config) in
-	let status = map_expected_mapped_array "status"
-		(fun a -> status_of_string (expect_string "status" a)) config in
-	let tags =
-		List.map Tag.of_string
-			(if List.mem_assoc "tags" config
-			 then map_expected_mapped_array "tags" (expect_string "tags") config
-			 else []) in
-	let segments = filter_structs config in
-	let segments = List.map
-		(fun (a,_) ->
-			 segment_of_metadata a (expect_mapped_struct a segments)) segments in
-	{ name = name;
-	  id = id;
-	  status = status;
-	  tags = tags;
-	  segments = sort_segments segments }
+  expect_mapped_string "id" config >>= fun id ->
+  let id = Lvm_uuid.of_string id in
+  map_expected_mapped_array "status"
+    (fun a ->
+      expect_string "status" a >>= fun x ->
+      status_of_string x
+    ) config >>= fun status ->
+  (if List.mem_assoc "tags" config
+   then map_expected_mapped_array "tags" (expect_string "tags") config
+   else return []) >>= fun tags ->
+  let tags = List.map Tag.of_string tags in
+  let segments = filter_structs config in
+  Result.all (List.map (fun (a, _) ->
+    expect_mapped_struct a segments >>= fun x ->
+    segment_of_metadata a x) segments) >>= fun segments ->
+  let segments = sort_segments segments in
+  return { name; id; status; tags; segments }
 
 let allocation_of_segment s =
   match s.s_cls with
