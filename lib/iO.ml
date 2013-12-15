@@ -11,101 +11,90 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-open Unixext
+
+open Lwt
+
+type 'a io = ('a, string) Result.result Lwt.t 
+
+let rec mkdir_p x =
+  if Sys.file_exists x
+  then ()
+  else
+    let parent = Filename.dirname x in
+    if not(Sys.file_exists parent) then mkdir_p parent;
+    Unix.mkdir x 0o0755
 
 let dummy_fname dev ty =
-  let fname = Printf.sprintf "%s/%s/%s" (!Constants.dummy_base) dev ty in
-  let basedir = Filename.dirname fname in
-  Unixext.mkdir_rec basedir 0o755;
-  fname
+  let dir = Filename.concat !Constants.dummy_base dev in
+  mkdir_p dir;
+  Filename.concat dir ty
+
+let block_error = function
+  | `Unknown x -> `Error x
+  | `Unimplemented -> `Error "unimplemented"
+  | `Is_read_only -> `Error "device is read-only"
+  | `Disconnected -> `Error "disconnected"
 
 let get_size device =
-  if !Constants.dummy_mode then 
-    Constants.tib
-  else 
-    let fd = Unix.openfile device [Unix.O_RDONLY] 0 in
-    let size = Unixext.blkgetsize64 fd in
-    Unix.close fd;
-    size
+  if !Constants.dummy_mode
+  then return (`Ok Constants.tib)
+  else match Block.blkgetsize device with
+    | `Ok x -> return (`Ok x)
+    | `Error e -> return (`Error (block_error e))
+
+(* Should we wrap in Result.result? *)
+let with_file filename flags f =
+  Lwt_unix.openfile filename flags 0o0 >>= fun fd ->
+  Lwt.catch
+    (fun () -> f () >>= fun x -> Lwt_unix.close fd >>= fun () -> return (`Ok x))
+    (fun e -> Lwt_unix.close fd >>= fun () -> return (`Error (Printexc.to_string e)))
+
+let get name device offset length =
+  let filename = if !Constants.dummy_mode then dummy_fname device name else device in
+  let offset = if !Constants.dummy_mode then 0L else offset in
+  let buf = Cstruct.create length in
+  with_file filename [ Lwt_unix.O_RDONLY ]
+    (fun fd ->
+      Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun () ->
+      Block.really_read fd buf >>= fun () ->
+      return buf)
+
+let put name device offset buf =
+  let filename = if !Constants.dummy_mode then dummy_fname device "pvh" else device in
+  let flags = [ Lwt_unix.O_RDWR; Lwt_unix.O_DSYNC ] @ (if !Constants.dummy_mode then [ Lwt_unix.O_CREAT ] else []) in
+  let offset = if !Constants.dummy_mode then 0L else offset in
+  with_file filename flags
+    (fun fd ->
+      Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun () ->
+      Block.really_write fd buf)
 
 let get_label device =
-  let fd = Unix.openfile (if !Constants.dummy_mode then dummy_fname device "pvh" else device) [Unix.O_RDONLY] 0o000 in
-  let buf = really_read_string fd (if !Constants.dummy_mode then (Constants.sector_size * 2) else Constants.label_scan_size) in
-  Unix.close fd;
-  buf
+  let length = if !Constants.dummy_mode then Constants.sector_size * 2 else Constants.label_scan_size in
+  get "pvh" device 0L length
 
 let put_label device offset buf =
-  let fd =
-    if !Constants.dummy_mode then begin
-      let fname = dummy_fname device "pvh" in
-      Unix.openfile fname [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
-    end else begin
-      let fd = Unix.openfile device [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
-      fd
-    end
-  in
-  ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
-  let len = String.length buf in
-  if len <> (Unix.write fd buf 0 len) then failwith "Short write!";
-  Unix.close fd
+  put "pvh" device offset buf
 
 let get_mda_header device offset mda_header_size =
-  let offset,fd = 
-  if !Constants.dummy_mode 
-    then (0L,Unix.openfile (dummy_fname device "mdah") [Unix.O_RDONLY] 0o000) 
-    else (offset,Unix.openfile device [Unix.O_RDONLY] 0o000) in
-  ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
-  let buf = really_read_string fd mda_header_size in
-  Unix.close fd;
-  buf
+  get "mdah" device offset mda_header_size
 
-let put_mda_header device offset header =
-  let fd =
-    if !Constants.dummy_mode then begin
-      Unix.openfile (dummy_fname device "mdah") [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
-    end else begin
-      let fd = Unix.openfile device [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
-      ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
-      fd
-    end
-    in
-  let written = Unix.write fd header 0 (String.length header) in
-  if written <> (String.length header) then failwith "Wrote short!";
-  Unix.close fd
+let put_mda_header device offset buf =
+  put "mdah" device offset buf
+
+let ( >>= ) m f = m >>= function
+  | `Error x -> return (`Error x)
+  | `Ok x -> f x
+
+let return x = return (`Ok x)
 
 let get_md device offset offset' firstbit secondbit =
-  let fd =
-    if !Constants.dummy_mode then begin
-      Unix.openfile (dummy_fname device "md") [Unix.O_RDONLY] 0o000
-    end else begin
-      let fd = Unix.openfile device [Unix.O_RDONLY] 0o000 in
-      ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
-      fd
-    end in
-  let firstbitstr = really_read_string fd firstbit in
-  if not !Constants.dummy_mode then ignore(Unix.LargeFile.lseek fd offset' Unix.SEEK_SET);
-  let secondbitstr = really_read_string fd secondbit in
-  Unix.close fd;
-  firstbitstr ^ secondbitstr
+  get "md1" device offset firstbit >>= fun a ->
+  get "md2" device offset' secondbit >>= fun b ->
+  let buf = Cstruct.create (firstbit + secondbit) in
+  Cstruct.blit a 0 buf 0 firstbit;
+  Cstruct.blit b 0 buf firstbit secondbit;
+  return buf
 
-let put_md device offset offset' firstbitstr secondbitstr =
-  let fd =
-    if !Constants.dummy_mode then begin
-      Unix.openfile (dummy_fname device "md") [Unix.O_RDWR; Unix.O_DSYNC; Unix.O_CREAT] 0o644
-    end else begin
-      let fd = Unix.openfile device [Unix.O_RDWR; Unix.O_DSYNC] 0o000 in
-      ignore(Unix.LargeFile.lseek fd offset Unix.SEEK_SET);
-      fd
-    end
-  in
-  let firstbitstr' = String.length firstbitstr in
-  if Unix.write fd firstbitstr 0 firstbitstr'  <> firstbitstr'
-  then failwith "Wrote short!";
-
-  if not !Constants.dummy_mode then ignore(Unix.LargeFile.lseek fd offset' Unix.SEEK_SET);
-  let secondbitstr' = String.length secondbitstr in
-  if Unix.write fd secondbitstr 0 secondbitstr' <> secondbitstr'
-  then failwith "Wrote short!";
-  Unix.close fd
-
-
+let put_md device offset offset' firstbitbuf secondbitbuf =
+  put "md1" device offset firstbitbuf >>= fun () ->
+  put "md2" device offset' secondbitbuf

@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2013 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -12,25 +12,20 @@
  * GNU Lesser General Public License for more details.
  *)
 
-module type PRINT = sig
-  type t
-  val to_string: t -> string
-end
+include Monad_.S2 with type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
 
-module type MARSHAL = sig
-  type t
-  val marshal: t -> Cstruct.t -> Cstruct.t
-  val unmarshal: Cstruct.t -> (t * Cstruct.t, string) Result.result
-end
+type 'a io = ('a, string) t
 
-module type EQUALS = sig
-  type t
-  val equals: t -> t -> bool
-end
+val get_size: string -> int64 io
 
-module type RPC = sig
-  type t
-  val t_of_rpc: Rpc.t -> t
-  val rpc_of_t: t -> Rpc.t
-end
+val get_label: string -> Cstruct.t io
 
+val put_label: string -> int64 -> Cstruct.t -> unit io
+
+val get_mda_header: string -> int64 -> int -> Cstruct.t io
+
+val put_mda_header: string -> int64 -> Cstruct.t -> unit io
+
+val get_md: string -> int64 -> int64 -> int -> int -> Cstruct.t io
+
+val put_md: string -> int64 -> int64 -> Cstruct.t -> Cstruct.t -> unit io

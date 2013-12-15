@@ -108,34 +108,22 @@ let human_readable pv =
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
     label_str mdah_ascii (Buffer.contents b)
 
-let create_new dev name =
-  let size = IO.get_size dev in
+let create_new real_device name =
+  let open IO in
+  IO.get_size real_device >>= fun size ->
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
   let dev_size = Int64.div size (Int64.of_int Constants.sector_size) in
   let mda_pos = Metadata.default_start in
   let mda_len = Metadata.default_size in
   let pe_start_byte = 
     Utils.int64_round_up (Int64.add mda_pos mda_len) Constants.pe_align in
-  let pe_start_sector = Int64.div pe_start_byte 
-    (Int64.of_int Constants.sector_size) in
-  let pe_count = Int64.div (Int64.sub size pe_start_byte) Constants.extent_size in
+  let pe_start = Int64.(div pe_start_byte (of_int Constants.sector_size)) in
+  let pe_count = Int64.(div (sub size pe_start_byte) Constants.extent_size) in
   let mda_len = Int64.sub pe_start_byte mda_pos in
   let id=Lvm_uuid.create () in
-  let label = Label.create dev id size mda_pos mda_len in
+  let label = Label.create real_device id size mda_pos mda_len in
   let mda_header = Metadata.Header.create () in
-  Label.write label;
-  Metadata.Header.write mda_header dev;
-  let pv = { name=name;
-	     id=id;
-	     dev=dev;
-	     real_device=dev;
-	     status=[Allocatable];
-	     dev_size = dev_size;
-	     pe_start=pe_start_sector;
-	     pe_count=pe_count;
-	     label = label;
-	     mda_headers = [mda_header]; }
-  in
-  pv
-      
-      
+  Label.write label >>= fun () ->
+  Metadata.Header.write mda_header real_device >>= fun () ->
+  return { name; id; dev = real_device; real_device; status=[Allocatable]; dev_size;
+           pe_start; pe_count; label; mda_headers = [mda_header]; }      

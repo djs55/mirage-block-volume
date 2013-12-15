@@ -21,7 +21,6 @@ open Logging
     volume group, but it's the PV that contains the volume group info *)
 
 open IO
-open Lvmmarshal
 
 let default_start = 4096L
 let default_size = Int64.mul 10240L 1024L (* 10 MiB *)

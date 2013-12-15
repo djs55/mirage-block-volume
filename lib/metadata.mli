@@ -27,7 +27,7 @@ module Header: sig
   include S.MARSHAL with type t := t
   include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
-  val write: t -> string -> unit
+  val write: t -> string -> unit IO.io
   (** [write t device] writes [t] to the [device] *)
 
   val read: string -> Label.disk_locn -> (t, string) Result.result

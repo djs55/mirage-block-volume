@@ -18,7 +18,6 @@
 open Absty
 open Logging
 open IO
-open Lvmmarshal
 
 let crc_pos = 8 + 8
 let do_crc_from = crc_pos + 4
@@ -48,12 +47,12 @@ module Label_header = struct
   }
     
   let unmarshal b0 =
-    let id,b = unmarshal_string 8 b0 in
-    let sector_xl,b = unmarshal_uint64 b in
-    let crc_xl,b = unmarshal_uint32 b in
-    let offset,b = unmarshal_uint32 b in
-    let ty,b = unmarshal_string 8 b in
-    let crc_check = String.sub (fst b0) (20 + snd b0) (Constants.label_size - 20) in (* wtf? *)
+    let id = Cstruct.(to_string (sub b0 0 8)) in
+    let sector_xl = Cstruct.LE.get_uint64 b0 8 in
+    let crc_xl = Cstruct.LE.get_uint32 b0 crc_pos in
+    let offset = Cstruct.LE.get_uint32 b0 20 in
+    let ty = Cstruct.(to_string (sub b0 24 8)) in
+    let crc_check = Cstruct.sub b0 20 (Constants.label_size - 20) in
     let calculated_crc = Crc.crc crc_check in
     if calculated_crc <> crc_xl
     then `Error (Printf.sprintf "Label_header: bad checksum, expected %08lx, got %08lx" calculated_crc crc_xl)
@@ -61,22 +60,16 @@ module Label_header = struct
      sector=sector_xl;
      crc=crc_xl;
      offset=offset;
-     ty=ty}, b)
+     ty=ty}, Cstruct.shift b0 32)
 
   let marshal label buf =
     assert(label.offset=32l);
-    
-    let buf = marshal_string buf label.id in
-    let buf = marshal_int64  buf label.sector in
-  
-    assert(snd buf = crc_pos); (* fill in later *)
-    let buf = marshal_int32  buf 0l in
-    
-    let buf = marshal_int32  buf label.offset in
-    let buf = marshal_string buf label.ty in
-    
-    assert(snd buf = 32);
-    buf
+    Cstruct.blit_from_string label.id 0 buf 0 8;
+    Cstruct.LE.set_uint64 buf 8 label.sector;
+    Cstruct.LE.set_uint32 buf 16 0l;
+    Cstruct.LE.set_uint32 buf 20 label.offset;
+    Cstruct.blit_from_string label.ty 0 buf 24 8;
+    Cstruct.shift buf 32
 
   let to_string t =
     Printf.sprintf "id: %s\nsector: %Ld\ncrc: %ld\noffset: %ld\nty: %s\n"
@@ -114,13 +107,15 @@ module Pv_header = struct
   let unmarshal b =
     let open Lvm_uuid in
     unmarshal b >>= fun (id, b) ->
-    let size,b = unmarshal_uint64 b in
+    let size = Cstruct.LE.get_uint64 b 0 in
     let rec do_disk_locn b acc =
-      let offset,b = unmarshal_uint64 b in
+      let offset = Cstruct.LE.get_uint64 b 0 in
+      let b = Cstruct.shift b 8 in
       if offset=0L 
-      then (List.rev acc,skip 8 b) 
-      else 
-        let size,b = unmarshal_uint64 b in
+      then (List.rev acc,Cstruct.shift b 8) 
+      else
+        let size = Cstruct.LE.get_uint64 b 0 in
+        let b = Cstruct.shift b 8 in
         do_disk_locn b ({dl_offset=offset; dl_size=size}::acc)
     in 
     let disk_areas,b = do_disk_locn b [] in
@@ -132,15 +127,17 @@ module Pv_header = struct
 
   let marshal t buf =
     let buf = Lvm_uuid.marshal t.pvh_id buf in
-    let buf = marshal_int64 buf t.pvh_device_size in
+    Cstruct.LE.set_uint64 buf 0 t.pvh_device_size;
+    let buf = Cstruct.shift buf 8 in
     
     let do_disk_locn buf l =
       let buf = List.fold_left (fun buf e ->
-        let buf = marshal_int64 buf e.dl_offset in
-        marshal_int64 buf e.dl_size) buf l
-      in
-      marshal_int64 (marshal_int64 buf 0L) 0L
-    in
+        Cstruct.LE.set_uint64 buf 0 e.dl_offset;
+        Cstruct.LE.set_uint64 buf 8 e.dl_size;
+        Cstruct.shift buf 16) buf l in
+      Cstruct.LE.set_uint64 buf 0 0L;
+      Cstruct.LE.set_uint64 buf 8 0L;
+      Cstruct.shift buf 16 in
     
     let buf = do_disk_locn buf t.pvh_extents in
     let buf = do_disk_locn buf t.pvh_metadata_areas in
@@ -171,31 +168,28 @@ let equals a b =
 let sizeof = Constants.sector_size
 
 let marshal t buf =
-  let buf = Label_header.marshal t.label_header buf in
+  let buf' = Label_header.marshal t.label_header buf in
   assert(t.label_header.Label_header.offset=32l);
-  assert(snd buf = 32);
-  let buf = Pv_header.marshal t.pv_header buf in
+  let buf' = Pv_header.marshal t.pv_header buf in
   (* Now calc CRC *)
-  let crc = Crc.crc (String.sub (fst buf) do_crc_from (Constants.label_size - do_crc_from)) in
-  ignore(marshal_int32 (fst buf, crc_pos) crc);
-  buf
+  let crc = Crc.crc (Cstruct.sub buf do_crc_from (Constants.label_size - do_crc_from)) in
+  Cstruct.LE.get_uint32 buf crc_pos crc;
+  buf'
 
-let unmarshal (buf, ofs) =
+let unmarshal buf =
   let open Label_header in
   let rec find n =
     if n > 3
     then `Error "No PV label found in any of the first 4 sectors"
     else begin
-      let b = (buf,ofs + n*Constants.sector_size) in
-      let (s,b') = unmarshal_string 8 b in
-      if s=Constants.label_id
-      then
+      let b = Cstruct.shift buf (n * Constants.sector_size) in
+      if Cstruct.(to_string (sub b 0 8)) = Constants.label_id then begin
         unmarshal b >>= fun (lh, _) ->
         return (lh, b)
       else find (n + 1)
     end in
   find 0 >>= fun (label, buf) ->
-  let buf = skip (Int32.to_int label.Label_header.offset) buf in
+  let buf = Cstruct.shift (Int32.to_int label.Label_header.offset) buf in
   let open Pv_header in
   unmarshal buf >>= fun (pvh, buf) ->
   return ({ device = "";
@@ -214,13 +208,17 @@ let get_device label =
   label.device
 
 let read device =
-  let buf = get_label device in
+  let open IO in
+  get_label device >>= fun buf ->
+  let open Result in
   unmarshal (buf, 0) >>= fun (t, _) ->
+  let open IO in
   return { t with device }
       
 let write t =
-  let buf = String.make 512 '\000' in
-  let _ = marshal t (buf, 0) in
+  let buf = Cstruct.create 512 in
+  Utils.zero buf;
+  let _ = marshal t buf in
   
   let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
   IO.put_label t.device pos buf

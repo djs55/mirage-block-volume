@@ -1,0 +1,9 @@
+* add error handling to Lvm_uuid
+* rewrite device.ml using mirage-block-unix and cstruct
+* consider whether device could become a functor
+* replace all ad-hoc exceptions with an error type?
+* a master signature?
+* remove all 'failwith'
+* remove all List.hd
+* remove all bare List.assoc
+* metadata parse/print tests

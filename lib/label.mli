@@ -68,5 +68,5 @@ val get_device: t -> string
 
 val read: string -> (t, string) Result.result
 
-val write: t -> unit
+val write: t -> unit IO.io
 

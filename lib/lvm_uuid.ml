@@ -48,14 +48,15 @@ let sizeof = 32
 
 include Result
 
-open Lvmmarshal
 let unmarshal buf =
-  let str, buf = unmarshal_string sizeof buf in
+  let str = Cstruct.(to_string (sub buf 0 sizeof))
+  let buf = Cstruct.shift buf sizeof in
   return (add_hyphens str, buf)
 
 let marshal t buf =
   let str = remove_hyphens t in
-  marshal_string buf str 
+  Cstruct.blit_from_string str 0 buf 0 sizeof;
+  Cstruct.shift buf sizeof
 
 let to_string x = x
 let of_string x = x
