@@ -150,37 +150,35 @@ let do_op vg op =
 				let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
 				{vg with lvs = lv'::others})
 
-
 let create_lv vg name size =
   let id = Lvm_uuid.create () in
   let new_segments,new_free_space = Allocator.alloc vg.free_space size in
-  do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id=id; lvc_segments=new_segments})}
+  return (do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id=id; lvc_segments=new_segments})})
 
 let rename_lv vg old_name new_name =
-  do_op vg {so_seqno=vg.seqno; so_op=LvRename (old_name,{lvmv_new_name=new_name})}
+  return (do_op vg {so_seqno=vg.seqno; so_op=LvRename (old_name,{lvmv_new_name=new_name})})
 
 let resize_lv vg name new_size =
   let lv,others = List.partition (fun lv -> lv.Lv.name=name) vg.lvs in
-  let op = match lv with 
+  ( match lv with 
     | [lv] ->
 	let current_size = Lv.size_in_extents lv in
 	if new_size > current_size then
 	  let new_segs,_ = Allocator.alloc vg.free_space (Int64.sub new_size current_size) in
-	  LvExpand (name,{lvex_segments=new_segs})
+	  return (LvExpand (name,{lvex_segments=new_segs}))
 	else
-	  LvReduce (name,{lvrd_new_extent_count=new_size})
-    | _ -> failwith "Can't find LV"
-  in
-  do_op vg {so_seqno=vg.seqno; so_op=op}
+	  return (LvReduce (name,{lvrd_new_extent_count=new_size}))
+    | _ -> fail (Printf.sprintf "Can't find LV %s" name) ) >>= fun op ->
+  return (do_op vg {so_seqno=vg.seqno; so_op=op})
 
 let remove_lv vg name =
-  do_op vg {so_seqno=vg.seqno; so_op=LvRemove name}
+  return (do_op vg {so_seqno=vg.seqno; so_op=LvRemove name})
 
 let add_tag_lv vg name tag =
-	do_op vg {so_seqno = vg.seqno; so_op = LvAddTag (name, tag)}
+  return (do_op vg {so_seqno = vg.seqno; so_op = LvAddTag (name, tag)})
 
 let remove_tag_lv vg name tag =
-	do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)}
+  return (do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)})
 
 (******************************************************************************)
 
@@ -249,10 +247,11 @@ let write_full vg =
 
 let init_redo_log vg =
   match vg.redo_lv with 
-    | Some _ -> vg 
+    | Some _ -> return vg 
     | None ->
-	let vg = write_full (create_lv vg Constants.redo_log_lv_name 1L) in
-	{vg with redo_lv=Some Constants.redo_log_lv_name}
+      create_lv vg Constants.redo_log_lv_name 1L >>= fun lv ->
+      let vg = write_full lv in
+      return { vg with redo_lv = Some Constants.redo_log_lv_name }
 
 let write vg force_full =
   if force_full 
