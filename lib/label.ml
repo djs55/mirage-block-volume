@@ -17,7 +17,7 @@
 
 open Absty
 open Logging
-open Device
+open IO
 open Lvmmarshal
 
 let crc_pos = 8 + 8
@@ -223,7 +223,7 @@ let write t =
   let _ = marshal t (buf, 0) in
   
   let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
-  Device.put_label t.device pos buf
+  IO.put_label t.device pos buf
 
 let create device id size mda_start mda_size =
   let label = Label_header.create () in

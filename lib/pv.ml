@@ -22,7 +22,7 @@ open Logging
     metadata on disk. It's a bit backwards, because a PV is part of a 
     volume group, but it's the PV that contains the volume group info *)
 
-open Device
+open IO
 open Lvmmarshal
 
   (** Here's the actual PV data that's part of the volume group *)
@@ -109,7 +109,7 @@ let human_readable pv =
     label_str mdah_ascii (Buffer.contents b)
 
 let create_new dev name =
-  let size = Device.get_size dev in
+  let size = IO.get_size dev in
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
   let dev_size = Int64.div size (Int64.of_int Constants.sector_size) in
   let mda_pos = Metadata.default_start in

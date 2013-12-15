@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 79b61842ca2796e50a297b2e5d159b56)
+# DO NOT EDIT (digest: 982e297320b45de7b97539955a873e15)
 Result
 S
 Monad_
@@ -9,7 +9,7 @@ Constants
 Label
 Metadata
 Crc
-Device
+IO
 Logging
 Lvmconfiglex
 Lvmconfigparser

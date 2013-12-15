@@ -20,7 +20,7 @@ open Logging
     metadata on disk. It's a bit backwards, because a PV is part of a 
     volume group, but it's the PV that contains the volume group info *)
 
-open Device
+open IO
 open Lvmmarshal
 
 let default_start = 4096L
@@ -158,7 +158,7 @@ let read dev mdah n =
 			let firstbit = Int64.(to_int (sub mdah.mdah_size locn.mrl_offset)) in
 			firstbit, Int64.to_int locn.mrl_size - firstbit
 		else Int64.to_int locn.mrl_size, 0 in
-	let md = Device.get_md dev (Int64.add mdah.mdah_start locn.mrl_offset) (Int64.add mdah.mdah_start 512L) firstbit secondbit in
+	let md = IO.get_md dev (Int64.add mdah.mdah_start locn.mrl_offset) (Int64.add mdah.mdah_start 512L) firstbit secondbit in
 	let checksum = Crc.crc md in
 	if checksum <> locn.mrl_checksum then
 		Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
@@ -195,7 +195,7 @@ let read dev mdah n =
     let firstbitstr = String.sub md 0 firstbit in
     let secondbitstr = String.sub md firstbit secondbit in
 
-    Device.put_md device absnewpos (Int64.add mdah.mdah_start 512L) firstbitstr secondbitstr;
+    IO.put_md device absnewpos (Int64.add mdah.mdah_start 512L) firstbitstr secondbitstr;
 
     (* Now we have to update the crc and pointer to the metadata *)
     
