@@ -171,7 +171,9 @@ let size_in_extents lv =
 let reduce_size_to lv new_seg_count =
   let cur_size = size_in_extents lv in
   debug "Beginning reduce_size_to:";
-  if cur_size < new_seg_count then (failwith (Printf.sprintf "Cannot reduce size: current size (%Ld) is less than requested size (%Ld)" cur_size new_seg_count));
+  ( if cur_size < new_seg_count
+    then fail (Printf.sprintf "LV: cannot reduce size: current size (%Ld) is less than requested size (%Ld)" cur_size new_seg_count)
+    else return () ) >>= fun () ->
   let rec doit segs left acc =
     match segs with 
       | s::ss ->
@@ -183,7 +185,7 @@ let reduce_size_to lv new_seg_count =
 	    {s with s_extent_count = left}::acc
       | _ -> acc
   in
-  {lv with segments = sort_segments (doit lv.segments new_seg_count [])}
+  return {lv with segments = sort_segments (doit lv.segments new_seg_count [])}
 
 let increase_allocation lv new_segs =
   {lv with segments = sort_segments (lv.segments @ new_segs)}

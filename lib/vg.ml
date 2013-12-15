@@ -124,7 +124,7 @@ let do_op vg op =
   | LvReduce (name,l) ->
     change_lv name (fun lv others ->
       let allocation = Lv.allocation_of_lv lv in
-      let lv = Lv.reduce_size_to lv l.lvrd_new_extent_count in
+      Lv.reduce_size_to lv l.lvrd_new_extent_count >>= fun lv ->
       let new_allocation = Lv.allocation_of_lv lv in
       let free_space = Allocator.alloc_specified_areas (Allocator.free vg.free_space allocation) new_allocation in
       return {vg with lvs = lv::others; free_space})

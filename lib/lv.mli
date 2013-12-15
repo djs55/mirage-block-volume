@@ -65,4 +65,6 @@ val allocation_of_lv: logical_volume -> (string * (int64 * int64)) list
 
 val size_in_extents: logical_volume -> int64
 
-val reduce_size_to: logical_volume -> int64 -> logical_volume
+val reduce_size_to: logical_volume -> int64 -> (logical_volume, string) Result.result
+(** [reduce_size_to lv new_size] reduces the size of [lv] to [new_size],
+    or fails if the [new_size] is less than the current size. *)
