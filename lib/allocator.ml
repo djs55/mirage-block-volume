@@ -12,10 +12,6 @@
  * GNU Lesser General Public License for more details.
  *)
 
-
-open Pervasiveext
-open Listext
-
 (* Sparse allocation should be fast. Expanding memory should be fast, for a bunch of volumes. *)
 
 type area = (string * (int64 * int64)) with rpc
@@ -25,6 +21,31 @@ let to_string1 (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" p s l
 let to_string t =
   String.concat ", "
     (List.map to_string1 t)
+
+let (++) f g x = f (g x)
+let ($) f a = f a
+let uncurry f (a,b) = f a b
+let cons a b = a :: b
+let const a b = a
+let on op f x y = op (f x) (f y)
+
+module Mapext = struct
+  module Make(Ord: Map.OrderedType) = struct
+    include Map.Make (Ord)
+        
+    let fromHash h = Hashtbl.fold add h empty
+    let filter pred m = fold (fun k v acc -> (if pred v then add k v else fun x -> x) acc) m empty
+        (* values: gives the list of values of the map. *)
+    let values m = fold (const cons) m []
+
+    let fromListWith op list = List.fold_left (fun map (k,v) ->
+                                                 add k (if mem k map
+                                                        then op v (find k map)
+                                                        else v) map)
+        empty list
+    let adjust op k m = try add k (op (find k m)) m with Not_found -> m 
+  end
+end
 
 let create name size = [(name,(0L,size))]
 let empty = []
@@ -71,7 +92,7 @@ let minus : area -> area -> t = (* does not guarantee normalization *)
 	let enda = get_end a in
 	let enda2 = get_end a2 in
         if name = name2
-	then List.filter ((<) Int64.zero ++ get_size) ++ List.fold_left combine [] ++ List.map (intersect a ++ Fun.uncurry (make_area_by_end name2)) $ ((start, start2) :: (enda2, enda)::[])
+	then List.filter ((<) Int64.zero ++ get_size) ++ List.fold_left combine [] ++ List.map (intersect a ++ uncurry (make_area_by_end name2)) $ ((start, start2) :: (enda2, enda)::[])
 	else a :: []
 
 (* Is a contained in a2? *)
@@ -94,12 +115,12 @@ let normalize_single_pv areas =
 	else if (Int64.add start1 size1) = start2 then
 	    (make_area name start1 (Int64.add size1 size2), acc)
 	else
-	    (a2, List.cons a1 acc) in
+	    (a2, a1 :: acc) in
     (function
 	 | start::segs -> 
-	       (Fun.uncurry List.cons) $ List.fold_left merge1 (start, []) segs
+	       (uncurry cons) $ List.fold_left merge1 (start, []) segs
 	 | [] -> [] (* shouldn't be necessary! *))
-    ++ List.sort (Fun.on compare get_start) ++ List.filter ((<) 0L ++ get_size) $ areas
+    ++ List.sort (on compare get_start) ++ List.filter ((<) 0L ++ get_size) $ areas
 let normalize : t -> t = 
     fun areas ->
     (* The next lines are to be read backwards, since we defined function composition that way. *)
@@ -154,7 +175,7 @@ let safe_alloc (free_list : t) (newsize : int64) =
                 Some ([area], try (alloc_specified_area (seg::rest) area) with (Match_failure x) -> (print_endline "alloc_specified_area"; raise (Match_failure x)))
 	| [] -> None in
     alloc_h newsize
-    ++ List.rev ++ List.sort (Fun.on compare get_size) $ free_list
+    ++ List.rev ++ List.sort (on compare get_size) $ free_list
       
 let alloc (free_list : t) (newsize : int64) =
     match safe_alloc free_list newsize

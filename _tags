@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a4212a2ddec12939ca3975c8bf41f5dd)
+# DO NOT EDIT (digest: a39bc6f473a0108a16263821f9ea0f59)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -35,7 +35,6 @@
 "lib/tag.cmx": for-pack(Lvm)
 "lib/utils.cmx": for-pack(Lvm)
 "lib/vg.cmx": for-pack(Lvm)
-<lib/*.ml{,i}>: pkg_stdext
 <lib/*.ml{,i}>: pkg_rpclib.syntax
 <lib/*.ml{,i}>: pkg_rpclib
 <lib/*.ml{,i}>: pkg_threads
@@ -46,10 +45,10 @@
 <lib/*.ml{,i}>: pkg_mirage-block-unix
 # Library lvm_mapper
 "lib/lvm_mapper.cmxs": use_lvm_mapper
+<lib/*.ml{,i}>: pkg_stdext
 # Executable tag_test
 <lib_test/tag_test.{native,byte}>: use_lvm
 <lib_test/tag_test.{native,byte}>: pkg_oUnit
-<lib_test/tag_test.{native,byte}>: pkg_stdext
 <lib_test/tag_test.{native,byte}>: pkg_rpclib.syntax
 <lib_test/tag_test.{native,byte}>: pkg_rpclib
 <lib_test/tag_test.{native,byte}>: pkg_threads
