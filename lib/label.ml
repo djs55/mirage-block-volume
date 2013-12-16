@@ -170,10 +170,10 @@ let sizeof = Constants.sector_size
 let marshal t buf =
   let buf' = Label_header.marshal t.label_header buf in
   assert(t.label_header.Label_header.offset=32l);
-  let buf' = Pv_header.marshal t.pv_header buf in
+  let buf' = Pv_header.marshal t.pv_header buf' in
   (* Now calc CRC *)
   let crc = Crc.crc (Cstruct.sub buf do_crc_from (Constants.label_size - do_crc_from)) in
-  Cstruct.LE.get_uint32 buf crc_pos crc;
+  Cstruct.LE.set_uint32 buf crc_pos crc;
   buf'
 
 let unmarshal buf =
@@ -186,10 +186,10 @@ let unmarshal buf =
       if Cstruct.(to_string (sub b 0 8)) = Constants.label_id then begin
         unmarshal b >>= fun (lh, _) ->
         return (lh, b)
-      else find (n + 1)
+      end else find (n + 1)
     end in
   find 0 >>= fun (label, buf) ->
-  let buf = Cstruct.shift (Int32.to_int label.Label_header.offset) buf in
+  let buf = Cstruct.shift buf (Int32.to_int label.Label_header.offset) in
   let open Pv_header in
   unmarshal buf >>= fun (pvh, buf) ->
   return ({ device = "";
@@ -210,8 +210,8 @@ let get_device label =
 let read device =
   let open IO in
   get_label device >>= fun buf ->
-  let open Result in
-  unmarshal (buf, 0) >>= fun (t, _) ->
+  let open IO.FromResult in
+  unmarshal buf >>= fun (t, _) ->
   let open IO in
   return { t with device }
       

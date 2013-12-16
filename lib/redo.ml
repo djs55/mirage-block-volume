@@ -46,6 +46,7 @@ and sequenced_op = {
   so_op : operation
 } with rpc
 
+(*
 (** Marshal to and from a string *)
 let redo_to_string (l : sequenced_op) = 
   let s = Marshal.to_string l [] in
@@ -114,7 +115,7 @@ let read fd offset size =
 
 let reset fd offset =
   write_initial_pos fd offset (Int64.add offset 12L)
-
+*)
 (** Converts the redo operation to a human-readable string. *)
 let redo_to_human_readable op =
 	let lvcreate_t_to_string l =

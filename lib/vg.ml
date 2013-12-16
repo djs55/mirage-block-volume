@@ -33,7 +33,7 @@ and vg = {
   pvs : Pv.physical_volume list; (* Device to pv map *)
   lvs : Lv.logical_volume list;
   free_space : Allocator.t;
-  redo_lv : string option; (* Name of the redo LV *)
+  (* XXX: hook in the redo log *)
   ops : sequenced_op list;
 } with rpc
   
@@ -78,18 +78,19 @@ let write_to_buffer b vg =
   bprintf b "creation_time = %Ld\n\n" (Int64.of_float (Unix.time ()))
     
 
-let to_string vg = 
-  let size=65536 in (* 64k. no particular reason *)
-  let b = Buffer.create size in
+let to_cstruct vg = 
+  let b = Buffer.create 65536 in 
   write_to_buffer b vg;
-  Buffer.contents b
-
+  let s = Buffer.contents b in
+  let c = Cstruct.create (String.length s) in
+  Cstruct.blit_from_string s 0 c 0 (String.length s);
+  c
 
 (*************************************************************)
 (* METADATA CHANGING OPERATIONS                              *)
 (*************************************************************)
 
-let do_op vg op =
+let do_op vg op : (vg, string) Result.result =
   ( if vg.seqno <> op.so_seqno
     then fail (Printf.sprintf "VG: cannot perform operation out-of-order: expected %d, actual %d" vg.seqno op.so_seqno)
     else return () ) >>= fun () ->
@@ -177,7 +178,7 @@ let remove_tag_lv vg name tag =
   do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)}
 
 (******************************************************************************)
-
+(*
 let human_readable vg =
   let pv_strings = List.map Pv.human_readable vg.pvs in
     String.concat "\n" pv_strings
@@ -187,17 +188,7 @@ let find_lv vg lv_name =
   List.find (fun lv -> lv.Lv.name = lv_name) vg.lvs
 
 let with_open_redo vg f =
-	match vg.redo_lv with
-	| Some lv_name -> 
-		(* let lv = List.find (fun lv -> lv.Lv.name=lv_name) vg.lvs in *)
-		let dev = (List.hd vg.pvs).Pv.dev in
-		let (dev,pos) = 
-			if !Constants.dummy_mode
-			then (Printf.sprintf "%s/%s/redo" !Constants.dummy_base dev,0L)
-			else (* get_absolute_pos_of_sector vg lv 0L *) failwith "where does the redo log go?" in  
-		let fd = Unix.openfile dev [Unix.O_RDWR; Unix.O_CREAT] 0o644 in
-		Pervasiveext.finally (fun () -> f (fd,pos)) (fun () -> Unix.close fd)
-	| None -> failwith "vg.ml/with_open_redo: vg.redo_lv == None, but should not be."
+  debug "The redo log is missing"
 
 let read_redo vg =
 	with_open_redo vg (fun (fd,pos) ->
@@ -228,50 +219,59 @@ let apply_redo vg  =
 	  end
       | _ -> return vg
   in apply vg ops
+*)
 
 let write_full vg =
   let pvs = vg.pvs in
-  let md = to_string vg in
-  let vg = 
-    {vg with pvs = List.map (fun pv -> 
-      Label.write pv.Pv.label;
-      { pv with Pv.mda_headers = 
-	  List.map (fun mdah -> 
-	    Metadata.write pv.Pv.real_device mdah md) pv.Pv.mda_headers}) pvs}
-  in
-  (match vg.redo_lv with Some _ -> reset_redo vg | None -> ());
-  vg
+  let md = to_cstruct vg in
+  let open IO in
+  let rec write_pv pv acc = function
+    | [] -> return (List.rev acc)
+    | m :: ms ->
+      Metadata.write pv.Pv.real_device m md >>= fun h ->
+      write_pv pv (h :: acc) ms in
+  let rec write_vg acc = function
+    | [] -> return (List.rev acc)
+    | pv :: pvs ->
+      Label.write pv.Pv.label >>= fun () ->
+      write_pv pv [] pv.Pv.mda_headers >>= fun headers ->
+      write_vg ({ pv with Pv.mda_headers = headers } :: acc) pvs in
+  write_vg [] vg.pvs >>= fun pvs ->
+  let vg = { vg with pvs } in
+  (* (match vg.redo_lv with Some _ -> reset_redo vg | None -> ()); *)
+  return vg
 
+(*
 let init_redo_log vg =
+  let open IO.FromResult in
   match vg.redo_lv with 
     | Some _ -> return vg 
     | None ->
       create_lv vg Constants.redo_log_lv_name 1L >>= fun lv ->
-      let vg = write_full lv in
+      let open IO in
+      write_full lv >>= fun vg ->
       return { vg with redo_lv = Some Constants.redo_log_lv_name }
-
+*)
 let write vg force_full =
-  if force_full 
-  then write_full vg
-  else 
-    match vg.redo_lv with None -> write_full vg | Some _ -> write_redo vg
+  write_full vg
 
 let of_metadata config pvdatas =
+  let open IO.FromResult in
   ( match config with
-    | AStruct c -> return c
-    | _ -> fail "VG metadata doesn't begin with a structure element" ) >>= fun config ->
+    | AStruct c -> `Ok c
+    | _ -> `Error "VG metadata doesn't begin with a structure element" ) >>= fun config ->
   let vg = filter_structs config in
   ( match vg with
-    | [ name, _ ] -> return name
-    | [] -> fail "VG metadata contains no defined volume groups"
-    | _ -> fail "VG metadata contains multiple volume groups" ) >>= fun name ->
+    | [ name, _ ] -> `Ok name
+    | [] -> `Error "VG metadata contains no defined volume groups"
+    | _ -> `Error "VG metadata contains multiple volume groups" ) >>= fun name ->
   expect_mapped_struct name vg >>= fun alist ->
   expect_mapped_string "id" alist >>= fun id ->
   let id = Lvm_uuid.of_string id in
   expect_mapped_int "seqno" alist >>= fun seqno ->
   let seqno = Int64.to_int seqno in
   map_expected_mapped_array "status" 
-    (fun a -> expect_string "status" a >>= fun x ->
+    (fun a -> let open Result in expect_string "status" a >>= fun x ->
               status_of_string x) alist >>= fun status ->
   expect_mapped_int "extent_size" alist >>= fun extent_size ->
   expect_mapped_int "max_lv" alist >>= fun max_lv ->
@@ -279,17 +279,21 @@ let of_metadata config pvdatas =
   expect_mapped_int "max_pv" alist >>= fun max_pv ->
   let max_pv = Int64.to_int max_pv in
   expect_mapped_struct "physical_volumes" alist >>= fun pvs ->
-
-  Result.all (List.map (fun (a,_) ->
+  ( match expect_mapped_struct "logical_volumes" alist with
+    | `Ok lvs -> `Ok lvs
+    | `Error _ -> `Ok [] ) >>= fun lvs ->
+  let open IO in
+  all (Lwt_list.map_s (fun (a,_) ->
+    let open IO.FromResult in
     expect_mapped_struct a pvs >>= fun x ->
+    let open IO in
     Pv.of_metadata a x pvdatas
   ) pvs) >>= fun pvs ->
-  ( match expect_mapped_struct "logical_volumes" alist with
-    | `Ok lvs -> return lvs
-    | `Error _ -> return [] ) >>= fun lvs ->
-  Result.all (List.map (fun (a,_) ->
+  all (Lwt_list.map_s (fun (a,_) ->
+    let open IO.FromResult in
     expect_mapped_struct a lvs >>= fun x ->
-    Lv.of_metadata a x) lvs) >>= fun lvs ->
+    Lwt.return (Lv.of_metadata a x)
+  ) lvs) >>= fun lvs ->
 
   (* Now we need to set up the free space structure in the PVs *)
   let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
@@ -298,43 +302,43 @@ let of_metadata config pvdatas =
     let lv_allocations = Lv.allocation_of_lv lv in
     debug "Allocations for lv %s:\n%s\n" lv.Lv.name (Allocator.to_string lv_allocations);
     Allocator.alloc_specified_areas free_space lv_allocations) free_space lvs in
-  
+ (* 
   let got_redo_lv = List.exists (fun lv -> lv.Lv.name = Constants.redo_log_lv_name) lvs in
   let redo_lv = if got_redo_lv then Some Constants.redo_log_lv_name else None in
+ *)
   let ops = [] in
-  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space;  redo_lv; ops } in
-  
+  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; ops } in
+  (*
   if got_redo_lv then apply_redo vg else return vg
+  *)
+  return vg
 
 let create_new name devices_and_names =
-	let pvs = List.map (fun (dev,name) -> Pv.create_new dev name) devices_and_names in
-	debug "PVs created";
-	let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
-	let vg = 
-		{ name=name;
-		id=Lvm_uuid.create ();
-		seqno=1;
-		status=[Read; Write];
-		extent_size=Constants.extent_size_in_sectors;
-		max_lv=0;
-		max_pv=0;
-		pvs=pvs;
-		lvs=[];
-		free_space=free_space;
-		redo_lv=None;
-		ops=[];
-		}
-	in
-	ignore (write vg true);
-	debug "VG created"
+  let open IO in
+  let rec write_pv acc = function
+    | [] -> return (List.rev acc)
+    | (dev, name) :: pvs ->
+      Pv.create_new dev name >>= fun pv ->
+      write_pv (pv :: acc) pvs in
+  write_pv [] devices_and_names >>= fun pvs ->
+  debug "PVs created";
+  let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
+  let vg = { name; id=Lvm_uuid.create (); seqno=1; status=[Read; Write];
+    extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
+    lvs=[]; free_space; ops=[]; } in
+  write vg true >>= fun _ ->
+  debug "VG created";
+  return ()
 
-let parse text pvdatas =
+let parse buf pvdatas =
+  let text = Cstruct.to_string buf in
   let lexbuf = Lexing.from_string text in
   of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf) pvdatas
 
 let load devices =
   debug "Vg.load";
-  Result.all (List.map Pv.find_metadata devices) >>= fun mds_and_pvdatas ->
+  let open IO in
+  IO.FromResult.all (Lwt_list.map_s Pv.find_metadata devices) >>= fun mds_and_pvdatas ->
   let md = fst (List.hd mds_and_pvdatas) in
   let pvdatas = List.map snd mds_and_pvdatas in
   parse md pvdatas

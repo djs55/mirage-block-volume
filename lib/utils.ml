@@ -19,3 +19,8 @@ let ( *** ) = Int64.mul
 
 let int64_round_up value blocksize =
   blocksize *** ((value ++ blocksize -- 1L) // blocksize)
+
+let zero buf =
+  for i = 0 to Cstruct.len buf - 1 do
+    Cstruct.set_uint8 buf i 0
+  done

@@ -55,40 +55,36 @@ module Header = struct
     && (a.mdah_raw_locns = b.mdah_raw_locns)
 
   let unmarshal buf =
-    let checksum,b = unmarshal_uint32 buf in
-    let magic,b = unmarshal_string 16 b in
-    let version,b = unmarshal_uint32 b in
-    let start,b = unmarshal_uint64 b in
-    let size,b = unmarshal_uint64 b in
+    let mdah_checksum = Cstruct.LE.get_uint32 buf 0 in
+    let mdah_magic = Cstruct.(to_string (sub buf 4 16)) in
+    let mdah_version = Cstruct.LE.get_uint32 buf 20 in
+    let mdah_start = Cstruct.LE.get_uint64 buf 24 in
+    let mdah_size = Cstruct.LE.get_uint64 buf 32 in
     let rec read_raw_locns b acc =
-      let offset,b = unmarshal_uint64 b in
-      let size,b = unmarshal_uint64 b in
-      let checksum,b = unmarshal_uint32 b in
-      let filler,b = unmarshal_uint32 b in
-      if (offset=0L) 
-      then (List.rev acc),b
-      else 
-	read_raw_locns b ({mrl_offset=offset;mrl_size=size;mrl_checksum=checksum;mrl_filler=filler}::acc)
-    in
-    let raw_locns,b = read_raw_locns b [] in
-    let crc_to_check = String.sub (fst buf) (snd buf + 4) (sizeof - 4) in
+      let mrl_offset = Cstruct.LE.get_uint64 b 0 in
+      let mrl_size = Cstruct.LE.get_uint64 b 8 in
+      let mrl_checksum = Cstruct.LE.get_uint32 b 16 in
+      let mrl_filler = Cstruct.LE.get_uint32 b 20 in
+      let b = Cstruct.shift b 24 in
+      if mrl_offset = 0L
+      then List.rev acc, b
+      else read_raw_locns b ({ mrl_offset; mrl_size; mrl_checksum; mrl_filler } :: acc) in
+    let mdah_raw_locns, b = read_raw_locns (Cstruct.shift buf 40) [] in
+    let crc_to_check = Cstruct.sub buf 4 (sizeof - 4) in
     let crc = Crc.crc crc_to_check in
-    if crc <> checksum
-    then `Error (Printf.sprintf "Bad checksum in metadata area: expected %08lx, got %08lx" checksum crc)
-    else `Ok
-    ({mdah_checksum=checksum;
-     mdah_magic=magic;
-     mdah_version=version;
-     mdah_start=start;
-     mdah_size=size;
-     mdah_raw_locns=raw_locns}, b)
+    if crc <> mdah_checksum
+    then `Error (Printf.sprintf "Bad checksum in metadata area: expected %08lx, got %08lx" mdah_checksum crc)
+    else `Ok ({mdah_checksum; mdah_magic; mdah_version; mdah_start; mdah_size; mdah_raw_locns}, b)
 
   let read device location =
-    let buf = get_mda_header device location.Label.dl_offset sizeof in
-    unmarshal (buf, 0) >>= fun (t, _) ->
+    let open IO in
+    get_mda_header device location.Label.dl_offset sizeof >>= fun buf ->
+    let open IO.FromResult in
+    unmarshal buf >>= fun (t, _) ->
     return t
 
   let read_all device locations =
+    let open IO in
     let rec loop acc = function
     | [] -> return (List.rev acc)
     | m :: ms ->
@@ -101,31 +97,30 @@ module Header = struct
     Printf.sprintf "checksum: %ld\nmagic: %s\nversion: %ld\nstart: %Ld\nsize: %Ld\nraw_locns:[%s]\n"
       mdah.mdah_checksum mdah.mdah_magic mdah.mdah_version mdah.mdah_start mdah.mdah_size (String.concat "," (List.map rl2ascii mdah.mdah_raw_locns))
 
-let marshal mdah wholeheader =
-    let header = marshal_int32 wholeheader 0l in (* Write the checksum later *)
-    let header = marshal_string header mdah.mdah_magic in
-    let header = marshal_int32 header mdah.mdah_version in
-    let header = marshal_int64 header mdah.mdah_start in
-    let header = marshal_int64 header mdah.mdah_size in
-    let write_raw_locn header locn =
-      let header = marshal_int64 header locn.mrl_offset in
-      let header = marshal_int64 header locn.mrl_size in
-      let header = marshal_int32 header locn.mrl_checksum in
-      let header = marshal_int32 header locn.mrl_filler in
-      header
-    in
-    let header = List.fold_left write_raw_locn header mdah.mdah_raw_locns in
-    let header = write_raw_locn header {mrl_offset=0L; mrl_size=0L; mrl_checksum=0l; mrl_filler=0l} in
-    let crcable = String.sub (fst wholeheader) 4 (sizeof - 4) in
+  let marshal mdah buf =
+    Cstruct.blit_from_string mdah.mdah_magic 0 buf 4 16;
+    Cstruct.LE.set_uint32 buf 20 mdah.mdah_version;
+    Cstruct.LE.set_uint64 buf 24 mdah.mdah_start;
+    Cstruct.LE.set_uint64 buf 32 mdah.mdah_size;
+    let write_raw_locn buf locn =
+      Cstruct.LE.set_uint64 buf 0 locn.mrl_offset;
+      Cstruct.LE.set_uint64 buf 8 locn.mrl_size;
+      Cstruct.LE.set_uint32 buf 16 locn.mrl_checksum;
+      Cstruct.LE.set_uint32 buf 20 locn.mrl_filler;
+      Cstruct.shift buf 24 in
+    let buf' = List.fold_left write_raw_locn (Cstruct.shift buf 40) mdah.mdah_raw_locns in
+    let buf' = write_raw_locn buf' { mrl_offset = 0L; mrl_size = 0L; mrl_checksum = 0l; mrl_filler = 0l } in
+    let crcable = Cstruct.sub buf 4 (sizeof - 4) in
     let crc = Crc.crc crcable in
-    let _ = marshal_int32 wholeheader crc in
-    header
+    Cstruct.LE.set_uint32 buf 0 crc;
+    buf'
 
   let write mdah device  =
     debug "Writing MDA header";
     debug "Writing: %s" (to_string mdah);
-    let sector = String.make sizeof '\000' in
-    let _ = marshal mdah (sector, 0) in
+    let sector = Cstruct.create sizeof in
+    Utils.zero sector;
+    let _ = marshal mdah sector in
     put_mda_header device mdah.mdah_start sector
 
   let create () =
@@ -150,64 +145,58 @@ end
 open Header
 
 let read dev mdah n =
-	let locn = List.nth mdah.mdah_raw_locns n in
-	let firstbit, secondbit =
-		if Int64.add locn.mrl_offset locn.mrl_size > mdah.mdah_size
-		then
-			let firstbit = Int64.(to_int (sub mdah.mdah_size locn.mrl_offset)) in
-			firstbit, Int64.to_int locn.mrl_size - firstbit
-		else Int64.to_int locn.mrl_size, 0 in
-	let md = IO.get_md dev (Int64.add mdah.mdah_start locn.mrl_offset) (Int64.add mdah.mdah_start 512L) firstbit secondbit in
-	let checksum = Crc.crc md in
-	if checksum <> locn.mrl_checksum then
-		Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
-	md
+  let locn = List.nth mdah.mdah_raw_locns n in
+  let firstbit, secondbit =
+    if Int64.add locn.mrl_offset locn.mrl_size > mdah.mdah_size
+    then
+      let firstbit = Int64.(to_int (sub mdah.mdah_size locn.mrl_offset)) in
+      firstbit, Int64.to_int locn.mrl_size - firstbit
+    else Int64.to_int locn.mrl_size, 0 in
+  let offset = Int64.add mdah.mdah_start locn.mrl_offset in
+  let offset' = Int64.add mdah.mdah_start 512L in
+  let open IO in
+  IO.get_md dev offset offset' firstbit secondbit >>= fun buf ->
+  let checksum = Crc.crc buf in
+    if checksum <> locn.mrl_checksum then
+    Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
+  return buf
       
-  let write device mdah md =
-    (* Find the current raw location of the metadata, assuming there's only one copy *)
-    let current = List.hd mdah.mdah_raw_locns in
+let write device mdah md =
+  (* Find the current raw location of the metadata, assuming there's only one copy *)
+  let current = List.hd mdah.mdah_raw_locns in
     
-    (* Find the new place to write (as an offset from the position of the metadata area)
-     * LVM always rounds up to the next sector, so we'll do the same. *)
-    let newpos = Utils.int64_round_up (Int64.add current.mrl_offset current.mrl_size) 512L in
+  (* Find the new place to write (as an offset from the position of the metadata area)
+     LVM always rounds up to the next sector, so we'll do the same. *)
+  let mrl_offset = Utils.int64_round_up (Int64.add current.mrl_offset current.mrl_size) 512L in
 
-    (* Check if we've gone outside the mda *)
-    let newpos = 
-      if newpos >= mdah.mdah_size then
-	(Int64.add 512L (Int64.sub newpos mdah.mdah_size))
-      else 
-	newpos
-    in
+  (* Check if we've gone outside the mda *)
+  let mrl_offset = 
+    if mrl_offset >= mdah.mdah_size then
+      (Int64.add 512L (Int64.sub mrl_offset mdah.mdah_size))
+    else 
+      mrl_offset in
 
-    (* Add on the position of the metadata area *)
-    let absnewpos = Int64.add newpos mdah.mdah_start in
+  let mrl_size = Cstruct.len md in
+  let firstbit, secondbit =
+    if Int64.(add mrl_offset (of_int mrl_size)) > mdah.mdah_size
+    then
+      let firstbit = Int64.(to_int (sub mdah.mdah_size mrl_offset)) in
+      let secondbit = mrl_size - firstbit in
+      firstbit, secondbit
+    else
+      mrl_size, 0 in
+  let firstbitbuf = Cstruct.sub md 0 firstbit in
+  let secondbitbuf = Cstruct.sub md firstbit secondbit in
 
-    let size = String.length md in
-    let firstbit, secondbit =
-      if Int64.add newpos (Int64.of_int size) > mdah.mdah_size
-      then
-        let firstbit = Int64.to_int (Int64.sub mdah.mdah_size newpos) in
-        let secondbit = size - firstbit in
-        firstbit, secondbit
-      else
-        size, 0 in
-    let firstbitstr = String.sub md 0 firstbit in
-    let secondbitstr = String.sub md firstbit secondbit in
+  let absnewpos = Int64.add mrl_offset mdah.mdah_start in
+  let open IO in
+  IO.put_md device absnewpos (Int64.add mdah.mdah_start 512L) firstbitbuf secondbitbuf >>= fun () ->
 
-    IO.put_md device absnewpos (Int64.add mdah.mdah_start 512L) firstbitstr secondbitstr;
-
-    (* Now we have to update the crc and pointer to the metadata *)
+  (* Now we have to update the crc and pointer to the metadata *)
     
-    let checksum = Crc.crc md in
-    let new_raw_locn = {
-      mrl_offset=newpos;
-      mrl_size=Int64.of_int size;
-      mrl_checksum=checksum;
-      mrl_filler=0l;
-    } in
+  let mrl_checksum = Crc.crc md in
+  let new_raw_locn = { mrl_offset; mrl_size=Int64.of_int mrl_size; mrl_checksum; mrl_filler=0l; } in
 
-    let mdah = {mdah with mdah_raw_locns=[new_raw_locn]} in
-    write mdah device;
-    mdah
-
-
+  let mdah = {mdah with mdah_raw_locns=[new_raw_locn]} in
+  write mdah device >>= fun () ->
+  return mdah

@@ -29,10 +29,10 @@ let crc buf init =
   let (^^) a b = Int32.logxor a b in
   let (&&&) a b = Int32.to_int (Int32.logand a b) in
 
-  let size = String.length buf in
+  let size = Cstruct.len buf in
   let rec loop i cur =
     if i=size then cur else
-      let a1 = cur ^^ (Int32.of_int (int_of_char buf.[i])) in
+      let a1 = cur ^^ (Int32.of_int (Cstruct.get_uint8 buf i)) in
       let a2 = (a1 >> 4) ^^ crctab.( a1 &&& 0xfl ) in
       let a3 = (a2 >> 4) ^^ crctab.( a2 &&& 0xfl ) in
       loop (i+1) a3

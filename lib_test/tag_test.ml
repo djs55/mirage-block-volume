@@ -39,14 +39,16 @@ let mda = "\186\233\186\158 LVM2 x[5A%r0N*>\001\000\000\000\000\016\000\000\000\
 let well_known_mdaheader () =
   let open Metadata.Header in
   let empty = create () in
-  let data = String.make sizeof '\000', 0 in
+  let data = Cstruct.create sizeof in
+  Utils.zero data;
   let _ = marshal empty data in
-  assert_equal mda (fst data)
+  assert_equal mda (Cstruct.to_string data)
 
 let unmarshal_marshal_mdaheader () =
   let open Metadata.Header in
   let empty = create () in
-  let data = String.make sizeof '\000', 0 in
+  let data = Cstruct.create sizeof in
+  Utils.zero data;
   let _ = marshal empty data in
   let empty', _ = Result.ok_or_failwith (unmarshal data) in
   assert_equal ~printer:to_string ~cmp:equals empty empty';
@@ -63,19 +65,19 @@ let label_header = "LABELONE\001\000\000\000\000\000\000\000\000\000\000\000 \00
 
 let well_known_label_header () =
   let open Label.Label_header in
-  let buf = String.make 512 '\000' in
-  let sector = marshal (create ()) (buf, 0) in
-  let label_header' = String.sub (fst sector) 0 (snd sector) in
+  let buf = Cstruct.create 512 in
+  let sector = marshal (create ()) buf in
+  let label_header' = Cstruct.(to_string (sub buf 0 (String.length label_header))) in
   assert_equal label_header label_header'
 
 let label = "LABELONE\001\000\000\000\000\000\000\000<\131@\179 \000\000\000LVM2 001Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\000,\001\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000d\000\000\000\000\000\000\000\200\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 
 let well_known_label () =
   let open Label in
-  let sector = String.make 512 '\000' in
+  let sector = Cstruct.create 512 in
   let expected = create "foo" (Lvm_uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") 1234L 100L 200L in
-  let _, len = marshal expected (sector, 0) in
-  let label' = String.sub sector 0 len in
+  let _ = marshal expected sector in
+  let label' = Cstruct.(to_string (sub sector 0 (String.length label))) in
   assert_equal label label'
 
 let label_suite = "Label header" >::: [
@@ -93,17 +95,17 @@ let well_known_pv_header () =
     pvh_extents = [{Label.dl_offset = 300L; Label.dl_size = 0L}];
     pvh_metadata_areas = [{Label.dl_offset = 100L; Label.dl_size = 200L}]
   } in
-  let sector = String.make 512 '\000' in
-  let _, len = marshal pvh (sector, 0) in
-  let pv_header' = String.sub sector 0 len in
+  let sector = Cstruct.create 512 in
+  let _ = marshal pvh sector in
+  let pv_header' = Cstruct.(to_string (sub sector 0 (String.length pv_header))) in
   assert_equal pv_header pv_header'
 
 let unmarshal_marshal_pv_header () =
   let open Label.Pv_header in
   let pvh = create (Lvm_uuid.create ()) 1234L 100L 50L in
-  let sector = String.make 512 '\000' in
-  let _ = marshal pvh (sector, 0) in
-  let pvh', _ = Result.ok_or_failwith (unmarshal (sector, 0)) in
+  let sector = Cstruct.create 512 in
+  let _ = marshal pvh sector in
+  let pvh', _ = Result.ok_or_failwith (unmarshal sector) in
   assert_equal ~printer:to_string ~cmp:equals pvh pvh'
 
 let pv_header_suite = "PV header" >::: [

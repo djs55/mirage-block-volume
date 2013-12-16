@@ -12,5 +12,5 @@
  * GNU Lesser General Public License for more details.
  *)
 
-val crc: string -> int32
+val crc: Cstruct.t -> int32
 (** [crc buffer] computes a CRC-32 of [buffer] *)

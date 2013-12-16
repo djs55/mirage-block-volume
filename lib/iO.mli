@@ -14,7 +14,17 @@
 
 include Monad_.S2 with type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
 
-type 'a io = ('a, string) t
+module FromResult: sig
+  type ('a, 'b) t = ('a, 'b) Result.result Lwt.t                              
+  val ( >>= ) :
+    [< `Error of 'a | `Ok of 'b ] ->
+    ('b -> ([> `Error of 'a ] as 'c) Lwt.t) -> 'c Lwt.t
+  val return : 'a -> [> `Ok of 'a ] Lwt.t
+  val fail : 'b -> [> `Error of 'b ] Lwt.t
+  val all: ('a, 'b) Result.result list Lwt.t -> ('a list, 'b) Result.result Lwt.t
+end
+
+type 'a io = ('a, string) Result.result Lwt.t
 
 val get_size: string -> int64 io
 

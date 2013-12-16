@@ -23,7 +23,6 @@ open Logging
     volume group, but it's the PV that contains the volume group info *)
 
 open IO
-open Lvmmarshal
 
   (** Here's the actual PV data that's part of the volume group *)
   
@@ -62,25 +61,25 @@ let write_to_buffer b pv =
     pv.dev_size pv.pe_start pv.pe_count
 
 let of_metadata name config pvdatas =
+  let open IO.FromResult in
   expect_mapped_string "id" config >>= fun id ->
   let id = Lvm_uuid.of_string id in
   expect_mapped_string "device" config >>= fun dev ->
   map_expected_mapped_array "status" 
-    (fun a -> expect_string "status" a >>= fun x ->
+    (fun a -> let open Result in expect_string "status" a >>= fun x ->
               status_of_string x) config >>= fun status ->
   expect_mapped_int "dev_size" config >>= fun dev_size ->
   expect_mapped_int "pe_start" config >>= fun pe_start ->
   expect_mapped_int "pe_count" config >>= fun pe_count ->
-  let open Label in
+  let open IO in
   ( try 
       let res = List.find (fun (label,mdahs) -> id=Label.get_pv_id label) pvdatas in
       Printf.fprintf stderr "Found cached PV label data\n";
       return res
     with Not_found -> 
       Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" dev;
-      let open Label in
-      read dev >>= fun label ->
-      let mda_locs = get_metadata_locations label in
+      Label.read dev >>= fun label ->
+      let mda_locs = Label.get_metadata_locations label in
       Metadata.Header.read_all dev mda_locs >>= fun mdahs ->
       return (label,mdahs)
   ) >>= fun (label, mda_headers) ->
@@ -91,12 +90,12 @@ let of_metadata name config pvdatas =
 
 (** Find the metadata area on a device and return the text of the metadata *)
 let find_metadata device =
-  let open Label in
-  read device >>= fun label ->
-  debug "Label found: \n%s\n" (to_string label);
-  let mda_locs = get_metadata_locations label in
+  let open IO in
+  Label.read device >>= fun label ->
+  debug "Label found: \n%s\n" (Label.to_string label);
+  let mda_locs = Label.get_metadata_locations label in
   Metadata.Header.read_all device mda_locs >>= fun mdahs ->
-  let mdt = Metadata.read device (List.hd mdahs) 0 in  
+  Metadata.read device (List.hd mdahs) 0 >>= fun mdt ->
   return (mdt, (label, mdahs))
 
 let human_readable pv =

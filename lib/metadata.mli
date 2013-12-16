@@ -30,10 +30,10 @@ module Header: sig
   val write: t -> string -> unit IO.io
   (** [write t device] writes [t] to the [device] *)
 
-  val read: string -> Label.disk_locn -> (t, string) Result.result
+  val read: string -> Label.disk_locn -> t IO.io
   (** [read device location] reads [t] from the [device] *)
 
-  val read_all: string -> Label.disk_locn list -> (t list, string) Result.result
+  val read_all: string -> Label.disk_locn list -> t list IO.io
   (** [read device locations] reads the [t]s found at [location]s,
       or an error if any single one can't be read. *)
 
@@ -47,7 +47,7 @@ val default_start: int64
 val default_size: int64
 (** Default length of the metadata area in bytes *)
 
-val read: string -> Header.t -> int -> string
+val read: string -> Header.t -> int -> Cstruct.t IO.io
 
-val write: string -> Header.t -> string -> Header.t
+val write: string -> Header.t -> Cstruct.t -> Header.t IO.io
  

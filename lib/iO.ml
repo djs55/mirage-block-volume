@@ -15,6 +15,7 @@
 open Lwt
 
 type 'a io = ('a, string) Result.result Lwt.t 
+type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
 
 let rec mkdir_p x =
   if Sys.file_exists x
@@ -40,13 +41,13 @@ let get_size device =
   then return (`Ok Constants.tib)
   else match Block.blkgetsize device with
     | `Ok x -> return (`Ok x)
-    | `Error e -> return (`Error (block_error e))
+    | `Error e -> return (block_error e)
 
 (* Should we wrap in Result.result? *)
 let with_file filename flags f =
   Lwt_unix.openfile filename flags 0o0 >>= fun fd ->
   Lwt.catch
-    (fun () -> f () >>= fun x -> Lwt_unix.close fd >>= fun () -> return (`Ok x))
+    (fun () -> f fd >>= fun x -> Lwt_unix.close fd >>= fun () -> return (`Ok x))
     (fun e -> Lwt_unix.close fd >>= fun () -> return (`Error (Printexc.to_string e)))
 
 let get name device offset length =
@@ -55,7 +56,7 @@ let get name device offset length =
   let buf = Cstruct.create length in
   with_file filename [ Lwt_unix.O_RDONLY ]
     (fun fd ->
-      Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun () ->
+      Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun _ ->
       Block.really_read fd buf >>= fun () ->
       return buf)
 
@@ -65,7 +66,7 @@ let put name device offset buf =
   let offset = if !Constants.dummy_mode then 0L else offset in
   with_file filename flags
     (fun fd ->
-      Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun () ->
+      Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun _ ->
       Block.really_write fd buf)
 
 let get_label device =
@@ -98,3 +99,24 @@ let get_md device offset offset' firstbit secondbit =
 let put_md device offset offset' firstbitbuf secondbitbuf =
   put "md1" device offset firstbitbuf >>= fun () ->
   put "md2" device offset' secondbitbuf
+
+module FromResult = struct
+  type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
+
+  let ( >>= ) m f = match m with
+    | `Error x -> Lwt.return (`Error x)
+    | `Ok x -> f x
+
+  let return x = Lwt.return (`Ok x)
+
+  let fail x = Lwt.return (`Error x)
+
+  let all xs =
+    let open Lwt in
+    let rec loop acc x = x >>= function
+    | [] -> return (`Ok (List.rev acc))
+    | `Ok x :: xs -> loop (x :: acc) (return xs)
+    | `Error x :: _ -> return (`Error x) in
+    loop [] xs
+
+end

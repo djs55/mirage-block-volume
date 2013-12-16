@@ -66,7 +66,7 @@ val get_pv_id: t -> Lvm_uuid.t
 
 val get_device: t -> string
 
-val read: string -> (t, string) Result.result
+val read: string -> t IO.io
 
 val write: t -> unit IO.io
 

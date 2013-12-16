@@ -49,7 +49,7 @@ let sizeof = 32
 include Result
 
 let unmarshal buf =
-  let str = Cstruct.(to_string (sub buf 0 sizeof))
+  let str = Cstruct.(to_string (sub buf 0 sizeof)) in
   let buf = Cstruct.shift buf sizeof in
   return (add_hyphens str, buf)
 
