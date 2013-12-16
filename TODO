@@ -1,3 +1,4 @@
+* check the metadata_max_size when the vg is opened
 * consider whether device could become a functor
 * replace all ad-hoc exceptions with an error type?
 * a master signature?

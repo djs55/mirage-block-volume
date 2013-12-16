@@ -48,12 +48,18 @@ type t = {
   mda_headers : Metadata.Header.t list; 
 } with rpc 
 
-let to_buffer b pv =
-  let bprintf = Printf.bprintf in
-  bprintf b "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.dev;
-  bprintf b "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
+let marshal pv b =
+  let ofs = ref 0 in
+  let bprintf fmt = Printf.kprintf (fun s ->
+    let len = String.length s in
+    Cstruct.blit_from_string s 0 b !ofs len;
+    ofs := !ofs + len
+  ) fmt in
+  bprintf "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.dev;
+  bprintf "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
     (String.concat ", " (List.map (o quote Status.to_string) pv.status))
-    pv.dev_size pv.pe_start pv.pe_count
+    pv.dev_size pv.pe_start pv.pe_count;
+  Cstruct.shift b !ofs
 
 let read name config =
   let open IO.FromResult in
@@ -87,13 +93,11 @@ let read_metadata device =
   return mdt
 
 let to_string pv =
-  let label=pv.label in
-  let b=Buffer.create 1000 in
-  let label_str=Label.to_string label in
+  let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
+  let buf' = marshal pv buf in
   let mdah_ascii = String.concat "\n" (List.map Metadata.Header.to_string pv.mda_headers) in
-  to_buffer b pv;
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
-    label_str mdah_ascii (Buffer.contents b)
+    (Label.to_string pv.label) mdah_ascii (Cstruct.(to_string (sub buf 0 buf'.Cstruct.off)))
 
 let format real_device name =
   let open IO in

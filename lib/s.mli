@@ -20,6 +20,10 @@ end
 module type MARSHAL = sig
   type t
   val marshal: t -> Cstruct.t -> Cstruct.t
+end
+
+module type UNMARSHAL = sig
+  type t
   val unmarshal: Cstruct.t -> (t * Cstruct.t, string) Result.result
 end
 

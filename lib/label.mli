@@ -21,6 +21,7 @@ module Label_header : sig
   val create: unit -> t
 
   include S.MARSHAL with type t := t
+  include S.UNMARSHAL with type t := t
 end
 
 type disk_locn = {
@@ -44,6 +45,7 @@ module Pv_header : sig
   include S.EQUALS with type t := t
   include S.PRINT with type t := t
   include S.MARSHAL with type t := t
+  include S.UNMARSHAL with type t := t
 end
 
 type t = {
@@ -57,6 +59,7 @@ val create: string -> Uuid.t -> int64 -> int64 -> int64 -> t
 include S.EQUALS with type t := t
 include S.PRINT with type t := t
 include S.MARSHAL with type t := t
+include S.UNMARSHAL with type t := t
 include S.RPC with type t := t
 include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 

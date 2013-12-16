@@ -25,6 +25,7 @@ module Header: sig
   include S.RPC with type t := t
   include S.PRINT with type t := t
   include S.MARSHAL with type t := t
+  include S.UNMARSHAL with type t := t
   include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
   val write: t -> string -> unit IO.io

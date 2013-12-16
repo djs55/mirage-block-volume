@@ -55,7 +55,7 @@ val status_of_string: string -> (stat, string) Result.result
 
 val sort_segments: segment list -> segment list
 
-val write_to_buffer: Buffer.t -> logical_volume -> unit
+val marshal: logical_volume -> Cstruct.t -> Cstruct.t
 
 val of_metadata: string -> (string * Absty.absty) list -> (logical_volume, string) Result.result
 

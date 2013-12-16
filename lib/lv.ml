@@ -70,28 +70,34 @@ let iteri f list = ignore (List.fold_left (fun i x -> f i x; i+1) 0 list)
 let comp f g x = f (g x)
 let (++) f g x = comp f g x
 
-let write_to_buffer b lv =
-  let bprintf = Printf.bprintf in
-  bprintf b "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name (Uuid.to_string lv.id)
+let marshal lv b =
+  let ofs = ref 0 in
+  let bprintf fmt = Printf.kprintf (fun s ->
+    let len = String.length s in
+    Cstruct.blit_from_string s 0 b !ofs len;
+    ofs := !ofs + len
+  ) fmt in
+  bprintf "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name (Uuid.to_string lv.id)
     (String.concat ", " (List.map (o quote status_to_string) lv.status));
   if List.length lv.tags > 0 then 
-    bprintf b "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
-  bprintf b "segment_count = %d\n\n" (List.length lv.segments);
+    bprintf "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
+  bprintf "segment_count = %d\n\n" (List.length lv.segments);
   iteri
     (fun i s -> 
-      bprintf b "segment%d {\nstart_extent = %Ld\nextent_count = %Ld\n\n"
+      bprintf "segment%d {\nstart_extent = %Ld\nextent_count = %Ld\n\n"
 	(i+1) s.s_start_extent s.s_extent_count;
        match s.s_cls with
 	 | Linear l ->
-	     bprintf b "type = \"striped\"\nstripe_count = 1\t#linear\n\n";
-	     bprintf b "stripes = [\n\"%s\", %Ld\n]\n}\n" l.l_pv_name l.l_pv_start_extent
+	     bprintf "type = \"striped\"\nstripe_count = 1\t#linear\n\n";
+	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" l.l_pv_name l.l_pv_start_extent
 	 | Striped st ->
 	     let stripes = List.length st.st_stripes in
-	     bprintf b "type = \"striped\"\nstripe_count = %d\nstripe_size = %Ld\n\nstripes = [\n"
+	     bprintf "type = \"striped\"\nstripe_count = %d\nstripe_size = %Ld\n\nstripes = [\n"
 	       stripes st.st_stripe_size;
-	     List.iter (fun (pv,offset) -> bprintf b "%s, %Ld\n" (quote pv) offset) st.st_stripes;
-	     bprintf b "]\n}\n") lv.segments;
-  bprintf b "}\n"
+	     List.iter (fun (pv,offset) -> bprintf "%s, %Ld\n" (quote pv) offset) st.st_stripes;
+	     bprintf "]\n}\n") lv.segments;
+  bprintf "}\n";
+  Cstruct.shift b !ofs
 
 let segment_of_metadata name config =
   expect_mapped_int "start_extent" config >>= fun s_start_extent ->
