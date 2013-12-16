@@ -76,6 +76,7 @@ let label = "LABELONE\001\000\000\000\000\000\000\000<\131@\179 \000\000\000LVM2
 let well_known_label () =
   let open Label in
   let sector = Cstruct.create 512 in
+  Utils.zero sector;
   let expected = create "foo" (Lvm_uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") 1234L 100L 200L in
   let _ = marshal expected sector in
   let label' = Cstruct.(to_string (sub sector 0 (String.length label))) in
