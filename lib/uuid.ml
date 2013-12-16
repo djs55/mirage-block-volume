@@ -59,5 +59,5 @@ let marshal t buf =
   Cstruct.shift buf sizeof
 
 let to_string x = x
-let of_string x = x
+let of_string x = `Ok x
 

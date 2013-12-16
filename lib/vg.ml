@@ -267,7 +267,7 @@ let of_metadata config pvdatas =
     | _ -> `Error "VG metadata contains multiple volume groups" ) >>= fun name ->
   expect_mapped_struct name vg >>= fun alist ->
   expect_mapped_string "id" alist >>= fun id ->
-  let id = Uuid.of_string id in
+  Uuid.of_string id >>= fun id ->
   expect_mapped_int "seqno" alist >>= fun seqno ->
   let seqno = Int64.to_int seqno in
   map_expected_mapped_array "status" 

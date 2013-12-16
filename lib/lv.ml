@@ -121,7 +121,7 @@ let segment_of_metadata name config =
 (** Builds a logical_volume structure out of a name and metadata. *)
 let of_metadata name config =
   expect_mapped_string "id" config >>= fun id ->
-  let id = Uuid.of_string id in
+  Uuid.of_string id >>= fun id ->
   map_expected_mapped_array "status"
     (fun a ->
       expect_string "status" a >>= fun x ->

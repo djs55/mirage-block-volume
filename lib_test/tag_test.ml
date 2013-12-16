@@ -77,7 +77,8 @@ let well_known_label () =
   let open Label in
   let sector = Cstruct.create 512 in
   Utils.zero sector;
-  let expected = create "foo" (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") 1234L 100L 200L in
+  let uuid = Result.ok_or_failwith (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
+  let expected = create "foo" uuid 1234L 100L 200L in
   let _ = marshal expected sector in
   let label' = Cstruct.(to_string (sub sector 0 (String.length label))) in
   assert_equal label label'
@@ -91,8 +92,9 @@ let pv_header = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\00
 
 let well_known_pv_header () =
   let open Label.Pv_header in
+  let uuid = Result.ok_or_failwith (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
   let pvh = {
-    pvh_id = Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw";
+    pvh_id = uuid;
     pvh_device_size = 1234L;
     pvh_extents = [{Label.dl_offset = 300L; Label.dl_size = 0L}];
     pvh_metadata_areas = [{Label.dl_offset = 100L; Label.dl_size = 200L}]
@@ -115,6 +117,39 @@ let pv_header_suite = "PV header" >::: [
   "unmarshal(marshal(Pv_header.create()))" >:: unmarshal_marshal_pv_header;
 ]
 
+let uuid_unmarshal_error () =
+  let open Uuid in
+  match unmarshal (Cstruct.create 0) with
+  | `Error _ -> ()
+  | `Ok _ -> failwith "uuid_unmarshal_error succeeded but should have failed"
+
+let uuid_marshalled = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw"
+let uuid_unmarshalled = "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw"
+
+let well_known_uuid () =
+  let open Uuid in
+  let buf = Cstruct.create (String.length uuid_marshalled) in
+  Cstruct.blit_from_string uuid_marshalled 0 buf 0 (String.length uuid_marshalled);
+  let uuid, _ = Result.ok_or_failwith (unmarshal buf) in
+  assert_equal uuid_unmarshalled (to_string uuid)
+
+let uuid_of_string_error () =
+  let open Uuid in
+  match of_string "" with
+  | `Error _ -> ()
+  | `Ok _ -> failwith "uuid_of_string_error should have failed"
+
+let uuid_of_string_ok () =
+  let open Uuid in
+  let _ = Result.ok_or_failwith (of_string uuid_unmarshalled) in
+  ()
+
+let uuid_suite = "Uuid" >::: [
+  "unmarshal error" >:: uuid_unmarshal_error;
+  "unmarshal well known uuid" >:: well_known_uuid;
+  "of_string error" >:: uuid_of_string_error;
+  "of_string ok" >:: uuid_of_string_ok;
+]
 
 let _ =
   let verbose = ref false in
@@ -126,5 +161,6 @@ let _ =
   run_test_tt ~verbose:!verbose tag_suite;
   run_test_tt ~verbose:!verbose mda_suite;
   run_test_tt ~verbose:!verbose label_suite;
-  run_test_tt ~verbose:!verbose pv_header_suite
+  run_test_tt ~verbose:!verbose pv_header_suite;
+  run_test_tt ~verbose:!verbose uuid_suite
 

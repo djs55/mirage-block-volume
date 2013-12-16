@@ -63,7 +63,7 @@ let write_to_buffer b pv =
 let of_metadata name config pvdatas =
   let open IO.FromResult in
   expect_mapped_string "id" config >>= fun id ->
-  let id = Uuid.of_string id in
+  Uuid.of_string id >>= fun id ->
   expect_mapped_string "device" config >>= fun dev ->
   map_expected_mapped_array "status" 
     (fun a -> let open Result in expect_string "status" a >>= fun x ->
