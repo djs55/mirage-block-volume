@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: a39bc6f473a0108a16263821f9ea0f59)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: 3485b001cfd422783556cda95d680ad7)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -17,7 +17,7 @@
 "lib/lvm.cmxs": use_lvm
 "lib/result.cmx": for-pack(Lvm)
 "lib/s.cmx": for-pack(Lvm)
-"lib/monad_.cmx": for-pack(Lvm)
+"lib/monad.cmx": for-pack(Lvm)
 "lib/absty.cmx": for-pack(Lvm)
 "lib/allocator.cmx": for-pack(Lvm)
 "lib/constants.cmx": for-pack(Lvm)

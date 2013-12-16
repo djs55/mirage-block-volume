@@ -22,7 +22,7 @@ include S.PRINT with type t := t
 include S.RPC with type t := t
 include S.MARSHAL with type t := t
 include S.UNMARSHAL with type t := t
-include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
+include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
 val create: unit -> t
 (** [create ()] generates a fresh uuid *)

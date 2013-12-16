@@ -17,7 +17,7 @@ type ('a, 'b) result = [
 | `Error of 'b
 ]
 
-include Monad_.S2 with type ('a, 'b) t := ('a, 'b) result
+include Monad.S2 with type ('a, 'b) t := ('a, 'b) result
 
 val ok: 'a -> ('a, 'b) result
 val fail: 'b -> ('a, 'b) result

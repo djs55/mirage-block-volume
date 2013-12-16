@@ -12,7 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 
-include Monad_.S2 with type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
+include Monad.S2 with type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
 
 module FromResult: sig
   type ('a, 'b) t = ('a, 'b) Result.result Lwt.t                              
