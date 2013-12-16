@@ -67,6 +67,7 @@ let well_known_label_header () =
   let open Label.Label_header in
   let buf = Cstruct.create 512 in
   let sector = marshal (create ()) buf in
+  Utils.zero sector;
   let label_header' = Cstruct.(to_string (sub buf 0 (String.length label_header))) in
   assert_equal label_header label_header'
 

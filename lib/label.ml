@@ -108,6 +108,7 @@ module Pv_header = struct
     let open Lvm_uuid in
     unmarshal b >>= fun (id, b) ->
     let size = Cstruct.LE.get_uint64 b 0 in
+    let b = Cstruct.shift b 8 in
     let rec do_disk_locn b acc =
       let offset = Cstruct.LE.get_uint64 b 0 in
       let b = Cstruct.shift b 8 in
