@@ -55,7 +55,7 @@ let to_buffer b pv =
     (String.concat ", " (List.map (o quote Status.to_string) pv.status))
     pv.dev_size pv.pe_start pv.pe_count
 
-let of_metadata name config pvdatas =
+let read name config =
   let open IO.FromResult in
   expect_mapped_string "id" config >>= fun id ->
   Uuid.of_string id >>= fun id ->
@@ -67,31 +67,24 @@ let of_metadata name config pvdatas =
   expect_mapped_int "pe_start" config >>= fun pe_start ->
   expect_mapped_int "pe_count" config >>= fun pe_count ->
   let open IO in
-  ( try 
-      let res = List.find (fun (label,mdahs) -> id=Label.get_pv_id label) pvdatas in
-      Printf.fprintf stderr "Found cached PV label data\n";
-      return res
-    with Not_found -> 
       Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" dev;
       Label.read dev >>= fun label ->
       let mda_locs = Label.get_metadata_locations label in
-      Metadata.Header.read_all dev mda_locs >>= fun mdahs ->
-      return (label,mdahs)
-  ) >>= fun (label, mda_headers) ->
+      Metadata.Header.read_all dev mda_locs >>= fun mda_headers ->
   let real_device = Label.get_device label in
   if real_device <> dev then
     Printf.fprintf stderr "WARNING: PV.device and real_device are not the same";
   return { name; id; dev; real_device; status; dev_size; pe_start; pe_count; label; mda_headers }
 
 (** Find the metadata area on a device and return the text of the metadata *)
-let find_metadata device =
+let read_metadata device =
   let open IO in
   Label.read device >>= fun label ->
   debug "Label found: \n%s\n" (Label.to_string label);
   let mda_locs = Label.get_metadata_locations label in
   Metadata.Header.read_all device mda_locs >>= fun mdahs ->
   Metadata.read device (List.hd mdahs) 0 >>= fun mdt ->
-  return (mdt, (label, mdahs))
+  return mdt
 
 let to_string pv =
   let label=pv.label in
@@ -102,7 +95,7 @@ let to_string pv =
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
     label_str mdah_ascii (Buffer.contents b)
 
-let create_new real_device name =
+let format real_device name =
   let open IO in
   IO.get_size real_device >>= fun size ->
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)

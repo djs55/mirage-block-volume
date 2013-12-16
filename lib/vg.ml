@@ -255,7 +255,7 @@ let init_redo_log vg =
 let write vg force_full =
   write_full vg
 
-let of_metadata config pvdatas =
+let of_metadata config =
   let open IO.FromResult in
   ( match config with
     | AStruct c -> `Ok c
@@ -287,7 +287,7 @@ let of_metadata config pvdatas =
     let open IO.FromResult in
     expect_mapped_struct a pvs >>= fun x ->
     let open IO in
-    Pv.of_metadata a x pvdatas
+    Pv.read a x
   ) pvs) >>= fun pvs ->
   all (Lwt_list.map_s (fun (a,_) ->
     let open IO.FromResult in
@@ -318,7 +318,7 @@ let create_new name devices_and_names =
   let rec write_pv acc = function
     | [] -> return (List.rev acc)
     | (dev, name) :: pvs ->
-      Pv.create_new dev name >>= fun pv ->
+      Pv.format dev name >>= fun pv ->
       write_pv (pv :: acc) pvs in
   write_pv [] devices_and_names >>= fun pvs ->
   debug "PVs created";
@@ -330,18 +330,18 @@ let create_new name devices_and_names =
   debug "VG created";
   return ()
 
-let parse buf pvdatas =
+let parse buf =
   let text = Cstruct.to_string buf in
   let lexbuf = Lexing.from_string text in
-  of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf) pvdatas
+  of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf)
 
-let load devices =
+open IO
+let load = function
+| [] -> Lwt.return (`Error "Vg.load needs at least one device")
+| devices ->
   debug "Vg.load";
-  let open IO in
-  IO.FromResult.all (Lwt_list.map_s Pv.find_metadata devices) >>= fun mds_and_pvdatas ->
-  let md = fst (List.hd mds_and_pvdatas) in
-  let pvdatas = List.map snd mds_and_pvdatas in
-  parse md pvdatas
+  IO.FromResult.all (Lwt_list.map_s Pv.read_metadata devices) >>= fun md ->
+  parse (List.hd md)
 
 let set_dummy_mode base_dir mapper_name full_provision =
   Constants.dummy_mode := true;

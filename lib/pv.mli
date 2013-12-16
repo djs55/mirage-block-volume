@@ -12,9 +12,6 @@
  * GNU Lesser General Public License for more details.
  *)
 
-
-(** Physical Volumes *)
-
 module Status : sig
   type t = 
     | Allocatable
@@ -25,28 +22,35 @@ module Status : sig
 end
 	
 type t = {
-  name : string;
-  id : Uuid.t;
-  dev : string;
-  real_device : string; (* Actual device we're reading/writing to/from *)
-  status : Status.t list;
-  dev_size : int64;
-  pe_start : int64;
-  pe_count : int64;
-  label : Label.t;  (* The one label for this PV *)
-  mda_headers : Metadata.Header.t list; 
+  name : string;                        (** name given by the user *)
+  id : Uuid.t;                          (** arbitrary unique id *)
+  dev : string;                         (** the device name as stored in the metadata on the device *)
+  real_device : string;                 (** the device we're connected to *)
+  status : Status.t list;               (** status flags *)
+  dev_size : int64;                     (** size of the device in 512 byte sectors *)
+  pe_start : int64;                     (** sector number of the first physical extent *)
+  pe_count : int64;                     (** total number of physical extents *)
+  label : Label.t;
+  mda_headers : Metadata.Header.t list; (** these describe the location(s) where VG metadata is stored *)
 }
+(** a Physical Volume (a disk), which is associated with a Volume Group *)
 
 include S.RPC with type t := t
 include S.PRINT with type t := t
 
+val format: string -> string -> t IO.io
+(** [format device name] initialises a physical volume on [device]
+    with [name]. One metadata area will be created, 10 MiB in size,
+    at a fixed location. Any existing metadata on this device will
+    be destroyed. *)
+
 val to_buffer: Buffer.t -> t -> unit
 (** [to_buffer b t] serialises [t] to buffer [b] *)
 
-val of_metadata: string -> (string * Absty.absty) list -> (Label.t * Metadata.Header.t list) list -> t IO.io
+val read_metadata: string -> Cstruct.t IO.io
+(** [read_metadata device]: locates the metadata area on [device] and
+    returns the volume group metadata. *)
 
-val find_metadata: string -> (Cstruct.t * (Label.t * Metadata.Header.t list)) IO.io
-(** Find the metadata area on a device and return the text of the metadata *)
-
-val create_new: string -> string -> t IO.io
-(** [create_new real_device name] *)
+val read: string -> (string * Absty.absty) list -> t IO.io
+(** [read name config] reads the information of physical volume [name]
+    with configuration [config] read from the volume group metadata. *)
