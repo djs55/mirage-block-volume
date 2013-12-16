@@ -38,6 +38,7 @@ type t = {
 }
 
 include S.RPC with type t := t
+include S.PRINT with type t := t
 
 val to_buffer: Buffer.t -> t -> unit
 (** [to_buffer b t] serialises [t] to buffer [b] *)
@@ -46,8 +47,6 @@ val of_metadata: string -> (string * Absty.absty) list -> (Label.t * Metadata.He
 
 val find_metadata: string -> (Cstruct.t * (Label.t * Metadata.Header.t list)) IO.io
 (** Find the metadata area on a device and return the text of the metadata *)
-
-val human_readable: t -> string
 
 val create_new: string -> string -> t IO.io
 (** [create_new real_device name] *)

@@ -93,7 +93,7 @@ let find_metadata device =
   Metadata.read device (List.hd mdahs) 0 >>= fun mdt ->
   return (mdt, (label, mdahs))
 
-let human_readable pv =
+let to_string pv =
   let label=pv.label in
   let b=Buffer.create 1000 in
   let label_str=Label.to_string label in
