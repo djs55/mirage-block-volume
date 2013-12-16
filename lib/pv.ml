@@ -13,28 +13,34 @@
  *)
 
 
-(** Physical Volume module *)
+(** Physical Volumes:
+    Note we start with a physical volume and then use it to discover
+    the volume group. *)
 
 open Absty
 open Logging
 
-(** Start with the meta-metadata - this is how we actually locate the 
-    metadata on disk. It's a bit backwards, because a PV is part of a 
-    volume group, but it's the PV that contains the volume group info *)
+open Result
 
-open IO
-
-  (** Here's the actual PV data that's part of the volume group *)
-  
-type status = 
+module Status = struct  
+  type t = 
     | Allocatable
-	
-and physical_volume = {
+  with rpc
+
+  let to_string = function
+    | Allocatable -> "ALLOCATABLE"
+
+  let of_string = function
+    | "ALLOCATABLE" -> return Allocatable
+    | x -> fail (Printf.sprintf "Bad PV status string: %s" x)
+end
+
+type t = {
   name : string;
   id : Uuid.t;
   dev : string;
   real_device : string; (* Actual device we're reading/writing to/from *)
-  status : status list;
+  status : Status.t list;
   dev_size : int64;
   pe_start : int64;
   pe_count : int64;
@@ -42,22 +48,14 @@ and physical_volume = {
   mda_headers : Metadata.Header.t list; 
 } with rpc 
 
-let status_to_string s =
-  match s with
-    | Allocatable -> "ALLOCATABLE"
-
 open Result
 
-let status_of_string s =
-  match s with
-    | "ALLOCATABLE" -> return Allocatable
-    | x -> fail (Printf.sprintf "Bad PV status string: %s" x)
 
 let write_to_buffer b pv =
   let bprintf = Printf.bprintf in
   bprintf b "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.dev;
   bprintf b "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
-    (String.concat ", " (List.map (o quote status_to_string) pv.status))
+    (String.concat ", " (List.map (o quote Status.to_string) pv.status))
     pv.dev_size pv.pe_start pv.pe_count
 
 let of_metadata name config pvdatas =
@@ -67,7 +65,7 @@ let of_metadata name config pvdatas =
   expect_mapped_string "device" config >>= fun dev ->
   map_expected_mapped_array "status" 
     (fun a -> let open Result in expect_string "status" a >>= fun x ->
-              status_of_string x) config >>= fun status ->
+              Status.of_string x) config >>= fun status ->
   expect_mapped_int "dev_size" config >>= fun dev_size ->
   expect_mapped_int "pe_start" config >>= fun pe_start ->
   expect_mapped_int "pe_count" config >>= fun pe_count ->
@@ -124,5 +122,5 @@ let create_new real_device name =
   let mda_header = Metadata.Header.create () in
   Label.write label >>= fun () ->
   Metadata.Header.write mda_header real_device >>= fun () ->
-  return { name; id; dev = real_device; real_device; status=[Allocatable]; dev_size;
+  return { name; id; dev = real_device; real_device; status=[Status.Allocatable]; dev_size;
            pe_start; pe_count; label; mda_headers = [mda_header]; }      

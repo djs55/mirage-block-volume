@@ -30,7 +30,7 @@ and vg = {
   extent_size : int64;
   max_lv : int;
   max_pv : int;
-  pvs : Pv.physical_volume list; (* Device to pv map *)
+  pvs : Pv.t list; (* Device to pv map *)
   lvs : Lv.logical_volume list;
   free_space : Allocator.t;
   (* XXX: hook in the redo log *)
