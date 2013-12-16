@@ -24,7 +24,7 @@ type status =
 
 and vg = {
   name : string;
-  id : Lvm_uuid.t;
+  id : Uuid.t;
   seqno : int;
   status : status list;
   extent_size : int64;
@@ -57,7 +57,7 @@ let status_of_string s =
 let write_to_buffer b vg =
   let bprintf = Printf.bprintf in
   bprintf b "%s {\nid = \"%s\"\nseqno = %d\n"
-    vg.name (Lvm_uuid.to_string vg.id) vg.seqno;
+    vg.name (Uuid.to_string vg.id) vg.seqno;
   bprintf b "status = [%s]\nextent_size = %Ld\nmax_lv = %d\nmax_pv = %d\n\n"
     (String.concat ", " (List.map (o quote status_to_string) vg.status))
     vg.extent_size vg.max_lv vg.max_pv;
@@ -148,7 +148,7 @@ let do_op vg op : (vg, string) Result.result =
       return {vg with lvs = lv'::others})
 
 let create_lv vg name size =
-  let id = Lvm_uuid.create () in
+  let id = Uuid.create () in
   let new_segments,new_free_space = Allocator.alloc vg.free_space size in
   do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id=id; lvc_segments=new_segments})}
 
@@ -267,7 +267,7 @@ let of_metadata config pvdatas =
     | _ -> `Error "VG metadata contains multiple volume groups" ) >>= fun name ->
   expect_mapped_struct name vg >>= fun alist ->
   expect_mapped_string "id" alist >>= fun id ->
-  let id = Lvm_uuid.of_string id in
+  let id = Uuid.of_string id in
   expect_mapped_int "seqno" alist >>= fun seqno ->
   let seqno = Int64.to_int seqno in
   map_expected_mapped_array "status" 
@@ -323,7 +323,7 @@ let create_new name devices_and_names =
   write_pv [] devices_and_names >>= fun pvs ->
   debug "PVs created";
   let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
-  let vg = { name; id=Lvm_uuid.create (); seqno=1; status=[Read; Write];
+  let vg = { name; id=Uuid.create (); seqno=1; status=[Read; Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; ops=[]; } in
   write vg true >>= fun _ ->

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6bf564779c962f3ee27d068d14a67328)
+# DO NOT EDIT (digest: c0f199f7367a5cc2ccc3a01904ef40ef)
 Result
 S
 Monad_
@@ -14,7 +14,7 @@ Logging
 Lvmconfiglex
 Lvmconfigparser
 Lv
-Lvm_uuid
+Uuid
 Pv
 Redo
 Tag

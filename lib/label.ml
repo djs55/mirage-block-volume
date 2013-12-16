@@ -85,7 +85,7 @@ type disk_locn = {
 
 module Pv_header = struct
   type t = {
-    pvh_id : Lvm_uuid.t;
+    pvh_id : Uuid.t;
     pvh_device_size : int64;
     pvh_extents: disk_locn list;
     pvh_metadata_areas: disk_locn list;
@@ -105,7 +105,7 @@ module Pv_header = struct
   }
 
   let unmarshal b =
-    let open Lvm_uuid in
+    let open Uuid in
     unmarshal b >>= fun (id, b) ->
     let size = Cstruct.LE.get_uint64 b 0 in
     let b = Cstruct.shift b 8 in
@@ -127,7 +127,7 @@ module Pv_header = struct
       pvh_metadata_areas=disk_areas2},b)
 
   let marshal t buf =
-    let buf = Lvm_uuid.marshal t.pvh_id buf in
+    let buf = Uuid.marshal t.pvh_id buf in
     Cstruct.LE.set_uint64 buf 0 t.pvh_device_size;
     let buf = Cstruct.shift buf 8 in
     
@@ -148,7 +148,7 @@ module Pv_header = struct
     let disk_area_list_to_ascii l =
       (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.dl_offset da.dl_size) l)) in  
     Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
-      (Lvm_uuid.to_string t.pvh_id) t.pvh_device_size 
+      (Uuid.to_string t.pvh_id) t.pvh_device_size 
       (disk_area_list_to_ascii t.pvh_extents)
       (disk_area_list_to_ascii t.pvh_metadata_areas)
 

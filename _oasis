@@ -10,7 +10,7 @@ Plugins:      DevFiles (0.3), META (0.3)
 
 Library lvm
   Path: lib
-  Modules: Result, S, Monad_, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Lvm_uuid, Pv, Redo, Tag, Utils, Vg 
+  Modules: Result, S, Monad_, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg 
   Findlibname: lvm
   Pack: true
   BuildDepends: stdext,rpclib.syntax,rpclib,threads,camldm,uuidm,re.str,cstruct,mirage-block-unix

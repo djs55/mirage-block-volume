@@ -40,7 +40,7 @@ and segment =
 
 and logical_volume = {
   name : string;
-  id : Lvm_uuid.t;
+  id : Uuid.t;
   tags : Tag.t list;
   status : stat list;
   segments : segment list;

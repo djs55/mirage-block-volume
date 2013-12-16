@@ -77,7 +77,7 @@ let well_known_label () =
   let open Label in
   let sector = Cstruct.create 512 in
   Utils.zero sector;
-  let expected = create "foo" (Lvm_uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") 1234L 100L 200L in
+  let expected = create "foo" (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") 1234L 100L 200L in
   let _ = marshal expected sector in
   let label' = Cstruct.(to_string (sub sector 0 (String.length label))) in
   assert_equal label label'
@@ -92,7 +92,7 @@ let pv_header = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\00
 let well_known_pv_header () =
   let open Label.Pv_header in
   let pvh = {
-    pvh_id = Lvm_uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw";
+    pvh_id = Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw";
     pvh_device_size = 1234L;
     pvh_extents = [{Label.dl_offset = 300L; Label.dl_size = 0L}];
     pvh_metadata_areas = [{Label.dl_offset = 100L; Label.dl_size = 200L}]
@@ -104,7 +104,7 @@ let well_known_pv_header () =
 
 let unmarshal_marshal_pv_header () =
   let open Label.Pv_header in
-  let pvh = create (Lvm_uuid.create ()) 1234L 100L 50L in
+  let pvh = create (Uuid.create ()) 1234L 100L 50L in
   let sector = Cstruct.create 512 in
   let _ = marshal pvh sector in
   let pvh', _ = Result.ok_or_failwith (unmarshal sector) in

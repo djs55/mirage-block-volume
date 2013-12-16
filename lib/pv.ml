@@ -31,7 +31,7 @@ type status =
 	
 and physical_volume = {
   name : string;
-  id : Lvm_uuid.t;
+  id : Uuid.t;
   dev : string;
   real_device : string; (* Actual device we're reading/writing to/from *)
   status : status list;
@@ -55,7 +55,7 @@ let status_of_string s =
 
 let write_to_buffer b pv =
   let bprintf = Printf.bprintf in
-  bprintf b "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Lvm_uuid.to_string pv.id) pv.dev;
+  bprintf b "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.dev;
   bprintf b "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
     (String.concat ", " (List.map (o quote status_to_string) pv.status))
     pv.dev_size pv.pe_start pv.pe_count
@@ -63,7 +63,7 @@ let write_to_buffer b pv =
 let of_metadata name config pvdatas =
   let open IO.FromResult in
   expect_mapped_string "id" config >>= fun id ->
-  let id = Lvm_uuid.of_string id in
+  let id = Uuid.of_string id in
   expect_mapped_string "device" config >>= fun dev ->
   map_expected_mapped_array "status" 
     (fun a -> let open Result in expect_string "status" a >>= fun x ->
@@ -119,7 +119,7 @@ let create_new real_device name =
   let pe_start = Int64.(div pe_start_byte (of_int Constants.sector_size)) in
   let pe_count = Int64.(div (sub size pe_start_byte) Constants.extent_size) in
   let mda_len = Int64.sub pe_start_byte mda_pos in
-  let id=Lvm_uuid.create () in
+  let id=Uuid.create () in
   let label = Label.create real_device id size mda_pos mda_len in
   let mda_header = Metadata.Header.create () in
   Label.write label >>= fun () ->

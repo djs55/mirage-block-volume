@@ -30,13 +30,13 @@ type disk_locn = {
 
 module Pv_header : sig
   type t = {
-    pvh_id : Lvm_uuid.t;
+    pvh_id : Uuid.t;
     pvh_device_size : int64;
     pvh_extents: disk_locn list;
     pvh_metadata_areas: disk_locn list;
   }
 
-  val create: Lvm_uuid.t -> int64 -> int64 -> int64 -> t
+  val create: Uuid.t -> int64 -> int64 -> int64 -> t
   (** [create id size mda_start mda_size] creates a Pv_header
       for PVID [id], disk [size], and with metadata stored from
       [mda_start] to [mda_start + mda_size] *)
@@ -52,7 +52,7 @@ type t = {
   pv_header : Pv_header.t;
 }
 
-val create: string -> Lvm_uuid.t -> int64 -> int64 -> int64 -> t
+val create: string -> Uuid.t -> int64 -> int64 -> int64 -> t
 
 include S.EQUALS with type t := t
 include S.PRINT with type t := t
@@ -62,7 +62,7 @@ include Monad_.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
 val get_metadata_locations: t -> disk_locn list
 
-val get_pv_id: t -> Lvm_uuid.t
+val get_pv_id: t -> Uuid.t
 
 val get_device: t -> string
 
