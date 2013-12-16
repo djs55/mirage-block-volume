@@ -49,9 +49,14 @@ let sizeof = 32
 include Result
 
 let unmarshal buf =
-  let str = Cstruct.(to_string (sub buf 0 sizeof)) in
-  let buf = Cstruct.shift buf sizeof in
-  return (add_hyphens str, buf)
+  if Cstruct.len buf < sizeof
+  then `Error (Printf.sprintf "Uuid.unmarshal: buffer is too small \"%s\"" (String.escaped (Cstruct.to_string buf)))
+  else
+    (* We aren't checking for valid characters in the uuid: we're
+       being tolerant in what we expect but strict in what we create *)
+    let str = Cstruct.(to_string (sub buf 0 sizeof)) in
+    let buf = Cstruct.shift buf sizeof in
+    return (add_hyphens str, buf)
 
 let marshal t buf =
   let str = remove_hyphens t in
@@ -59,5 +64,12 @@ let marshal t buf =
   Cstruct.shift buf sizeof
 
 let to_string x = x
-let of_string x = `Ok x
-
+let of_string x =
+  let expected_length = sizeof + (List.length format - 1) in
+  if String.length x <> expected_length
+  then `Error(Printf.sprintf "Uuid.of_string: string is too short \"%s\"" x)
+  else
+    let x' = remove_hyphens x in
+    if String.length x' <> sizeof
+    then `Error(Printf.sprintf "Uuid.of_string: string has the wrong number of hyphens \"%s\"" x)
+    else `Ok x
