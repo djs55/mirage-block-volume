@@ -63,7 +63,7 @@ let write_to_buffer b vg =
     vg.extent_size vg.max_lv vg.max_pv;
 
   bprintf b "physical_volumes {\n";
-  List.iter (Pv.write_to_buffer b) vg.pvs;
+  List.iter (Pv.to_buffer b) vg.pvs;
   bprintf b "}\n\n";
 
   bprintf b "logical_volumes {\n";

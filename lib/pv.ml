@@ -48,10 +48,7 @@ type t = {
   mda_headers : Metadata.Header.t list; 
 } with rpc 
 
-open Result
-
-
-let write_to_buffer b pv =
+let to_buffer b pv =
   let bprintf = Printf.bprintf in
   bprintf b "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.dev;
   bprintf b "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
@@ -101,7 +98,7 @@ let human_readable pv =
   let b=Buffer.create 1000 in
   let label_str=Label.to_string label in
   let mdah_ascii = String.concat "\n" (List.map Metadata.Header.to_string pv.mda_headers) in
-  write_to_buffer b pv;
+  to_buffer b pv;
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
     label_str mdah_ascii (Buffer.contents b)
 

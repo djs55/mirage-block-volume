@@ -39,7 +39,8 @@ type t = {
 
 include S.RPC with type t := t
 
-val write_to_buffer: Buffer.t -> t -> unit
+val to_buffer: Buffer.t -> t -> unit
+(** [to_buffer b t] serialises [t] to buffer [b] *)
 
 val of_metadata: string -> (string * Absty.absty) list -> (Label.t * Metadata.Header.t list) list -> t IO.io
 
