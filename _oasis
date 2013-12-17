@@ -45,7 +45,7 @@ Executable allocator_test
   MainIs:             allocator_test.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, kaputt, stdext
+  BuildDepends:       lvm, kaputt
 
 Test allocator_test
   Command:            ./allocator_test.native

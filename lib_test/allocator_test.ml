@@ -13,14 +13,41 @@
  *)
 
 open Kaputt.Abbreviations
-open Pervasiveext
 open Lvm.Allocator
-open Fun
-open Listext
 
-(* ToDO: find a way to integrate this tests into the Makefile and run them from there. *)
+let id a = a
+let ($) f a = f a
+let comp f g x = f (g x)
+let (++) f g x = comp f g x
+let on op f x y = op (f x) (f y)
+let flip f a b = f b a
+let const a b = a
 
 let (=>>) a b = (not a) || b
+
+module Opt = struct
+let is_boxed = function
+        | Some _ -> true
+        | None -> false
+let map f = function
+        | Some x -> Some(f x)
+        | None -> None
+let default d = function
+        | Some x -> x
+        | None -> d
+end
+
+let rec tails = function
+        | [] -> [[]]
+        | (_::xs) as l -> l :: tails xs
+let cons a b = a :: b
+let take n list =
+        let rec helper i acc list =
+        if i <= 0 || list = []
+        then acc
+        else helper (i-1)  (List.hd list :: acc) (List.tl list)
+        in List.rev $ helper n [] list
+
 
 (* ToDo: Generate some test-data to test those propositions hold: *)
 
@@ -50,14 +77,14 @@ let test_contained_is_reflexive =
   Test.make_random_test
     ~title:"contained is reflexive"
     gen_area
-    Fun.id
+    id
     [Spec.always ==> prop_contained_reflexive]
 
 let test_contained_is_transitive =
   Test.make_random_test
     ~title:"contained is transitive"
     gen_3area
-    Fun.id
+    id
     [(fun (a,b,c) -> contained a b && contained b c) ==> (fun (a,b,c) -> contained a c)]
     
 let prop_same_pv a b = (=>>) (contained a b) (get_name a == get_name b);;
@@ -97,12 +124,12 @@ let size_create_destroy : int64 -> (int64 * int64 * int64) Gen.t = fun max_size 
   Gen.zip3 (Gen.make_int64 0L max_size) Gen.int64 Gen.int64
 
 (* needlessly quadratic.  make it linear as the need arises. *)
-let cumSum64 l = List.map sum64 ++ List.tails ++ List.rev $ l
+let cumSum64 l = List.map sum64 ++ tails ++ List.rev $ l
 let maximum1 (x::xs) = List.fold_left max x xs
 
 let simulate_space : (int64 * int64 * int64) list -> int64 = fun l -> 
   let op (size, d1, d2) = [(min d1 d2,size); (max d1 d2,(Int64.sub 0L size))]
-  in maximum1 ++ List.cons 0L ++
+  in maximum1 ++ cons 0L ++
        cumSum64 ++ List.map snd ++
        List.sort (on compare fst) ++ List.flatten ++ List.map op $ l
 
@@ -118,7 +145,7 @@ let toOps : (int64 * int64 * int64) list -> op list =
     let toOp1 (index, (size, d1, d2)) = [Alloc (min d1 d2, size, index); DeAlloc (max d1 d2, index)]
     in List.sort (on compare get_date) ++ List.flatten ++ List.map toOp1 ++ add_index
 
-module IndexMap = Mapext.Make (Int64)
+module IndexMap = Map.Make (Int64)
 	 
 let simulate_full : op list -> t -> (t * (area list) IndexMap.t) option = fun ops free_list ->
   let op (fl, alloced) = function
@@ -134,7 +161,7 @@ let simulate_full : op list -> t -> (t * (area list) IndexMap.t) option = fun op
       | DeAlloc (_, index) ->
 	  Some (free (IndexMap.find index alloced) fl, IndexMap.remove index alloced)
 	      
-  in List.fold_left (Opt.default (Fun.const None) ++ Opt.map op) (Some (free_list, IndexMap.empty)) $ ops
+  in List.fold_left (Opt.default (const None) ++ Opt.map op) (Some (free_list, IndexMap.empty)) $ ops
 
 let show_op = function
     | Alloc x -> "Alloc " ^ Kaputt.Utils.make_string_of_tuple3 Int64.to_string Int64.to_string Int64.to_string x
@@ -145,15 +172,15 @@ let test_alloc_works =
     Test.make_random_test
       ~title:"alloc works when there's enough free space."
       (Gen.list (Gen.make_int 0 300) (size_create_destroy 1000L))
-      (Opt.is_boxed ++ Fun.flip simulate_full (create "pv_name0" pv_size) ++ toOps)
-      [(fun pOps -> ((simulate_space $ pOps) <= pv_size)) ==> Fun.id;]
+      (Opt.is_boxed ++ flip simulate_full (create "pv_name0" pv_size) ++ toOps)
+      [(fun pOps -> ((simulate_space $ pOps) <= pv_size)) ==> id;]
 
 let test_alloc_fails =
     let pv_size = 1000L in
     Test.make_random_test
       ~title:"and alloc doesn't work when there's not enough free space."
       (Gen.list (Gen.make_int 0 300) (size_create_destroy 1000L))
-      (Opt.is_boxed ++ Fun.flip simulate_full (create "pv_name0" pv_size) ++ toOps)
+      (Opt.is_boxed ++ flip simulate_full (create "pv_name0" pv_size) ++ toOps)
       [(fun pOps -> ((simulate_space $ pOps) > pv_size)) ==> not]
 
 (* tests to add:
@@ -174,13 +201,13 @@ let test_wtf =
     let pv_size = 79000L
     and numOps = 300 in
     Test.make_random_test
-      ~title:"forall size >= 0: (uncurry free <<= alloc size) == Fun.id # modulo Option types"
+      ~title:"forall size >= 0: (uncurry free <<= alloc size) == id # modulo Option types"
       ~nb_runs:200
       (Gen.zip3 (Gen.make_int64 0L 300L)
 	 (Gen.make_int 0 (numOps * 2))
 	 (Gen.list (Gen.lift numOps (string_of_int numOps)) (size_create_destroy 1000L)))
       (fun (alloc_size, take_ops, pOps) ->
-	 match Fun.flip simulate_full (create "pv_name0" pv_size) ++ List.take take_ops ++ toOps $ pOps with
+	 match flip simulate_full (create "pv_name0" pv_size) ++ take take_ops ++ toOps $ pOps with
 	     | Some (free_list, _) ->
 		 (Some (normalize free_list), 
 		  (match safe_alloc free_list alloc_size with
