@@ -15,6 +15,14 @@
 open Logging
 open Vg
 
+let rec mkdir_p x =
+  if Sys.file_exists x
+  then ()
+  else
+    let parent = Filename.dirname x in
+    if not(Sys.file_exists parent) then mkdir_p parent;
+    Unix.mkdir x 0o0755
+
 let dm_map_of_lv vg lv use_pv_id =
   let segments = Lv.Segment.sort lv.Lv.segments in
 
@@ -70,7 +78,7 @@ let dev_path_of vg lv =
   if !Constants.dummy_mode then begin
     let fname = Printf.sprintf "%s/%s/%s" (!Constants.dummy_base) (!Constants.mapper_name) (dm_name_of vg lv) in
     let dirname = Filename.dirname fname in
-    Unixext.mkdir_rec dirname 0o755;
+    mkdir_p dirname;
     fname
   end else
     Printf.sprintf "/dev/mapper/%s" (dm_name_of vg lv)
@@ -105,8 +113,8 @@ let lv_activate_internal name dm_map dereference_table use_tmp dev =
         Unix.close fd;
     end;
     (* Let's also make sure that the dir exists for the dev node! *)
-    Unixext.mkdir_rec (Filename.dirname nod) 0o755;
-    Unixext.unlink_safe nod;
+    mkdir_p (Filename.dirname nod);
+    (try Unix.unlink nod with _ -> ());
     Unix.symlink fname nod;
   end;
   (nod,realname)
@@ -133,12 +141,21 @@ let lv_change_internal dm_name dm_map dereference_table =
     Camldm.resume dm_name
   end
 
+let finally f g =
+  try
+    let result = f () in
+    g ();
+    result
+  with e ->
+    g ();
+    raise e
+
 let with_active_lv vg lv use_tmp fn =
   let name = dm_name_of vg lv in
   let dm_map = dm_map_of_lv vg lv false in
   let dev = (List.hd vg.pvs).Pv.stored_device in
   let (nod,name) = lv_activate_internal name dm_map [] use_tmp dev in
-  Pervasiveext.finally
+  finally
     (fun () -> fn nod)
     (fun () -> lv_deactivate_internal (Some nod) name)
 
