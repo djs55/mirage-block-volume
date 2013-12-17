@@ -1,5 +1,5 @@
 # OPAM packages needed to build tests.
-OPAM_PACKAGES="uuidm ounit rpc camldm kaputt cmdliner"
+OPAM_PACKAGES="uuidm ounit rpc camldm kaputt cmdliner cstruct mirage-block-unix re"
 
 
 case "$OCAML_VERSION,$OPAM_VERSION" in
