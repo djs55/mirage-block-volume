@@ -24,14 +24,14 @@ end
 type t = {
   name : string;                        (** name given by the user *)
   id : Uuid.t;                          (** arbitrary unique id *)
-  dev : string;                         (** the device name as stored in the metadata on the device *)
+  stored_device : string;               (** the device name as stored in the metadata on the device *)
   real_device : string;                 (** the device we're connected to *)
   status : Status.t list;               (** status flags *)
-  dev_size : int64;                     (** size of the device in 512 byte sectors *)
+  size_in_sectors : int64;              (** size of the device in 512 byte sectors *)
   pe_start : int64;                     (** sector number of the first physical extent *)
   pe_count : int64;                     (** total number of physical extents *)
   label : Label.t;
-  mda_headers : Metadata.Header.t list; (** these describe the location(s) where VG metadata is stored *)
+  headers : Metadata.Header.t list;     (** these describe the location(s) where VG metadata is stored *)
 }
 (** a Physical Volume (a disk), which is associated with a Volume Group *)
 

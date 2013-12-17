@@ -187,8 +187,8 @@ let write vg =
     | [] -> return (List.rev acc)
     | pv :: pvs ->
       Label.write pv.Pv.label >>= fun () ->
-      write_pv pv [] pv.Pv.mda_headers >>= fun headers ->
-      write_vg ({ pv with Pv.mda_headers = headers } :: acc) pvs in
+      write_pv pv [] pv.Pv.headers >>= fun headers ->
+      write_vg ({ pv with Pv.headers = headers } :: acc) pvs in
   write_vg [] vg.pvs >>= fun pvs ->
   let vg = { vg with pvs } in
   return vg

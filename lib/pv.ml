@@ -38,14 +38,14 @@ end
 type t = {
   name : string;
   id : Uuid.t;
-  dev : string;
+  stored_device : string;
   real_device : string; (* Actual device we're reading/writing to/from *)
   status : Status.t list;
-  dev_size : int64;
+  size_in_sectors : int64;
   pe_start : int64;
   pe_count : int64;
   label : Label.t;  (* The one label for this PV *)
-  mda_headers : Metadata.Header.t list; 
+  headers : Metadata.Header.t list; 
 } with rpc 
 
 let marshal pv b =
@@ -55,32 +55,32 @@ let marshal pv b =
     Cstruct.blit_from_string s 0 b !ofs len;
     ofs := !ofs + len
   ) fmt in
-  bprintf "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.dev;
+  bprintf "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.stored_device;
   bprintf "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
     (String.concat ", " (List.map (o quote Status.to_string) pv.status))
-    pv.dev_size pv.pe_start pv.pe_count;
+    pv.size_in_sectors pv.pe_start pv.pe_count;
   Cstruct.shift b !ofs
 
 let read name config =
   let open IO.FromResult in
   expect_mapped_string "id" config >>= fun id ->
   Uuid.of_string id >>= fun id ->
-  expect_mapped_string "device" config >>= fun dev ->
+  expect_mapped_string "device" config >>= fun stored_device ->
   map_expected_mapped_array "status" 
     (fun a -> let open Result in expect_string "status" a >>= fun x ->
               Status.of_string x) config >>= fun status ->
-  expect_mapped_int "dev_size" config >>= fun dev_size ->
+  expect_mapped_int "dev_size" config >>= fun size_in_sectors ->
   expect_mapped_int "pe_start" config >>= fun pe_start ->
   expect_mapped_int "pe_count" config >>= fun pe_count ->
   let open IO in
-      Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" dev;
-      Label.read dev >>= fun label ->
+      Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" stored_device;
+      Label.read stored_device >>= fun label ->
       let mda_locs = Label.get_metadata_locations label in
-      Metadata.Header.read_all dev mda_locs >>= fun mda_headers ->
+      Metadata.Header.read_all stored_device mda_locs >>= fun headers ->
   let real_device = Label.get_device label in
-  if real_device <> dev then
-    Printf.fprintf stderr "WARNING: PV.device and real_device are not the same";
-  return { name; id; dev; real_device; status; dev_size; pe_start; pe_count; label; mda_headers }
+  if real_device <> stored_device then
+    Printf.fprintf stderr "WARNING: stored_device (%s) and real_device (%s) are not the same" stored_device real_device;
+  return { name; id; stored_device; real_device; status; size_in_sectors; pe_start; pe_count; label; headers }
 
 (** Find the metadata area on a device and return the text of the metadata *)
 let read_metadata device =
@@ -95,7 +95,7 @@ let read_metadata device =
 let to_string pv =
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal pv buf in
-  let mdah_ascii = String.concat "\n" (List.map Metadata.Header.to_string pv.mda_headers) in
+  let mdah_ascii = String.concat "\n" (List.map Metadata.Header.to_string pv.headers) in
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
     (Label.to_string pv.label) mdah_ascii (Cstruct.(to_string (sub buf 0 buf'.Cstruct.off)))
 
@@ -103,7 +103,7 @@ let format real_device name =
   let open IO in
   IO.get_size real_device >>= fun size ->
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
-  let dev_size = Int64.div size (Int64.of_int Constants.sector_size) in
+  let size_in_sectors = Int64.div size (Int64.of_int Constants.sector_size) in
   let mda_pos = Metadata.default_start in
   let mda_len = Metadata.default_size in
   let pe_start_byte = 
@@ -116,5 +116,5 @@ let format real_device name =
   let mda_header = Metadata.Header.create () in
   Label.write label >>= fun () ->
   Metadata.Header.write mda_header real_device >>= fun () ->
-  return { name; id; dev = real_device; real_device; status=[Status.Allocatable]; dev_size;
-           pe_start; pe_count; label; mda_headers = [mda_header]; }      
+  return { name; id; stored_device = real_device; real_device; status=[Status.Allocatable];
+           size_in_sectors; pe_start; pe_count; label; headers = [mda_header]; }      

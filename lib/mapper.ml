@@ -49,7 +49,7 @@ let dm_map_of_lv vg lv use_pv_id =
                       Camldm.device =
                         if use_pv_id
                         then Camldm.Dereferenced (Uuid.to_string pv.Pv.label.Label.pv_header.Label.Pv_header.pvh_id)
-                        else Camldm.Real pv.Pv.dev;
+                        else Camldm.Real pv.Pv.stored_device;
                       offset=extent_to_phys_sector pv l.Lv.Linear.l_pv_start_extent }
                 | Lv.Segment.Striped st ->
                     failwith "Not implemented"
@@ -114,7 +114,7 @@ let lv_activate_internal name dm_map dereference_table use_tmp dev =
 let lv_activate vg lv =
   let name = dm_name_of vg lv in
   let dm_map = dm_map_of_lv vg lv false in
-  let dev = (List.hd vg.pvs).Pv.dev in
+  let dev = (List.hd vg.pvs).Pv.stored_device in
   fst (lv_activate_internal name dm_map [] false dev)
 
 let lv_deactivate_internal nod dm_name =
@@ -136,7 +136,7 @@ let lv_change_internal dm_name dm_map dereference_table =
 let with_active_lv vg lv use_tmp fn =
   let name = dm_name_of vg lv in
   let dm_map = dm_map_of_lv vg lv false in
-  let dev = (List.hd vg.pvs).Pv.dev in
+  let dev = (List.hd vg.pvs).Pv.stored_device in
   let (nod,name) = lv_activate_internal name dm_map [] use_tmp dev in
   Pervasiveext.finally
     (fun () -> fn nod)
