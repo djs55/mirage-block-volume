@@ -42,10 +42,11 @@ module Segment : sig
     | Linear of Linear.t
     | Striped of Stripe.t
 
-  type t = 
-    { s_start_extent : int64; 
-      s_extent_count : int64;
-      s_cls : cls; }
+  type t = {
+    start_extent : int64; 
+    extent_count : int64;
+    cls : cls;
+  }
 
   val sort: t list -> t list
 

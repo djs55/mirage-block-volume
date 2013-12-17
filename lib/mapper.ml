@@ -26,9 +26,9 @@ let dm_map_of_lv vg lv use_pv_id =
   let rec test expected_start segs =
     match segs with
       | s::ss ->
-          if s.Lv.Segment.s_start_extent <> expected_start
+          if s.Lv.Segment.start_extent <> expected_start
           then failwith "Segments aren't contiguous!";
-          test (Int64.add expected_start s.Lv.Segment.s_extent_count) ss
+          test (Int64.add expected_start s.Lv.Segment.extent_count) ss
       | _ -> ()
   in
 
@@ -37,12 +37,12 @@ let dm_map_of_lv vg lv use_pv_id =
   let rec construct_dm_map segs =
     match segs with
       | s::ss ->
-          let start = extent_to_sector s.Lv.Segment.s_start_extent in
-          let len = extent_to_sector s.Lv.Segment.s_extent_count in
+          let start = extent_to_sector s.Lv.Segment.start_extent in
+          let len = extent_to_sector s.Lv.Segment.extent_count in
           { Camldm.start=start;
             len = len;
             map =
-              match s.Lv.Segment.s_cls with
+              match s.Lv.Segment.cls with
                 | Lv.Segment.Linear l ->
                     let pv = List.find (fun pv -> pv.Pv.name=l.Lv.Linear.name) vg.pvs in
                     Camldm.Linear {

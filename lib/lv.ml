@@ -54,20 +54,19 @@ module Segment = struct
   | Linear of Linear.t 
   | Striped of Stripe.t
 
-  and t = 
-    { s_start_extent : int64; 
-      s_extent_count : int64;
-      s_cls : cls; }
+  and t = {
+    start_extent : int64; 
+    extent_count : int64;
+    cls : cls;
+  }
   with rpc
 
   let sort s =
-    List.sort (fun s1 s2 -> compare s1.s_start_extent s2.s_start_extent) s
+    List.sort (fun s1 s2 -> compare s1.start_extent s2.start_extent) s
 
   let of_metadata name config =
-    let open Stripe in
-    let open Linear in
-    expect_mapped_int "start_extent" config >>= fun s_start_extent ->
-    expect_mapped_int "extent_count" config >>= fun s_extent_count ->
+    expect_mapped_int "start_extent" config >>= fun start_extent ->
+    expect_mapped_int "extent_count" config >>= fun extent_count ->
     expect_mapped_string "type" config >>= fun ty ->
     ( if ty = "striped" then return ty
       else fail (Printf.sprintf "Cannot handle LV segment type '%s'" ty) ) >>= fun ty ->
@@ -83,23 +82,23 @@ module Segment = struct
       | [ name; offset ] ->
         expect_string "name" name >>= fun name ->
         expect_int "offset" offset >>= fun start_extent ->
-        return (Linear { name; start_extent })
+        return (Linear { Linear.name; start_extent })
       | _ ->
         expect_mapped_int "stripe_size" config >>= fun size_in_sectors ->
         handle_stripes [] stripes >>= fun stripes ->
-        return (Striped { size_in_sectors; stripes }) ) >>= fun s_cls ->
-    return { s_start_extent; s_extent_count; s_cls }
+        return (Striped { Stripe.size_in_sectors; stripes }) ) >>= fun cls ->
+    return { start_extent; extent_count; cls }
 
-  let to_allocation s = match s.s_cls with
+  let to_allocation s = match s.cls with
     | Linear l ->
-	[(l.Linear.name, (l.Linear.start_extent, s.s_extent_count))]
+	[(l.Linear.name, (l.Linear.start_extent, s.extent_count))]
     | Striped st ->
 (* LVM appears to always round up the number of extents allocated such
    that it's divisible by the number of stripes, so we always fully allocate
    each extent in each PV. Let's be tolerant to broken metadata when this
    isn't the case by rounding up rather than down, so partially allocated
    extents are included in the allocation *)
-	let extent_count = s.s_extent_count in
+	let extent_count = s.extent_count in
 	let nstripes = Int64.of_int (List.length st.Stripe.stripes) in
 	List.map (fun (name,start) ->
 		    let allocated_extents = 
@@ -144,8 +143,8 @@ let marshal lv b =
   iteri
     (fun i s -> 
       bprintf "segment%d {\nstart_extent = %Ld\nextent_count = %Ld\n\n"
-	(i+1) s.s_start_extent s.s_extent_count;
-       match s.s_cls with
+	(i+1) s.start_extent s.extent_count;
+       match s.cls with
 	 | Linear l ->
 	     bprintf "type = \"striped\"\nstripe_count = 1\t#linear\n\n";
 	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" l.Linear.name l.Linear.start_extent
@@ -184,7 +183,7 @@ let to_allocation lv =
 
 let size_in_extents lv =
   List.fold_left (Int64.add) 0L
-    (List.map (fun seg -> seg.Segment.s_extent_count) lv.segments)
+    (List.map (fun seg -> seg.Segment.extent_count) lv.segments)
 	    
 let reduce_size_to lv new_seg_count =
   let cur_size = size_in_extents lv in
@@ -195,12 +194,12 @@ let reduce_size_to lv new_seg_count =
   let rec doit segs left acc =
     match segs with 
       | s::ss ->
-	  debug "Lv.reduce_size_to: s.s_start_extent=%Ld s.s_extent_count=%Ld left=%Ld" 
-			  s.Segment.s_start_extent s.Segment.s_extent_count left;
-	  if left > s.Segment.s_extent_count then
-	    doit ss (Int64.sub left s.Segment.s_extent_count) (s::acc)
+	  debug "Lv.reduce_size_to: s.start_extent=%Ld s.extent_count=%Ld left=%Ld" 
+			  s.Segment.start_extent s.Segment.extent_count left;
+	  if left > s.Segment.extent_count then
+	    doit ss (Int64.sub left s.Segment.extent_count) (s::acc)
 	  else
-	    {s with Segment.s_extent_count = left}::acc
+	    {s with Segment.extent_count = left}::acc
       | _ -> acc
   in
   return {lv with segments = Segment.sort (doit lv.segments new_seg_count [])}

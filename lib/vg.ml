@@ -92,10 +92,10 @@ let do_op vg op : (t, string) Result.result =
   let rec createsegs acc ss s_start_extent = match ss with
   | a::ss ->
     let start_extent = Allocator.get_start a in
-    let s_extent_count = Allocator.get_size a in
+    let extent_count = Allocator.get_size a in
     let name = Allocator.get_name a in
-    let s_cls = Lv.Segment.Linear { Lv.Linear.name; start_extent; } in
-    createsegs ({ Lv.Segment.s_start_extent; s_cls; s_extent_count } :: acc) ss  (Int64.add s_start_extent s_extent_count)
+    let cls = Lv.Segment.Linear { Lv.Linear.name; start_extent; } in
+    createsegs ({ Lv.Segment.start_extent; cls; extent_count } :: acc) ss  (Int64.add start_extent extent_count)
   | [] -> List.rev acc in	
   let change_lv lv_name fn =
     let lv,others = List.partition (fun lv -> lv.Lv.name=lv_name) vg.lvs in
