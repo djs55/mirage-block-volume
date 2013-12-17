@@ -37,15 +37,15 @@ end
 
 module Stripe = struct
   type t = {
-    st_stripe_size : int64; (* In sectors *)
-    st_stripes : (string * int64) list; (* pv name * start extent *)
+    size_in_sectors : int64;
+    stripes : (string * int64) list;
   } with rpc
 end
 
 module Linear = struct
   type t = {
-    l_pv_name : string;
-    l_pv_start_extent : int64;
+    name : string;
+    start_extent : int64;
   } with rpc
 end
 
@@ -81,18 +81,18 @@ module Segment = struct
         handle_stripes ((name, offset) :: acc) rest in
     ( match stripes with
       | [ name; offset ] ->
-        expect_string "name" name >>= fun l_pv_name ->
-        expect_int "offset" offset >>= fun l_pv_start_extent ->
-        return (Linear { l_pv_name; l_pv_start_extent })
+        expect_string "name" name >>= fun name ->
+        expect_int "offset" offset >>= fun start_extent ->
+        return (Linear { name; start_extent })
       | _ ->
-        expect_mapped_int "stripe_size" config >>= fun st_stripe_size ->
-        handle_stripes [] stripes >>= fun st_stripes ->
-        return (Striped { st_stripe_size; st_stripes }) ) >>= fun s_cls ->
+        expect_mapped_int "stripe_size" config >>= fun size_in_sectors ->
+        handle_stripes [] stripes >>= fun stripes ->
+        return (Striped { size_in_sectors; stripes }) ) >>= fun s_cls ->
     return { s_start_extent; s_extent_count; s_cls }
 
   let to_allocation s = match s.s_cls with
     | Linear l ->
-	[(l.Linear.l_pv_name, (l.Linear.l_pv_start_extent, s.s_extent_count))]
+	[(l.Linear.name, (l.Linear.start_extent, s.s_extent_count))]
     | Striped st ->
 (* LVM appears to always round up the number of extents allocated such
    that it's divisible by the number of stripes, so we always fully allocate
@@ -100,7 +100,7 @@ module Segment = struct
    isn't the case by rounding up rather than down, so partially allocated
    extents are included in the allocation *)
 	let extent_count = s.s_extent_count in
-	let nstripes = Int64.of_int (List.length st.Stripe.st_stripes) in
+	let nstripes = Int64.of_int (List.length st.Stripe.stripes) in
 	List.map (fun (name,start) ->
 		    let allocated_extents = 
 		      Int64.div 
@@ -109,7 +109,7 @@ module Segment = struct
 			      extent_count nstripes) 1L) nstripes
 		    in
 		    (name,(start,allocated_extents)))
-	  (st.Stripe.st_stripes)
+	  (st.Stripe.stripes)
 
 end
 
@@ -141,8 +141,6 @@ let marshal lv b =
     bprintf "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
   bprintf "segment_count = %d\n\n" (List.length lv.segments);
   let open Segment in
-  let open Stripe in
-  let open Linear in
   iteri
     (fun i s -> 
       bprintf "segment%d {\nstart_extent = %Ld\nextent_count = %Ld\n\n"
@@ -150,12 +148,12 @@ let marshal lv b =
        match s.s_cls with
 	 | Linear l ->
 	     bprintf "type = \"striped\"\nstripe_count = 1\t#linear\n\n";
-	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" l.l_pv_name l.l_pv_start_extent
+	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" l.Linear.name l.Linear.start_extent
 	 | Striped st ->
-	     let stripes = List.length st.st_stripes in
+	     let stripes = List.length st.Stripe.stripes in
 	     bprintf "type = \"striped\"\nstripe_count = %d\nstripe_size = %Ld\n\nstripes = [\n"
-	       stripes st.st_stripe_size;
-	     List.iter (fun (pv,offset) -> bprintf "%s, %Ld\n" (quote pv) offset) st.st_stripes;
+	       stripes st.Stripe.size_in_sectors;
+	     List.iter (fun (pv,offset) -> bprintf "%s, %Ld\n" (quote pv) offset) st.Stripe.stripes;
 	     bprintf "]\n}\n") lv.segments;
   bprintf "}\n";
   Cstruct.shift b !ofs

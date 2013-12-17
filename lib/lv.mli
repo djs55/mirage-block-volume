@@ -25,15 +25,15 @@ end
 
 module Stripe : sig
   type t = {
-    st_stripe_size : int64;             (** In sectors *)
-    st_stripes : (string * int64) list; (** pv name (LVM uuid) * start extent *)
+    size_in_sectors : int64;
+    stripes : (string * int64) list; (** Pv.name * start extent *)
   }
 end
 
 module Linear : sig
   type t = {
-    l_pv_name : string; (* LVM uuid *)
-    l_pv_start_extent : int64;
+    name : string; (** Pv.name *)
+    start_extent : int64;
   }
 end
 

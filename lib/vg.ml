@@ -91,10 +91,10 @@ let do_op vg op : (t, string) Result.result =
     else return () ) >>= fun () ->
   let rec createsegs acc ss s_start_extent = match ss with
   | a::ss ->
-    let l_pv_start_extent = Allocator.get_start a in
+    let start_extent = Allocator.get_start a in
     let s_extent_count = Allocator.get_size a in
-    let l_pv_name = Allocator.get_name a in
-    let s_cls = Lv.Segment.Linear { Lv.Linear.l_pv_name; l_pv_start_extent; } in
+    let name = Allocator.get_name a in
+    let s_cls = Lv.Segment.Linear { Lv.Linear.name; start_extent; } in
     createsegs ({ Lv.Segment.s_start_extent; s_cls; s_extent_count } :: acc) ss  (Int64.add s_start_extent s_extent_count)
   | [] -> List.rev acc in	
   let change_lv lv_name fn =

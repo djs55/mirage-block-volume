@@ -44,13 +44,13 @@ let dm_map_of_lv vg lv use_pv_id =
             map =
               match s.Lv.Segment.s_cls with
                 | Lv.Segment.Linear l ->
-                    let pv = List.find (fun pv -> pv.Pv.name=l.Lv.Linear.l_pv_name) vg.pvs in
+                    let pv = List.find (fun pv -> pv.Pv.name=l.Lv.Linear.name) vg.pvs in
                     Camldm.Linear {
                       Camldm.device =
                         if use_pv_id
                         then Camldm.Dereferenced (Uuid.to_string pv.Pv.label.Label.pv_header.Label.Pv_header.pvh_id)
                         else Camldm.Real pv.Pv.stored_device;
-                      offset=extent_to_phys_sector pv l.Lv.Linear.l_pv_start_extent }
+                      offset=extent_to_phys_sector pv l.Lv.Linear.start_extent }
                 | Lv.Segment.Striped st ->
                     failwith "Not implemented"
           }::construct_dm_map ss
