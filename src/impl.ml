@@ -37,3 +37,15 @@ let read common filename =
     | Failure x ->
       `Error(true, x)
 
+let format common filename vgname pvname =
+  try
+    let filename = require "filename" filename in
+    let t =
+      Vg.format vgname [ filename, pvname ] >>|= fun () ->
+      return () in
+    Lwt_main.run t;
+    `Ok ()
+  with
+    | Failure x ->
+      `Error(true, x)
+

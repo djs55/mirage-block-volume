@@ -40,17 +40,33 @@ let common_options_t =
     Arg.(last & vflag_all [false] [verbose]) in 
   Term.(pure Common.make $ debug $ verb)
 
+let filename =
+  let doc = Printf.sprintf "Path to the device to read." in
+  Arg.(value & pos 0 (some file) None & info [] ~doc)
+
 let read_cmd =
   let doc = "read and print the volume metadata" in
   let man = [
     `S "DESCRIPTION";
     `P "Search for volume metadata on the specified device and print it.";
   ] @ help in
-  let filename =
-    let doc = Printf.sprintf "Path to the device to read." in
-    Arg.(value & pos 0 (some file) None & info [] ~doc) in
   Term.(ret(pure Impl.read $ common_options_t $ filename)),
   Term.info "read" ~sdocs:_common_options ~doc ~man
+
+let format_cmd =
+  let doc = "format the device with a fresh volume group" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Erase any volume metadata the device and re-initialise it with a fresh volume group. This operation is dangerous and irreversible."
+  ] @ help in
+  let vgname =
+    let doc = "Name for the volume group" in
+    Arg.(value & opt string "volumegroup" & info ["volume-group-name"] ~doc) in
+  let pvname =
+    let doc = "Name for the physical volume" in
+    Arg.(value & opt string "physicalvolume" & info ["physical-volume-name"] ~doc) in
+  Term.(ret(pure Impl.format $ common_options_t $ filename $ vgname $ pvname)),
+  Term.info "format" ~sdocs:_common_options ~doc ~man
 
 let default_cmd = 
   let doc = "manipulate MLVM volumes" in
@@ -58,7 +74,7 @@ let default_cmd =
   Term.(ret (pure (fun _ -> `Help (`Pager, None)) $ common_options_t)),
   Term.info (Sys.argv.(0)) ~version:"1.0.0" ~sdocs:_common_options ~doc ~man
        
-let cmds = [read_cmd]
+let cmds = [read_cmd; format_cmd]
 
 let _ =
   match Term.eval_choice default_cmd cmds with 
