@@ -1,5 +1,5 @@
 # OPAM packages needed to build tests.
-OPAM_PACKAGES="uuidm ounit rpc stdext camldm kaputt"
+OPAM_PACKAGES="uuidm ounit rpc camldm kaputt cmdliner"
 
 
 case "$OCAML_VERSION,$OPAM_VERSION" in
