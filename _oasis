@@ -27,6 +27,14 @@ Library lvm_mapper
   Findlibname: mapper
   Findlibparent: lvm
 
+Executable mlvm
+  CompiledObject:     best
+  Path:               src
+  MainIs:             main.ml
+  Custom:             true
+  Install:            false
+  BuildDepends:       lvm, cmdliner
+
 Executable tag_test
   CompiledObject:     best
   Path:               lib_test

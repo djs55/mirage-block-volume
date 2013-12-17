@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 65f48cd5ee8558238f08c4501c659fa5)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: 80d66a474e6697db935aae85550acecd)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -45,6 +45,28 @@
 <lib/*.ml{,i}>: pkg_mirage-block-unix
 # Library lvm_mapper
 "lib/lvm_mapper.cmxs": use_lvm_mapper
+# Executable mlvm
+<src/main.{native,byte}>: use_lvm
+<src/main.{native,byte}>: pkg_cmdliner
+<src/main.{native,byte}>: pkg_rpclib.syntax
+<src/main.{native,byte}>: pkg_rpclib
+<src/main.{native,byte}>: pkg_threads
+<src/main.{native,byte}>: pkg_camldm
+<src/main.{native,byte}>: pkg_uuidm
+<src/main.{native,byte}>: pkg_re.str
+<src/main.{native,byte}>: pkg_cstruct
+<src/main.{native,byte}>: pkg_mirage-block-unix
+<src/*.ml{,i}>: use_lvm
+<src/*.ml{,i}>: pkg_cmdliner
+<src/*.ml{,i}>: pkg_rpclib.syntax
+<src/*.ml{,i}>: pkg_rpclib
+<src/*.ml{,i}>: pkg_threads
+<src/*.ml{,i}>: pkg_camldm
+<src/*.ml{,i}>: pkg_uuidm
+<src/*.ml{,i}>: pkg_re.str
+<src/*.ml{,i}>: pkg_cstruct
+<src/*.ml{,i}>: pkg_mirage-block-unix
+<src/main.{native,byte}>: custom
 # Executable tag_test
 <lib_test/tag_test.{native,byte}>: use_lvm
 <lib_test/tag_test.{native,byte}>: pkg_oUnit
