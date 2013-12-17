@@ -39,9 +39,16 @@ let block_error = function
 let get_size device =
   if !Constants.dummy_mode
   then return (`Ok Constants.tib)
-  else match Block.blkgetsize device with
-    | `Ok x -> return (`Ok x)
-    | `Error e -> return (block_error e)
+  else
+    let stats = Unix.LargeFile.lstat device in
+    match stats.Unix.LargeFile.st_kind with
+    | Unix.S_BLK ->
+      begin match Block.blkgetsize device with
+      | `Ok x -> return (`Ok x)
+      | `Error e -> return (block_error e)
+      end
+    | Unix.S_REG -> return (`Ok stats.Unix.LargeFile.st_size)
+    | _ -> return (`Error (Printf.sprintf "Unable to query the size of %s: it is neither a file nor a block device" device))
 
 (* Should we wrap in Result.result? *)
 let with_file filename flags f =
