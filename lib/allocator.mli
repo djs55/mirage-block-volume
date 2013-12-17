@@ -42,7 +42,11 @@ exception NonSingular_Containing_Area
 
 val alloc_specified_areas : t -> t -> t
 
+(** [alloc free_space size] returns [allocated_space, free_space]
+    where [allocated_space] has total length [size] and the [free_space]
+    corresponds to the remaining free space post-allocation. *)
 val alloc : t -> int64 -> t * t
 
+(** [free free_space to_free] returns the new [free_space] after
+    freeing [to_free] *)
 val free : t -> t -> t
-
