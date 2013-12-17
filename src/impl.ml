@@ -25,6 +25,7 @@ let (>>|=) m f = m >>= function
   | `Ok x -> f x
 
 let read common filename =
+  Constants.dummy_mode := common.Common.dummy;
   try
     let filename = require "filename" filename in
     let t =
@@ -38,6 +39,7 @@ let read common filename =
       `Error(true, x)
 
 let format common filename vgname pvname =
+  Constants.dummy_mode := common.Common.dummy;
   try
     let filename = require "filename" filename in
     let t =

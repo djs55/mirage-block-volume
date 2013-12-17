@@ -37,8 +37,11 @@ let common_options_t =
   let verb =
     let doc = "Give verbose output." in
     let verbose = true, Arg.info ["v"; "verbose"] ~docs ~doc in 
-    Arg.(last & vflag_all [false] [verbose]) in 
-  Term.(pure Common.make $ debug $ verb)
+    Arg.(last & vflag_all [false] [verbose]) in
+  let dummy =
+    let doc = "Use 'dummy' mode for testing." in
+    Arg.(value & flag & info ["dummy"] ~docs ~doc) in
+  Term.(pure Common.make $ debug $ verb $ dummy)
 
 let filename =
   let doc = Printf.sprintf "Path to the device to read." in

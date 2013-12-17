@@ -52,7 +52,7 @@ let get_size device =
 
 (* Should we wrap in Result.result? *)
 let with_file filename flags f =
-  Lwt_unix.openfile filename flags 0o0 >>= fun fd ->
+  Lwt_unix.openfile filename flags 0o0644 >>= fun fd ->
   Lwt.catch
     (fun () -> f fd >>= fun x -> Lwt_unix.close fd >>= fun () -> return (`Ok x))
     (fun e -> Lwt_unix.close fd >>= fun () -> return (`Error (Printexc.to_string e)))
