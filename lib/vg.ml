@@ -94,8 +94,8 @@ let do_op vg op : (vg, string) Result.result =
     let l_pv_start_extent = Allocator.get_start a in
     let s_extent_count = Allocator.get_size a in
     let l_pv_name = Allocator.get_name a in
-    let s_cls = Lv.Linear { Lv.l_pv_name; l_pv_start_extent; } in
-    createsegs ({ Lv.s_start_extent; s_cls; s_extent_count } :: acc) ss  (Int64.add s_start_extent s_extent_count)
+    let s_cls = Lv.Segment.Linear { Lv.Linear.l_pv_name; l_pv_start_extent; } in
+    createsegs ({ Lv.Segment.s_start_extent; s_cls; s_extent_count } :: acc) ss  (Int64.add s_start_extent s_extent_count)
   | [] -> List.rev acc in	
   let change_lv lv_name fn =
     let lv,others = List.partition (fun lv -> lv.Lv.name=lv_name) vg.lvs in
@@ -106,7 +106,7 @@ let do_op vg op : (vg, string) Result.result =
   match op.so_op with
   | LvCreate (name,l) ->
     let new_free_space = Allocator.alloc_specified_areas vg.free_space l.lvc_segments in
-    let segments = Lv.sort_segments (createsegs [] l.lvc_segments 0L) in
+    let segments = Lv.Segment.sort (createsegs [] l.lvc_segments 0L) in
     let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Visible]; segments }) in
     return {vg with lvs = lv::vg.lvs; free_space = new_free_space}
   | LvExpand (name,l) ->
@@ -114,19 +114,19 @@ let do_op vg op : (vg, string) Result.result =
       let old_size = Lv.size_in_extents lv in
       let free_space = Allocator.alloc_specified_areas vg.free_space l.lvex_segments in
       let segments = createsegs [] l.lvex_segments old_size in
-      let segments = Lv.sort_segments (segments @ lv.Lv.segments) in
+      let segments = Lv.Segment.sort (segments @ lv.Lv.segments) in
       let lv = {lv with Lv.segments} in
       return {vg with lvs = lv::others; free_space=free_space} )
   | LvReduce (name,l) ->
     change_lv name (fun lv others ->
-      let allocation = Lv.allocation_of_lv lv in
+      let allocation = Lv.to_allocation lv in
       Lv.reduce_size_to lv l.lvrd_new_extent_count >>= fun lv ->
-      let new_allocation = Lv.allocation_of_lv lv in
+      let new_allocation = Lv.to_allocation lv in
       let free_space = Allocator.alloc_specified_areas (Allocator.free vg.free_space allocation) new_allocation in
       return {vg with lvs = lv::others; free_space})
   | LvRemove name ->
     change_lv name (fun lv others ->
-      let allocation = Lv.allocation_of_lv lv in
+      let allocation = Lv.to_allocation lv in
       return {vg with lvs = others; free_space = Allocator.free vg.free_space allocation })
   | LvRename (name,l) ->
     change_lv name (fun lv others ->
@@ -296,7 +296,7 @@ let of_metadata config =
   let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
 
   let free_space = List.fold_left (fun free_space lv -> 
-    let lv_allocations = Lv.allocation_of_lv lv in
+    let lv_allocations = Lv.to_allocation lv in
     debug "Allocations for lv %s:\n%s\n" lv.Lv.name (Allocator.to_string lv_allocations);
     Allocator.alloc_specified_areas free_space lv_allocations) free_space lvs in
  (* 

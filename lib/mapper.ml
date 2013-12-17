@@ -16,8 +16,7 @@ open Logging
 open Vg
 
 let dm_map_of_lv vg lv use_pv_id =
-  let segments = List.sort (fun s1 s2 -> compare s1.Lv.s_start_extent s2.Lv.s_start_extent)
-    (lv.Lv.segments) in
+  let segments = Lv.Segment.sort lv.Lv.segments in
 
   (* Sanity check - make sure the segments are logically contiguous *)
 
@@ -27,9 +26,9 @@ let dm_map_of_lv vg lv use_pv_id =
   let rec test expected_start segs =
     match segs with
       | s::ss ->
-          if s.Lv.s_start_extent <> expected_start
+          if s.Lv.Segment.s_start_extent <> expected_start
           then failwith "Segments aren't contiguous!";
-          test (Int64.add expected_start s.Lv.s_extent_count) ss
+          test (Int64.add expected_start s.Lv.Segment.s_extent_count) ss
       | _ -> ()
   in
 
@@ -38,21 +37,21 @@ let dm_map_of_lv vg lv use_pv_id =
   let rec construct_dm_map segs =
     match segs with
       | s::ss ->
-          let start = extent_to_sector s.Lv.s_start_extent in
-          let len = extent_to_sector s.Lv.s_extent_count in
+          let start = extent_to_sector s.Lv.Segment.s_start_extent in
+          let len = extent_to_sector s.Lv.Segment.s_extent_count in
           { Camldm.start=start;
             len = len;
             map =
-              match s.Lv.s_cls with
-                | Lv.Linear l ->
-                    let pv = List.find (fun pv -> pv.Pv.name=l.Lv.l_pv_name) vg.pvs in
+              match s.Lv.Segment.s_cls with
+                | Lv.Segment.Linear l ->
+                    let pv = List.find (fun pv -> pv.Pv.name=l.Lv.Linear.l_pv_name) vg.pvs in
                     Camldm.Linear {
                       Camldm.device =
                         if use_pv_id
                         then Camldm.Dereferenced (Uuid.to_string pv.Pv.label.Label.pv_header.Label.Pv_header.pvh_id)
                         else Camldm.Real pv.Pv.dev;
-                      offset=extent_to_phys_sector pv l.Lv.l_pv_start_extent }
-                | Lv.Striped st ->
+                      offset=extent_to_phys_sector pv l.Lv.Linear.l_pv_start_extent }
+                | Lv.Segment.Striped st ->
                     failwith "Not implemented"
           }::construct_dm_map ss
       | _ -> []

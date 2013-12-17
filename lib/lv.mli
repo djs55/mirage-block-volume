@@ -12,8 +12,6 @@
  * GNU Lesser General Public License for more details.
  *)
 
-open Absty
-
 module Status : sig
   type t = 
     | Read
@@ -24,45 +22,51 @@ module Status : sig
 
   val of_string: string -> (t, string) Result.result
 end
-	
-type striped_segment = {
-  st_stripe_size : int64;             (** In sectors *)
-  st_stripes : (string * int64) list; (** pv name (LVM uuid) * start extent *)
-}
 
-type linear_segment = {
-  l_pv_name : string; (* LVM uuid *)
-  l_pv_start_extent : int64;
-}
+module Stripe : sig
+  type t = {
+    st_stripe_size : int64;             (** In sectors *)
+    st_stripes : (string * int64) list; (** pv name (LVM uuid) * start extent *)
+  }
+end
 
-and segclass = 
-  | Linear of linear_segment
-  | Striped of striped_segment
+module Linear : sig
+  type t = {
+    l_pv_name : string; (* LVM uuid *)
+    l_pv_start_extent : int64;
+  }
+end
 
-type segment = 
+module Segment : sig
+  type cls = 
+    | Linear of Linear.t
+    | Striped of Stripe.t
+
+  type t = 
     { s_start_extent : int64; 
       s_extent_count : int64;
-      s_cls : segclass; }
+      s_cls : cls; }
+
+  val sort: t list -> t list
+
+  val to_allocation: t -> (string * (int64 * int64)) list
+end
 
 type t = {
-  name : string;           (** name given by the user *)
-  id : Uuid.t;             (** arbitrary unique id *)
-  tags : Tag.t list;       (** tags given by the user *)
-  status : Status.t list;  (** status flags *)
-  segments : segment list; (** an ordered list of blocks ('segments') *)
+  name : string;             (** name given by the user *)
+  id : Uuid.t;               (** arbitrary unique id *)
+  tags : Tag.t list;         (** tags given by the user *)
+  status : Status.t list;    (** status flags *)
+  segments : Segment.t list; (** an ordered list of blocks ('segments') *)
 }
 (** a logical volume within a volume group *)
 
 include S.RPC with type t := t
 include S.MARSHAL with type t := t
 
-val sort_segments: segment list -> segment list
-
 val of_metadata: string -> (string * Absty.absty) list -> (t, string) Result.result
 
-val allocation_of_segment: segment -> (string * (int64 * int64))  list
-
-val allocation_of_lv: t -> (string * (int64 * int64)) list
+val to_allocation: t -> (string * (int64 * int64)) list
 
 val size_in_extents: t -> int64
 
