@@ -61,7 +61,7 @@ let get name device offset length =
       return buf)
 
 let put name device offset buf =
-  let filename = if !Constants.dummy_mode then dummy_fname device "pvh" else device in
+  let filename = if !Constants.dummy_mode then dummy_fname device name else device in
   let flags = [ Lwt_unix.O_RDWR; Lwt_unix.O_DSYNC ] @ (if !Constants.dummy_mode then [ Lwt_unix.O_CREAT ] else []) in
   let offset = if !Constants.dummy_mode then 0L else offset in
   with_file filename flags
