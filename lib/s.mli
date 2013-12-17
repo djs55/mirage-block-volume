@@ -38,3 +38,22 @@ module type RPC = sig
   val rpc_of_t: t -> Rpc.t
 end
 
+module type VOLUME = sig
+  type t
+  type tag
+  type name
+  type size
+
+  val create: t -> name -> int64 -> (t, string) Result.result
+
+  val rename: t -> name -> name -> (t, string) Result.result
+
+  val resize: t -> name -> size -> (t, string) Result.result
+
+  val remove: t -> name -> (t, string) Result.result
+
+  val add_tag: t -> name -> tag -> (t, string) Result.result
+
+  val remove_tag: t -> name -> tag -> (t, string) Result.result
+end
+

@@ -15,18 +15,35 @@
 open Absty
 open Redo
 open Logging
+open Result
 
-type status =
+module Status = struct
+  type t =
     | Read
     | Write
     | Resizeable
     | Clustered
+  with rpc
 
-and vg = {
+  let to_string = function
+    | Resizeable -> "RESIZEABLE"
+    | Write -> "WRITE"
+    | Read -> "READ"
+    | Clustered -> "CLUSTERED"
+
+  let of_string = function
+    | "RESIZEABLE" -> return Resizeable
+    | "WRITE" -> return Write
+    | "READ" -> return Read
+    | "CLUSTERED" -> return Clustered
+    | x -> fail (Printf.sprintf "Bad VG status string: %s" x)
+end
+
+type t = {
   name : string;
   id : Uuid.t;
   seqno : int;
-  status : status list;
+  status : Status.t list;
   extent_size : int64;
   max_lv : int;
   max_pv : int;
@@ -37,23 +54,6 @@ and vg = {
   ops : sequenced_op list;
 } with rpc
   
-let status_to_string s =
-  match s with
-    | Resizeable -> "RESIZEABLE"
-    | Write -> "WRITE"
-    | Read -> "READ"
-    | Clustered -> "CLUSTERED"
-
-open Result
-
-let status_of_string s =
-  match s with 
-    | "RESIZEABLE" -> return Resizeable
-    | "WRITE" -> return Write
-    | "READ" -> return Read
-    | "CLUSTERED" -> return Clustered
-    | x -> fail (Printf.sprintf "Bad VG status string: %s" x)
-
 let marshal vg b =
   let b = ref b in
   let bprintf fmt = Printf.kprintf (fun s ->
@@ -63,7 +63,7 @@ let marshal vg b =
   ) fmt in
   bprintf "%s {\nid = \"%s\"\nseqno = %d\n" vg.name (Uuid.to_string vg.id) vg.seqno;
   bprintf "status = [%s]\nextent_size = %Ld\nmax_lv = %d\nmax_pv = %d\n\n"
-    (String.concat ", " (List.map (o quote status_to_string) vg.status))
+    (String.concat ", " (List.map (o quote Status.to_string) vg.status))
     vg.extent_size vg.max_lv vg.max_pv;
   bprintf "physical_volumes {\n";
   b := List.fold_left (fun b pv -> Pv.marshal pv b) !b vg.pvs;
@@ -85,7 +85,7 @@ let marshal vg b =
 (* METADATA CHANGING OPERATIONS                              *)
 (*************************************************************)
 
-let do_op vg op : (vg, string) Result.result =
+let do_op vg op : (t, string) Result.result =
   ( if vg.seqno <> op.so_seqno
     then fail (Printf.sprintf "VG: cannot perform operation out-of-order: expected %d, actual %d" vg.seqno op.so_seqno)
     else return () ) >>= fun () ->
@@ -142,15 +142,15 @@ let do_op vg op : (vg, string) Result.result =
       let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
       return {vg with lvs = lv'::others})
 
-let create_lv vg name size =
+let create vg name size =
   let id = Uuid.create () in
   let new_segments,new_free_space = Allocator.alloc vg.free_space size in
   do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id=id; lvc_segments=new_segments})}
 
-let rename_lv vg old_name new_name =
+let rename vg old_name new_name =
   do_op vg {so_seqno=vg.seqno; so_op=LvRename (old_name,{lvmv_new_name=new_name})}
 
-let resize_lv vg name new_size =
+let resize vg name new_size =
   let lv,others = List.partition (fun lv -> lv.Lv.name=name) vg.lvs in
   ( match lv with 
     | [lv] ->
@@ -163,60 +163,16 @@ let resize_lv vg name new_size =
     | _ -> fail (Printf.sprintf "Can't find LV %s" name) ) >>= fun op ->
   do_op vg {so_seqno=vg.seqno; so_op=op}
 
-let remove_lv vg name =
+let remove vg name =
   do_op vg {so_seqno=vg.seqno; so_op=LvRemove name}
 
-let add_tag_lv vg name tag =
+let add_tag vg name tag =
   do_op vg {so_seqno = vg.seqno; so_op = LvAddTag (name, tag)}
 
-let remove_tag_lv vg name tag =
+let remove_tag vg name tag =
   do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)}
 
-(******************************************************************************)
-(*
-let human_readable vg =
-  let pv_strings = List.map Pv.human_readable vg.pvs in
-    String.concat "\n" pv_strings
-
-
-let find_lv vg lv_name =
-  List.find (fun lv -> lv.Lv.name = lv_name) vg.lvs
-
-let with_open_redo vg f =
-  debug "The redo log is missing"
-
-let read_redo vg =
-	with_open_redo vg (fun (fd,pos) ->
-				   Redo.read fd pos (Constants.extent_size))
-
-let write_redo vg =
-  with_open_redo vg (fun (fd,pos) ->
-    Redo.write fd pos (Constants.extent_size) vg.ops;
-    {vg with ops=[]})
-    
-let reset_redo vg =
-  with_open_redo vg (fun (fd,pos) ->
-    Redo.reset fd pos)
-
-let apply_redo vg  =
-  let ops = List.rev (read_redo vg) in
-  let rec apply vg ops =
-    match ops with
-      | op::ops ->
-	  if op.so_seqno=vg.seqno 
-	  then begin
-	    debug "Applying operation op=%s" (Redo.redo_to_human_readable op);
-            do_op vg op >>= fun vg ->
-	    apply vg ops
-	  end else begin
-	    debug "Ignoring operation op=%s" (Redo.redo_to_human_readable op);
-	    apply vg ops
-	  end
-      | _ -> return vg
-  in apply vg ops
-*)
-
-let write_full vg =
+let write vg =
   let pvs = vg.pvs in
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal vg buf in
@@ -235,22 +191,7 @@ let write_full vg =
       write_vg ({ pv with Pv.mda_headers = headers } :: acc) pvs in
   write_vg [] vg.pvs >>= fun pvs ->
   let vg = { vg with pvs } in
-  (* (match vg.redo_lv with Some _ -> reset_redo vg | None -> ()); *)
   return vg
-
-(*
-let init_redo_log vg =
-  let open IO.FromResult in
-  match vg.redo_lv with 
-    | Some _ -> return vg 
-    | None ->
-      create_lv vg Constants.redo_log_lv_name 1L >>= fun lv ->
-      let open IO in
-      write_full lv >>= fun vg ->
-      return { vg with redo_lv = Some Constants.redo_log_lv_name }
-*)
-let write vg force_full =
-  write_full vg
 
 let of_metadata config =
   let open IO.FromResult in
@@ -269,7 +210,7 @@ let of_metadata config =
   let seqno = Int64.to_int seqno in
   map_expected_mapped_array "status" 
     (fun a -> let open Result in expect_string "status" a >>= fun x ->
-              status_of_string x) alist >>= fun status ->
+              Status.of_string x) alist >>= fun status ->
   expect_mapped_int "extent_size" alist >>= fun extent_size ->
   expect_mapped_int "max_lv" alist >>= fun max_lv ->
   let max_lv = Int64.to_int max_lv in
@@ -299,18 +240,11 @@ let of_metadata config =
     let lv_allocations = Lv.to_allocation lv in
     debug "Allocations for lv %s:\n%s\n" lv.Lv.name (Allocator.to_string lv_allocations);
     Allocator.alloc_specified_areas free_space lv_allocations) free_space lvs in
- (* 
-  let got_redo_lv = List.exists (fun lv -> lv.Lv.name = Constants.redo_log_lv_name) lvs in
-  let redo_lv = if got_redo_lv then Some Constants.redo_log_lv_name else None in
- *)
   let ops = [] in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; ops } in
-  (*
-  if got_redo_lv then apply_redo vg else return vg
-  *)
   return vg
 
-let create_new name devices_and_names =
+let format name devices_and_names =
   let open IO in
   let rec write_pv acc = function
     | [] -> return (List.rev acc)
@@ -320,10 +254,10 @@ let create_new name devices_and_names =
   write_pv [] devices_and_names >>= fun pvs ->
   debug "PVs created";
   let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
-  let vg = { name; id=Uuid.create (); seqno=1; status=[Read; Write];
+  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; ops=[]; } in
-  write vg true >>= fun _ ->
+  write vg >>= fun _ ->
   debug "VG created";
   return ()
 
@@ -333,7 +267,7 @@ let parse buf =
   of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf)
 
 open IO
-let load = function
+let read = function
 | [] -> Lwt.return (`Error "Vg.load needs at least one device")
 | devices ->
   debug "Vg.load";
@@ -345,7 +279,3 @@ let set_dummy_mode base_dir mapper_name full_provision =
   Constants.dummy_base := base_dir;
   Constants.mapper_name := mapper_name;
   Constants.full_provision := full_provision
-
-
-
-
