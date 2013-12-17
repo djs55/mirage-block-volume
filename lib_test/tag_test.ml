@@ -94,10 +94,10 @@ let well_known_pv_header () =
   let open Label.Pv_header in
   let uuid = Result.ok_or_failwith (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
   let pvh = {
-    pvh_id = uuid;
-    pvh_device_size = 1234L;
-    pvh_extents = [{Label.dl_offset = 300L; Label.dl_size = 0L}];
-    pvh_metadata_areas = [{Label.dl_offset = 100L; Label.dl_size = 200L}]
+    id = uuid;
+    device_size = 1234L;
+    extents = [{Label.dl_offset = 300L; Label.dl_size = 0L}];
+    metadata_areas = [{Label.dl_offset = 100L; Label.dl_size = 200L}]
   } in
   let sector = Cstruct.create 512 in
   let _ = marshal pvh sector in

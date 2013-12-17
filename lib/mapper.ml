@@ -48,7 +48,7 @@ let dm_map_of_lv vg lv use_pv_id =
                     Camldm.Linear {
                       Camldm.device =
                         if use_pv_id
-                        then Camldm.Dereferenced (Uuid.to_string pv.Pv.label.Label.pv_header.Label.Pv_header.pvh_id)
+                        then Camldm.Dereferenced (Uuid.to_string pv.Pv.label.Label.pv_header.Label.Pv_header.id)
                         else Camldm.Real pv.Pv.stored_device;
                       offset=extent_to_phys_sector pv l.Lv.Linear.start_extent }
                 | Lv.Segment.Striped st ->

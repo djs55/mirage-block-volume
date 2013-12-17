@@ -31,10 +31,10 @@ type disk_locn = {
 
 module Pv_header : sig
   type t = {
-    pvh_id : Uuid.t;
-    pvh_device_size : int64;
-    pvh_extents: disk_locn list;
-    pvh_metadata_areas: disk_locn list;
+    id : Uuid.t;
+    device_size : int64;
+    extents: disk_locn list;
+    metadata_areas: disk_locn list;
   }
 
   val create: Uuid.t -> int64 -> int64 -> int64 -> t

@@ -85,50 +85,46 @@ type disk_locn = {
 
 module Pv_header = struct
   type t = {
-    pvh_id : Uuid.t;
-    pvh_device_size : int64;
-    pvh_extents: disk_locn list;
-    pvh_metadata_areas: disk_locn list;
+    id : Uuid.t;
+    device_size : int64;
+    extents: disk_locn list;
+    metadata_areas: disk_locn list;
   } with rpc
 
   let equals a b =
-    a.pvh_id = b.pvh_id
-    && (a.pvh_device_size = b.pvh_device_size)
-    && (a.pvh_extents = b.pvh_extents)
-    && (a.pvh_metadata_areas = b.pvh_metadata_areas)
+    a.id = b.id
+    && (a.device_size = b.device_size)
+    && (a.extents = b.extents)
+    && (a.metadata_areas = b.metadata_areas)
 
-  let create id size mda_start mda_size = {
-    pvh_id=id;
-    pvh_device_size=size;
-    pvh_extents=[{dl_offset=(Int64.add mda_start mda_size); dl_size=0L}];
-    pvh_metadata_areas=[{dl_offset=mda_start; dl_size=mda_size}];
+  let create id device_size mda_start mda_size = {
+    id; device_size;
+    extents=[{dl_offset=(Int64.add mda_start mda_size); dl_size=0L}];
+    metadata_areas=[{dl_offset=mda_start; dl_size=mda_size}];
   }
 
   let unmarshal b =
     let open Uuid in
     unmarshal b >>= fun (id, b) ->
-    let size = Cstruct.LE.get_uint64 b 0 in
+    let device_size = Cstruct.LE.get_uint64 b 0 in
     let b = Cstruct.shift b 8 in
     let rec do_disk_locn b acc =
-      let offset = Cstruct.LE.get_uint64 b 0 in
+      let dl_offset = Cstruct.LE.get_uint64 b 0 in
       let b = Cstruct.shift b 8 in
-      if offset=0L 
+      if dl_offset=0L 
       then (List.rev acc,Cstruct.shift b 8) 
       else
-        let size = Cstruct.LE.get_uint64 b 0 in
+        let dl_size = Cstruct.LE.get_uint64 b 0 in
         let b = Cstruct.shift b 8 in
-        do_disk_locn b ({dl_offset=offset; dl_size=size}::acc)
+        do_disk_locn b ({dl_offset; dl_size}::acc)
     in 
-    let disk_areas,b = do_disk_locn b [] in
-    let disk_areas2,b = do_disk_locn b [] in
-    return ({ pvh_id=id;
-      pvh_device_size=size;
-      pvh_extents=disk_areas;
-      pvh_metadata_areas=disk_areas2},b)
+    let extents,b = do_disk_locn b [] in
+    let metadata_areas,b = do_disk_locn b [] in
+    return ({ id; device_size; extents; metadata_areas }, b)
 
   let marshal t buf =
-    let buf = Uuid.marshal t.pvh_id buf in
-    Cstruct.LE.set_uint64 buf 0 t.pvh_device_size;
+    let buf = Uuid.marshal t.id buf in
+    Cstruct.LE.set_uint64 buf 0 t.device_size;
     let buf = Cstruct.shift buf 8 in
     
     let do_disk_locn buf l =
@@ -140,17 +136,17 @@ module Pv_header = struct
       Cstruct.LE.set_uint64 buf 8 0L;
       Cstruct.shift buf 16 in
     
-    let buf = do_disk_locn buf t.pvh_extents in
-    let buf = do_disk_locn buf t.pvh_metadata_areas in
+    let buf = do_disk_locn buf t.extents in
+    let buf = do_disk_locn buf t.metadata_areas in
     buf
 
   let to_string t =
     let disk_area_list_to_ascii l =
       (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.dl_offset da.dl_size) l)) in  
     Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
-      (Uuid.to_string t.pvh_id) t.pvh_device_size 
-      (disk_area_list_to_ascii t.pvh_extents)
-      (disk_area_list_to_ascii t.pvh_metadata_areas)
+      (Uuid.to_string t.id) t.device_size 
+      (disk_area_list_to_ascii t.extents)
+      (disk_area_list_to_ascii t.metadata_areas)
 
   include Result
 end
@@ -200,10 +196,10 @@ let unmarshal buf =
 include Result
 
 let get_metadata_locations label = 
-  label.pv_header.Pv_header.pvh_metadata_areas
+  label.pv_header.Pv_header.metadata_areas
 
 let get_pv_id label =
-  label.pv_header.Pv_header.pvh_id
+  label.pv_header.Pv_header.id
 
 let get_device label = 
   label.device
