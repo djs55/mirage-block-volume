@@ -24,17 +24,19 @@ module Label_header : sig
   include S.UNMARSHAL with type t := t
 end
 
-type disk_locn = {
-  dl_offset : int64;
-  dl_size : int64;
-}
+module Location : sig
+  type t = {
+    offset : int64;
+    size : int64;
+  }
+end
 
 module Pv_header : sig
   type t = {
     id : Uuid.t;
     device_size : int64;
-    extents: disk_locn list;
-    metadata_areas: disk_locn list;
+    extents: Location.t list;
+    metadata_areas: Location.t list;
   }
 
   val create: Uuid.t -> int64 -> int64 -> int64 -> t
@@ -63,7 +65,7 @@ include S.UNMARSHAL with type t := t
 include S.RPC with type t := t
 include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
-val get_metadata_locations: t -> disk_locn list
+val get_metadata_locations: t -> Location.t list
 
 val get_pv_id: t -> Uuid.t
 

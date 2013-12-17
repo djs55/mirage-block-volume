@@ -96,8 +96,8 @@ let well_known_pv_header () =
   let pvh = {
     id = uuid;
     device_size = 1234L;
-    extents = [{Label.dl_offset = 300L; Label.dl_size = 0L}];
-    metadata_areas = [{Label.dl_offset = 100L; Label.dl_size = 200L}]
+    extents = [{Label.Location.offset = 300L; size = 0L}];
+    metadata_areas = [{Label.Location.offset = 100L; size = 200L}]
   } in
   let sector = Cstruct.create 512 in
   let _ = marshal pvh sector in

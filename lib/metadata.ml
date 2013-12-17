@@ -78,7 +78,7 @@ module Header = struct
 
   let read device location =
     let open IO in
-    get_mda_header device location.Label.dl_offset sizeof >>= fun buf ->
+    get_mda_header device location.Label.Location.offset sizeof >>= fun buf ->
     let open IO.FromResult in
     unmarshal buf >>= fun (t, _) ->
     return t

@@ -31,10 +31,10 @@ module Header: sig
   val write: t -> string -> unit IO.io
   (** [write t device] writes [t] to the [device] *)
 
-  val read: string -> Label.disk_locn -> t IO.io
+  val read: string -> Label.Location.t -> t IO.io
   (** [read device location] reads [t] from the [device] *)
 
-  val read_all: string -> Label.disk_locn list -> t list IO.io
+  val read_all: string -> Label.Location.t list -> t list IO.io
   (** [read device locations] reads the [t]s found at [location]s,
       or an error if any single one can't be read. *)
 

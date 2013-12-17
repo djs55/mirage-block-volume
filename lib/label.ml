@@ -78,17 +78,19 @@ module Label_header = struct
   include Result
 end
 
-type disk_locn = {
-  dl_offset : int64;
-  dl_size : int64;
-} with rpc
+module Location = struct
+  type t = {
+    offset : int64;
+    size : int64;
+  } with rpc
+end
 
 module Pv_header = struct
   type t = {
     id : Uuid.t;
     device_size : int64;
-    extents: disk_locn list;
-    metadata_areas: disk_locn list;
+    extents: Location.t list;
+    metadata_areas: Location.t list;
   } with rpc
 
   let equals a b =
@@ -99,8 +101,8 @@ module Pv_header = struct
 
   let create id device_size mda_start mda_size = {
     id; device_size;
-    extents=[{dl_offset=(Int64.add mda_start mda_size); dl_size=0L}];
-    metadata_areas=[{dl_offset=mda_start; dl_size=mda_size}];
+    extents=[{Location.offset=(Int64.add mda_start mda_size); size=0L}];
+    metadata_areas=[{Location.offset=mda_start; size=mda_size}];
   }
 
   let unmarshal b =
@@ -109,14 +111,14 @@ module Pv_header = struct
     let device_size = Cstruct.LE.get_uint64 b 0 in
     let b = Cstruct.shift b 8 in
     let rec do_disk_locn b acc =
-      let dl_offset = Cstruct.LE.get_uint64 b 0 in
+      let offset = Cstruct.LE.get_uint64 b 0 in
       let b = Cstruct.shift b 8 in
-      if dl_offset=0L 
+      if offset=0L 
       then (List.rev acc,Cstruct.shift b 8) 
       else
-        let dl_size = Cstruct.LE.get_uint64 b 0 in
+        let size = Cstruct.LE.get_uint64 b 0 in
         let b = Cstruct.shift b 8 in
-        do_disk_locn b ({dl_offset; dl_size}::acc)
+        do_disk_locn b ({Location.offset; size}::acc)
     in 
     let extents,b = do_disk_locn b [] in
     let metadata_areas,b = do_disk_locn b [] in
@@ -129,8 +131,8 @@ module Pv_header = struct
     
     let do_disk_locn buf l =
       let buf = List.fold_left (fun buf e ->
-        Cstruct.LE.set_uint64 buf 0 e.dl_offset;
-        Cstruct.LE.set_uint64 buf 8 e.dl_size;
+        Cstruct.LE.set_uint64 buf 0 e.Location.offset;
+        Cstruct.LE.set_uint64 buf 8 e.Location.size;
         Cstruct.shift buf 16) buf l in
       Cstruct.LE.set_uint64 buf 0 0L;
       Cstruct.LE.set_uint64 buf 8 0L;
@@ -142,7 +144,7 @@ module Pv_header = struct
 
   let to_string t =
     let disk_area_list_to_ascii l =
-      (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.dl_offset da.dl_size) l)) in  
+      (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.Location.offset da.Location.size) l)) in  
     Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
       (Uuid.to_string t.id) t.device_size 
       (disk_area_list_to_ascii t.extents)
