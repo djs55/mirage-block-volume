@@ -15,12 +15,27 @@
 open Absty
 open Logging
 
-type stat = 
+module Status = struct
+  type t = 
     | Read
     | Write
     | Visible
+  with rpc
 	
-and striped_segment = {
+  let to_string = function
+    | Read -> "READ"
+    | Write -> "WRITE"
+    | Visible -> "VISIBLE"
+
+  open Result
+  let of_string = function
+    | "READ" -> return Read
+    | "WRITE" -> return Write
+    | "VISIBLE" -> return Visible
+    | x -> fail (Printf.sprintf "Bad LV status string: %s" x)
+end
+
+type striped_segment = {
   st_stripe_size : int64; (* In sectors *)
   st_stripes : (string * int64) list; (* pv name * start extent *)
 }
@@ -39,28 +54,15 @@ and segment =
       s_extent_count : int64;
       s_cls : segclass; }
 
-and logical_volume = {
+and t = {
   name : string;
   id : Uuid.t;
   tags : Tag.t list;
-  status : stat list;
+  status : Status.t list;
   segments : segment list;
 } with rpc
 
-let status_to_string s =
-  match s with
-    | Read -> "READ"
-    | Write -> "WRITE"
-    | Visible -> "VISIBLE"
-
 open Result
-
-let status_of_string s =
-  match s with
-    | "READ" -> return Read
-    | "WRITE" -> return Write
-    | "VISIBLE" -> return Visible
-    | x -> fail (Printf.sprintf "Bad LV status string: %s" x)
 
 let sort_segments s =
   List.sort (fun s1 s2 -> compare s1.s_start_extent s2.s_start_extent) s
@@ -78,7 +80,7 @@ let marshal lv b =
     ofs := !ofs + len
   ) fmt in
   bprintf "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name (Uuid.to_string lv.id)
-    (String.concat ", " (List.map (o quote status_to_string) lv.status));
+    (String.concat ", " (List.map (o quote Status.to_string) lv.status));
   if List.length lv.tags > 0 then 
     bprintf "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
   bprintf "segment_count = %d\n\n" (List.length lv.segments);
@@ -131,7 +133,7 @@ let of_metadata name config =
   map_expected_mapped_array "status"
     (fun a ->
       expect_string "status" a >>= fun x ->
-      status_of_string x
+      Status.of_string x
     ) config >>= fun status ->
   (if List.mem_assoc "tags" config
    then map_expected_mapped_array "tags" (expect_string "tags") config

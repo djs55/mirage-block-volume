@@ -14,17 +14,23 @@
 
 open Absty
 
-type stat = 
+module Status : sig
+  type t = 
     | Read
     | Write
     | Visible
+
+  include S.PRINT with type t := t
+
+  val of_string: string -> (t, string) Result.result
+end
 	
-and striped_segment = {
+type striped_segment = {
   st_stripe_size : int64;             (** In sectors *)
   st_stripes : (string * int64) list; (** pv name (LVM uuid) * start extent *)
 }
 
-and linear_segment = {
+type linear_segment = {
   l_pv_name : string; (* LVM uuid *)
   l_pv_start_extent : int64;
 }
@@ -33,38 +39,33 @@ and segclass =
   | Linear of linear_segment
   | Striped of striped_segment
 
-and segment = 
+type segment = 
     { s_start_extent : int64; 
       s_extent_count : int64;
       s_cls : segclass; }
 
-and logical_volume = {
-  name : string;
-  id : Uuid.t;
-  tags : Tag.t list;
-  status : stat list;
-  segments : segment list;
+type t = {
+  name : string;           (** name given by the user *)
+  id : Uuid.t;             (** arbitrary unique id *)
+  tags : Tag.t list;       (** tags given by the user *)
+  status : Status.t list;  (** status flags *)
+  segments : segment list; (** an ordered list of blocks ('segments') *)
 }
+(** a logical volume within a volume group *)
 
-val logical_volume_of_rpc: Rpc.t -> logical_volume
-val rpc_of_logical_volume: logical_volume -> Rpc.t
-
-val status_to_string: stat -> string
-
-val status_of_string: string -> (stat, string) Result.result
+include S.RPC with type t := t
+include S.MARSHAL with type t := t
 
 val sort_segments: segment list -> segment list
 
-val marshal: logical_volume -> Cstruct.t -> Cstruct.t
-
-val of_metadata: string -> (string * Absty.absty) list -> (logical_volume, string) Result.result
+val of_metadata: string -> (string * Absty.absty) list -> (t, string) Result.result
 
 val allocation_of_segment: segment -> (string * (int64 * int64))  list
 
-val allocation_of_lv: logical_volume -> (string * (int64 * int64)) list
+val allocation_of_lv: t -> (string * (int64 * int64)) list
 
-val size_in_extents: logical_volume -> int64
+val size_in_extents: t -> int64
 
-val reduce_size_to: logical_volume -> int64 -> (logical_volume, string) Result.result
+val reduce_size_to: t -> int64 -> (t, string) Result.result
 (** [reduce_size_to lv new_size] reduces the size of [lv] to [new_size],
     or fails if the [new_size] is less than the current size. *)

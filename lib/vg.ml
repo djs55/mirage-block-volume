@@ -31,7 +31,7 @@ and vg = {
   max_lv : int;
   max_pv : int;
   pvs : Pv.t list; (* Device to pv map *)
-  lvs : Lv.logical_volume list;
+  lvs : Lv.t list;
   free_space : Allocator.t;
   (* XXX: hook in the redo log *)
   ops : sequenced_op list;
@@ -107,7 +107,7 @@ let do_op vg op : (vg, string) Result.result =
   | LvCreate (name,l) ->
     let new_free_space = Allocator.alloc_specified_areas vg.free_space l.lvc_segments in
     let segments = Lv.sort_segments (createsegs [] l.lvc_segments 0L) in
-    let lv = { Lv.name; id = l.lvc_id; tags = []; status = [Lv.Read; Lv.Visible]; segments } in
+    let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Visible]; segments }) in
     return {vg with lvs = lv::vg.lvs; free_space = new_free_space}
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
