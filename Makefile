@@ -1,7 +1,7 @@
-CONFIGUREFLAGS+=--enable-tests
+include config.mk
 
 # OASIS_START
-# DO NOT EDIT (digest: 7b2408909643717852b95f994b273fee)
+# DO NOT EDIT (digest: bc1e05bfc8b39b664f29dae8dbd3ebbb)
 
 SETUP = ocaml setup.ml
 
@@ -14,7 +14,7 @@ doc: setup.data build
 test: setup.data build
 	$(SETUP) -test $(TESTFLAGS)
 
-all:
+all: 
 	$(SETUP) -all $(ALLFLAGS)
 
 install: setup.data
@@ -26,10 +26,10 @@ uninstall: setup.data
 reinstall: setup.data
 	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
-clean:
+clean: 
 	$(SETUP) -clean $(CLEANFLAGS)
 
-distclean:
+distclean: 
 	$(SETUP) -distclean $(DISTCLEANFLAGS)
 
 setup.data:
@@ -38,3 +38,6 @@ setup.data:
 .PHONY: build doc test all install uninstall reinstall clean distclean configure
 
 # OASIS_STOP
+
+config.mk:
+	./configure
