@@ -108,6 +108,10 @@ let foldM op l acc =
 	| None -> None
     in List.fold_right op_ l acc
 
+let safe_alloc free demand = match alloc free demand with
+| `Ok (x, y) -> Some (x, y)
+| `Error _ -> None
+
 let test_alloc_everything =
     Test.make_random_test
       ~title:"alloc allocs all free space and nothing more.  On a single pv for a start."

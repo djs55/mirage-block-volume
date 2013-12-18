@@ -179,14 +179,8 @@ let safe_alloc (free_list : t) (newsize : int64) =
       
 let alloc (free_list : t) (newsize : int64) =
     match safe_alloc free_list newsize
-    with  Some x -> x
-	| None -> failwith "Failed to find individual area!"
+    with  Some x -> `Ok x
+	| None -> `Error (-1L)
 
 (* Probably de-allocation won't be used much. *)
 let free to_free free_list = normalize (combine to_free free_list)
-
-let dotest a n =
-    let before = List.sort compare a in
-    let (alloced,after)=alloc a n in
-    let dealloced = List.sort compare (free after alloced) in
-    before=dealloced

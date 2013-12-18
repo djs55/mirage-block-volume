@@ -142,10 +142,12 @@ let do_op vg op : (t, string) Result.result =
       let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
       return {vg with lvs = lv'::others})
 
-let create vg name size =
-  let id = Uuid.create () in
-  let new_segments,new_free_space = Allocator.alloc vg.free_space size in
-  do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id=id; lvc_segments=new_segments})}
+let create vg name size = match Allocator.alloc vg.free_space size with
+  | `Ok (lvc_segments, _) ->
+    let lvc_id = Uuid.create () in
+    do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id; lvc_segments})}
+  | `Error free ->
+    `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" size free)
 
 let rename vg old_name new_name =
   do_op vg {so_seqno=vg.seqno; so_op=LvRename (old_name,{lvmv_new_name=new_name})}
@@ -155,9 +157,12 @@ let resize vg name new_size =
   ( match lv with 
     | [lv] ->
 	let current_size = Lv.size_in_extents lv in
-	if new_size > current_size then
-	  let new_segs,_ = Allocator.alloc vg.free_space (Int64.sub new_size current_size) in
-	  return (LvExpand (name,{lvex_segments=new_segs}))
+        let to_allocate = Int64.sub new_size current_size in
+	if to_allocate > 0L then match Allocator.alloc vg.free_space to_allocate with
+        | `Ok (lvex_segments, _) ->
+	  return (LvExpand (name,{lvex_segments}))
+        | `Error free ->
+          `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" to_allocate free)
 	else
 	  return (LvReduce (name,{lvrd_new_extent_count=new_size}))
     | _ -> fail (Printf.sprintf "Can't find LV %s" name) ) >>= fun op ->

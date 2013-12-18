@@ -25,7 +25,6 @@ val unpack_area: area -> string * (int64 * int64)
 val to_string1: area -> string
 val contained: area -> area -> bool
 val make_area_by_end: string -> int64 -> int64 -> area
-val safe_alloc: t -> int64 -> (area list * t) option
 val normalize: t -> t
 (* ---- *)
 
@@ -42,10 +41,13 @@ exception NonSingular_Containing_Area
 
 val alloc_specified_areas : t -> t -> t
 
-(** [alloc free_space size] returns [allocated_space, free_space]
+(** [alloc free_space size] attempts to allocate a region of [size] from
+    [free_space]. If successful it returns [allocated_space, free_space]
     where [allocated_space] has total length [size] and the [free_space]
-    corresponds to the remaining free space post-allocation. *)
-val alloc : t -> int64 -> t * t
+    corresponds to the remaining free space post-allocation. If unsuccessful
+    it means there is insufficient free space and the total amount of free
+    space is returned. *)
+val alloc : t -> int64 -> ((t * t), int64) Result.result
 
 (** [free free_space to_free] returns the new [free_space] after
     freeing [to_free] *)
