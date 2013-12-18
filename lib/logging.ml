@@ -13,6 +13,6 @@
  *)
 
 let destination : (string -> unit) ref =
-  ref (fun x -> Printf.fprintf stderr "%s\n" x)
+  ref (fun x -> ())
 
 let debug fmt = Printf.ksprintf !destination fmt

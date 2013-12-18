@@ -24,8 +24,13 @@ let (>>|=) m f = m >>= function
   | `Error e -> fail (Failure e)
   | `Ok x -> f x
 
-let read common filename =
+let apply common =
   Constants.dummy_mode := common.Common.dummy;
+  if common.Common.debug
+  then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s)
+
+let read common filename =
+  apply common;
   try
     let filename = require "filename" filename in
     let t =
@@ -39,7 +44,7 @@ let read common filename =
       `Error(true, x)
 
 let format common filename vgname pvname =
-  Constants.dummy_mode := common.Common.dummy;
+  apply common;
   try
     let filename = require "filename" filename in
     let t =
