@@ -15,20 +15,15 @@
 type area = string * (int64 * int64)
 
 type t = area list
+(** an allocation for a logical volume, comprised of an ordered list of
+    'areas', from different underlying physical devices. *)
 
 include S.RPC with type t := t
 include S.PRINT with type t := t
 
-(* Needed only for the test case: *)
-val make_area: string -> int64 -> int64 -> area
-val unpack_area: area -> string * (int64 * int64)
-val to_string1: area -> string
-val contained: area -> area -> bool
-val make_area_by_end: string -> int64 -> int64 -> area
-val normalize: t -> t
-(* ---- *)
-
 val create: string -> int64 -> t
+(** [create name length] creates a single allocation from the entity
+    with [name] covering region [0...length] *)
 
 val get_name: area -> string
 val get_start: area -> int64

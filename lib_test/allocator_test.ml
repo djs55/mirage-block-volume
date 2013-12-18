@@ -48,6 +48,16 @@ let take n list =
         else helper (i-1)  (List.hd list :: acc) (List.tl list)
         in List.rev $ helper n [] list
 
+let make_area pv_name start size = (pv_name, (start,size))
+let make_area_by_end name start endAr = make_area name start (Int64.sub endAr start)
+let unpack_area (pv_name, (start,size)) = (pv_name, (start,size))
+let to_string1 (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" p s l
+(* Is a contained in a2? *)
+let contained : area -> area -> bool =
+  fun a a2 ->
+    let (name, (start, size)) = unpack_area a in
+    let (name2, (start2, size2)) = unpack_area a2 in
+    name=name2 && start >= start2 && Int64.add start size <= Int64.add start2 size2
 
 (* ToDo: Generate some test-data to test those propositions hold: *)
 
@@ -202,35 +212,6 @@ let test_alloc_fails =
    (The long list of commands is what we do at the moment.)
 *)
 
-(* This revealed a problem with normalize when allocating 0 bytes! It's fixed now.*)
-let test_wtf =
-    let pv_size = 79000L
-    and numOps = 300 in
-    Test.make_random_test
-      ~title:"forall size >= 0: (uncurry free <<= alloc size) == id # modulo Option types"
-      ~nb_runs:200
-      (Gen.zip3 (Gen.make_int64 0L 300L)
-	 (Gen.make_int 0 (numOps * 2))
-	 (Gen.list (Gen.lift numOps (string_of_int numOps)) (size_create_destroy 1000L)))
-      (fun (alloc_size, take_ops, pOps) ->
-	 match flip simulate_full (create "pv_name0" pv_size) ++ take take_ops ++ toOps $ pOps with
-	     | Some (free_list, _) ->
-		 (Some (normalize free_list), 
-		  (match safe_alloc free_list alloc_size with
-		       | Some (alloced, free_list2) -> Some (free alloced free_list2)
-		       | None -> None))
-	     | None -> (None, None)) (* ToDo: This last line is not the right choice. *)
-      [Spec.always ==> (function (Some a, b) -> Some a = b | _ -> false)]
-      (* None is not matched for a reason. We do not care about the
-	 exception in the test here.  At least not enough to do
-	 anything about it.
-      
-	 Getting None in the first part of the pair just means that
-	 there was not enough space left to allocate.  A meaningful
-	 fix would mean filtering out on the left hand side of ==> .*)
-
-      (* ToDo: Catch if there's enough space to get free_list, but not enough for free_list2 (i.e. to allocate alloc_size) *)
-
 let _ =	
     let free_list =
 	let m = make_area "pv_name0"
@@ -248,9 +229,6 @@ let tests = [
     test_alloc_everything;
     test_alloc_works;
     test_alloc_fails;
-    (* this test doesn't work: 
-    test_wtf;
-    *)
 ]
 
 
