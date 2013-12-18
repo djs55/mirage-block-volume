@@ -125,7 +125,9 @@ let size_create_destroy : int64 -> (int64 * int64 * int64) Gen.t = fun max_size 
 
 (* needlessly quadratic.  make it linear as the need arises. *)
 let cumSum64 l = List.map sum64 ++ tails ++ List.rev $ l
-let maximum1 (x::xs) = List.fold_left max x xs
+let maximum1 = function
+| x::xs -> List.fold_left max x xs
+| [] -> assert false
 
 let simulate_space : (int64 * int64 * int64) list -> int64 = fun l -> 
   let op (size, d1, d2) = [(min d1 d2,size); (max d1 d2,(Int64.sub 0L size))]
@@ -214,7 +216,7 @@ let test_wtf =
 		       | Some (alloced, free_list2) -> Some (free alloced free_list2)
 		       | None -> None))
 	     | None -> (None, None)) (* ToDo: This last line is not the right choice. *)
-      [Spec.always ==> (function (Some a, b) -> Some a = b)]
+      [Spec.always ==> (function (Some a, b) -> Some a = b | _ -> false)]
       (* None is not matched for a reason. We do not care about the
 	 exception in the test here.  At least not enough to do
 	 anything about it.
@@ -259,7 +261,6 @@ let () =
     | Report(passed_cases, total_cases, 0, _, _) when passed_cases = total_cases -> ()
     | Report(_, _, uncaught_exns, _, _) when uncaught_exns > 0 -> Printf.fprintf stderr "BAD: %d uncaught exceptions\n%!" uncaught_exns; passed := false
     | Report(passed_cases, total_cases, _, _, _) -> Printf.fprintf stderr "BAD: %d out of %d cases passed\n%!" passed_cases total_cases; passed := false
-    | Report(passed_cases, total_cases, uncaught_exns, total_counterexamples, _) -> Printf.fprintf stderr "-- not sure what kind of 'report' this is, ignoring\n%!"
     | Exit_code 0 -> ()
     | Exit_code n -> Printf.fprintf stderr "BAD: Exit code %d\n%!" n; passed := false
     ) results;

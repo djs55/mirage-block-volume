@@ -173,7 +173,6 @@ let remove_tag vg name tag =
   do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)}
 
 let write vg =
-  let pvs = vg.pvs in
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal vg buf in
   let md = Cstruct.sub buf 0 buf'.Cstruct.off in
