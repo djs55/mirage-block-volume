@@ -176,13 +176,14 @@ let safe_alloc (free_list : t) (newsize : int64) =
 	| [] -> None in
     alloc_h newsize
     ++ List.rev ++ List.sort (on compare get_size) $ free_list
-      
+
+let size t = List.fold_left Int64.add 0L (List.map get_size t)
+
 let find (free_list : t) (newsize : int64) =
     match safe_alloc free_list newsize
     with  Some (x, _) -> `Ok x
 	| None ->
-          let free_space = List.fold_left Int64.add 0L (List.map get_size free_list) in
-          `Error free_space
+          `Error (size free_list)
 
 (* Probably de-allocation won't be used much. *)
 let merge to_free free_list = normalize (combine to_free free_list)

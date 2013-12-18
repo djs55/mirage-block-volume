@@ -47,3 +47,6 @@ val merge : t -> t -> t
     The expected use is to compute the remaining free space once space for
     a volume has been removed. *)
 val sub : t -> t -> t
+
+(** [size t] returns the total size of [t] *)
+val size : t -> int64
