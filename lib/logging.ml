@@ -16,3 +16,5 @@ let destination : (string -> unit) ref =
   ref (fun x -> ())
 
 let debug fmt = Printf.ksprintf !destination fmt
+
+let warn fmt = Printf.ksprintf !destination fmt

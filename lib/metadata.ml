@@ -158,7 +158,7 @@ let read dev mdah n =
   IO.get_md dev offset offset' firstbit secondbit >>= fun buf ->
   let checksum = Crc.crc buf in
     if checksum <> locn.mrl_checksum then
-    Printf.fprintf stderr "Checksum invalid in metadata: Found %lx, expecting %lx\n" checksum locn.mrl_checksum;
+    warn "Ignoring invalid checksum in metadata: Found %lx, expecting %lx" checksum locn.mrl_checksum;
   return buf
       
 let write device mdah md =

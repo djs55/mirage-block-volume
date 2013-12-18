@@ -16,3 +16,5 @@ val destination: (string -> unit) ref
 (** the destination function is called with every line of log output *)
 
 val debug: ('a, unit, string, unit) format4 -> 'a
+
+val warn: ('a, unit, string, unit) format4 -> 'a

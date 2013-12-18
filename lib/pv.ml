@@ -73,20 +73,19 @@ let read name config =
   expect_mapped_int "pe_start" config >>= fun pe_start ->
   expect_mapped_int "pe_count" config >>= fun pe_count ->
   let open IO in
-      Printf.fprintf stderr "No cached PV data found - loading from device '%s'\n" stored_device;
       Label.read stored_device >>= fun label ->
       let mda_locs = Label.get_metadata_locations label in
       Metadata.Header.read_all stored_device mda_locs >>= fun headers ->
   let real_device = Label.get_device label in
   if real_device <> stored_device then
-    Printf.fprintf stderr "WARNING: stored_device (%s) and real_device (%s) are not the same" stored_device real_device;
+    warn "In PV label: stored_device (%s) and real_device (%s) are not the same" stored_device real_device;
   return { name; id; stored_device; real_device; status; size_in_sectors; pe_start; pe_count; label; headers }
 
 (** Find the metadata area on a device and return the text of the metadata *)
 let read_metadata device =
   let open IO in
   Label.read device >>= fun label ->
-  debug "Label found: \n%s\n" (Label.to_string label);
+  debug "Label found: \"%s\"" (String.escaped (Label.to_string label));
   let mda_locs = Label.get_metadata_locations label in
   Metadata.Header.read_all device mda_locs >>= fun mdahs ->
   Metadata.read device (List.hd mdahs) 0 >>= fun mdt ->

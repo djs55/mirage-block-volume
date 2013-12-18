@@ -238,7 +238,7 @@ let of_metadata config =
 
   let free_space = List.fold_left (fun free_space lv -> 
     let lv_allocations = Lv.to_allocation lv in
-    debug "Allocations for lv %s:\n%s\n" lv.Lv.name (Allocator.to_string lv_allocations);
+    debug "Allocations for lv %s: %s" lv.Lv.name (Allocator.to_string lv_allocations);
     Allocator.alloc_specified_areas free_space lv_allocations) free_space lvs in
   let ops = [] in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; ops } in
