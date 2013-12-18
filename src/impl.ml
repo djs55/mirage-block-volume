@@ -32,6 +32,41 @@ let apply common =
   if common.Common.debug
   then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s)
 
+let add_prefix x xs = List.map (function
+  | [] -> []
+  | y :: ys -> (x ^ "/" ^ y) :: ys
+) xs
+
+let table_of_pv pv = add_prefix pv.Pv.name [
+  [ "name"; pv.Pv.name; ];
+  [ "id"; Uuid.to_string pv.Pv.id; ];
+  [ "stored_device"; pv.Pv.stored_device ];
+  [ "real_device"; pv.Pv.real_device ];
+  [ "status"; String.concat ", " (List.map Pv.Status.to_string pv.Pv.status) ];
+  [ "size_in_sectors"; Int64.to_string pv.Pv.size_in_sectors ];
+  [ "pe_start"; Int64.to_string pv.Pv.pe_start ];
+  [ "pe_count"; Int64.to_string pv.Pv.pe_count; ];
+  (*
+  [ "label"; "" ];
+  [ "headers"; "" ];
+  *)
+]
+
+let table_of_vg vg =
+  let pvs = List.flatten (List.map table_of_pv vg.Vg.pvs) in [
+  [ "name"; vg.Vg.name ];
+  [ "id"; Uuid.to_string vg.Vg.id ];
+  [ "status"; String.concat ", " (List.map Vg.Status.to_string vg.Vg.status) ];
+  [ "extent_size"; Int64.to_string vg.Vg.extent_size ];
+  [ "max_lv"; string_of_int vg.Vg.max_lv ];
+  [ "max_pv"; string_of_int vg.Vg.max_pv ];
+] @ pvs @ [
+  (*
+  [ "lvs"; "" ];
+  [ "free_space"; "" ];
+  *)
+]
+
 let read common filename =
   apply common;
   try
@@ -40,7 +75,7 @@ let read common filename =
       Vg.read [ filename ] >>|= fun vg ->
       return vg in
     let vg = Lwt_main.run t in
-    Printf.printf "%s\n" (Jsonrpc.to_string (Vg.rpc_of_t vg));
+    Common.print_table [ "key"; "value" ] (table_of_vg vg);
     `Ok ()
   with
     | Failure x ->
