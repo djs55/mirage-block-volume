@@ -32,7 +32,7 @@ let read common filename =
       Vg.read [ filename ] >>|= fun vg ->
       return vg in
     let vg = Lwt_main.run t in
-    Printf.printf "%s\n" (Rpc.to_string (Vg.rpc_of_t vg));
+    Printf.printf "%s\n" (Jsonrpc.to_string (Vg.rpc_of_t vg));
     `Ok ()
   with
     | Failure x ->
