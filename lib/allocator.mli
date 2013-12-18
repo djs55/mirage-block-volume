@@ -13,10 +13,10 @@
  *)
 
 type area = string * (int64 * int64)
+(** a contiguous fragment of physical space on a named volume *)
 
 type t = area list
-(** an allocation for a logical volume, comprised of an ordered list of
-    'areas', from different underlying physical devices. *)
+(** contiguous virtual space represented by an ordered list of 'areas' *)
 
 include S.RPC with type t := t
 include S.PRINT with type t := t
@@ -30,16 +30,20 @@ val get_start: area -> int64
 val get_size: area -> int64
 val get_end: area -> int64
 
-val alloc_specified_areas : t -> t -> t
+(** [find free_space size] attempts to find space within [t] of total size
+    [size]. If successful it returns a [t]. If it fails it returns the
+    total amount of space currently free, which is insufficient to satisfy
+    the request.
+    The expected use is to 'allocate' space for a logical volume. *)
+val find : t -> int64 -> (t, int64) Result.result
 
-(** [alloc free_space size] attempts to allocate a region of [size] from
-    [free_space]. If successful it returns [allocated_space, free_space]
-    where [allocated_space] has total length [size] and the [free_space]
-    corresponds to the remaining free space post-allocation. If unsuccessful
-    it means there is insufficient free space and the total amount of free
-    space is returned. *)
-val alloc : t -> int64 -> ((t * t), int64) Result.result
+(** [merge t1 t2] returns a region [t] which contains all the physical
+    space from both [t1] and [t2].
+    The expected use is to return a previously-allocated [t] to a [t] which
+    represents the free space. *)
+val merge : t -> t -> t
 
-(** [free free_space to_free] returns the new [free_space] after
-    freeing [to_free] *)
-val free : t -> t -> t
+(** [sub t1 t2] returns [t1] with all the space from [t2] removed.
+    The expected use is to compute the remaining free space once space for
+    a volume has been removed. *)
+val sub : t -> t -> t

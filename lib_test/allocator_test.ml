@@ -118,8 +118,8 @@ let foldM op l acc =
 	| None -> None
     in List.fold_right op_ l acc
 
-let safe_alloc free demand = match alloc free demand with
-| `Ok (x, y) -> Some (x, y)
+let safe_alloc free demand = match find free demand with
+| `Ok x -> Some (x, sub free x)
 | `Error _ -> None
 
 let test_alloc_everything =
@@ -175,7 +175,7 @@ let simulate_full : op list -> t -> (t * (area list) IndexMap.t) option = fun op
                 | Some (segs, fl_) -> 
 		    Some (fl_, IndexMap.add index segs alloced))
       | DeAlloc (_, index) ->
-	  Some (free (IndexMap.find index alloced) fl, IndexMap.remove index alloced)
+	  Some (merge (IndexMap.find index alloced) fl, IndexMap.remove index alloced)
 	      
   in List.fold_left (Opt.default (const None) ++ Opt.map op) (Some (free_list, IndexMap.empty)) $ ops
 

@@ -153,7 +153,7 @@ let alloc_specified_area (free_list : t) (a : area) =
 		  print_endline ++ to_string $ x;
 		  raise NonSingular_Containing_Area;)
 
-let alloc_specified_areas : t -> t -> t =
+let sub : t -> t -> t =
    List.fold_left alloc_specified_area
 
 let safe_alloc (free_list : t) (newsize : int64) =
@@ -177,12 +177,12 @@ let safe_alloc (free_list : t) (newsize : int64) =
     alloc_h newsize
     ++ List.rev ++ List.sort (on compare get_size) $ free_list
       
-let alloc (free_list : t) (newsize : int64) =
+let find (free_list : t) (newsize : int64) =
     match safe_alloc free_list newsize
-    with  Some x -> `Ok x
+    with  Some (x, _) -> `Ok x
 	| None ->
           let free_space = List.fold_left Int64.add 0L (List.map get_size free_list) in
           `Error free_space
 
 (* Probably de-allocation won't be used much. *)
-let free to_free free_list = normalize (combine to_free free_list)
+let merge to_free free_list = normalize (combine to_free free_list)
