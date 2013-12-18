@@ -180,7 +180,9 @@ let safe_alloc (free_list : t) (newsize : int64) =
 let alloc (free_list : t) (newsize : int64) =
     match safe_alloc free_list newsize
     with  Some x -> `Ok x
-	| None -> `Error (-1L)
+	| None ->
+          let free_space = List.fold_left Int64.add 0L (List.map get_size free_list) in
+          `Error free_space
 
 (* Probably de-allocation won't be used much. *)
 let free to_free free_list = normalize (combine to_free free_list)
