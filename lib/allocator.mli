@@ -30,10 +30,6 @@ val get_start: area -> int64
 val get_size: area -> int64
 val get_end: area -> int64
 
-exception PVS_DONT_MATCH of string * string
-
-exception NonSingular_Containing_Area
-
 val alloc_specified_areas : t -> t -> t
 
 (** [alloc free_space size] attempts to allocate a region of [size] from
