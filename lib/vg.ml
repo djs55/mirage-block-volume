@@ -176,7 +176,7 @@ let write vg =
   let pvs = vg.pvs in
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal vg buf in
-  let md = Cstruct.sub buf 0 buf.Cstruct.off in
+  let md = Cstruct.sub buf 0 buf'.Cstruct.off in
   let open IO in
   let rec write_pv pv acc = function
     | [] -> return (List.rev acc)
