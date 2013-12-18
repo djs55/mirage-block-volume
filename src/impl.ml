@@ -37,6 +37,13 @@ let add_prefix x xs = List.map (function
   | y :: ys -> (x ^ "/" ^ y) :: ys
 ) xs
 
+let table_of_pv_header prefix pvh = add_prefix prefix [
+  [ "id"; Uuid.to_string pvh.Label.Pv_header.id; ];
+  [ "device_size"; Int64.to_string pvh.Label.Pv_header.device_size; ];
+  [ "extents"; string_of_int (List.length pvh.Label.Pv_header.extents) ];
+  [ "metadata_areas"; string_of_int (List.length pvh.Label.Pv_header.metadata_areas) ];
+]
+
 let table_of_pv pv = add_prefix pv.Pv.name [
   [ "name"; pv.Pv.name; ];
   [ "id"; Uuid.to_string pv.Pv.id; ];
@@ -45,26 +52,28 @@ let table_of_pv pv = add_prefix pv.Pv.name [
   [ "status"; String.concat ", " (List.map Pv.Status.to_string pv.Pv.status) ];
   [ "size_in_sectors"; Int64.to_string pv.Pv.size_in_sectors ];
   [ "pe_start"; Int64.to_string pv.Pv.pe_start ];
-  [ "pe_count"; Int64.to_string pv.Pv.pe_count; ];
-  (*
-  [ "label"; "" ];
-  [ "headers"; "" ];
-  *)
+  [ "pe_count"; Int64.to_string pv.Pv.pe_count; ]
+] @ (table_of_pv_header (pv.Pv.name ^ "/label") pv.Pv.label.Label.pv_header)
+
+let table_of_lv lv = add_prefix lv.Lv.name [
+  [ "name"; lv.Lv.name; ];
+  [ "id"; Uuid.to_string lv.Lv.id; ];
+  [ "tags"; String.concat ", " (List.map Tag.to_string lv.Lv.tags) ];
+  [ "status"; String.concat ", " (List.map Lv.Status.to_string lv.Lv.status) ];
+  [ "segments"; string_of_int (List.length lv.Lv.segments) ];
 ]
 
 let table_of_vg vg =
-  let pvs = List.flatten (List.map table_of_pv vg.Vg.pvs) in [
+  let pvs = List.flatten (List.map table_of_pv vg.Vg.pvs) in
+  let lvs = List.flatten (List.map table_of_lv vg.Vg.lvs) in [
   [ "name"; vg.Vg.name ];
   [ "id"; Uuid.to_string vg.Vg.id ];
   [ "status"; String.concat ", " (List.map Vg.Status.to_string vg.Vg.status) ];
   [ "extent_size"; Int64.to_string vg.Vg.extent_size ];
   [ "max_lv"; string_of_int vg.Vg.max_lv ];
   [ "max_pv"; string_of_int vg.Vg.max_pv ];
-] @ pvs @ [
-  (*
-  [ "lvs"; "" ];
-  [ "free_space"; "" ];
-  *)
+] @ pvs @ lvs @ [
+  [ "free_space"; Int64.to_string (Allocator.size vg.Vg.free_space) ];
 ]
 
 let read common filename =
