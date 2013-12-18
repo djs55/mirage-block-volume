@@ -23,6 +23,9 @@ let require name arg = match arg with
 let (>>|=) m f = m >>= function
   | `Error e -> fail (Failure e)
   | `Ok x -> f x
+let (>>*=) m f = match m with
+  | `Error e -> fail (Failure e)
+  | `Ok x -> f x
 
 let apply common =
   Constants.dummy_mode := common.Common.dummy;
@@ -56,3 +59,40 @@ let format common filename vgname pvname =
     | Failure x ->
       `Error(true, x)
 
+let update_vg filename f =
+  try
+    let filename = require "filename" filename in
+    let t =
+      Vg.read [ filename ] >>|= fun vg ->
+      f vg >>*= fun vg ->
+      Vg.write vg >>|= fun _ ->
+      return () in
+    Lwt_main.run t;
+    `Ok ()
+  with
+    | Failure x ->
+      `Error(true, x)
+
+let create common filename lvname size =
+  apply common;
+  update_vg filename (fun vg -> Vg.create vg lvname size)
+
+let rename common filename lvname newname =
+  apply common;
+  update_vg filename (fun vg -> Vg.rename vg lvname newname)
+
+let resize common filename lvname newsize =
+  apply common;
+  update_vg filename (fun vg -> Vg.resize vg lvname newsize)
+
+let remove common filename lvname =
+  apply common;
+  update_vg filename (fun vg -> Vg.remove vg lvname)
+
+let add_tag common filename lvname tag =
+  apply common;
+  update_vg filename (fun vg -> Vg.add_tag vg lvname (Tag.of_string tag))
+
+let remove_tag common filename lvname tag =
+  apply common;
+  update_vg filename (fun vg -> Vg.remove_tag vg lvname (Tag.of_string tag))

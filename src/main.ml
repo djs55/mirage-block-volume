@@ -71,13 +71,86 @@ let format_cmd =
   Term.(ret(pure Impl.format $ common_options_t $ filename $ vgname $ pvname)),
   Term.info "format" ~sdocs:_common_options ~doc ~man
 
+let lvname =
+  let doc = "logical volume name" in
+  Arg.(value & pos 1 string "name" & info [] ~doc)
+
+let lvsize =
+  let doc = "logical volume size" in
+  Arg.(value & opt int64 0L & info [ "size" ] ~doc)
+
+let create_cmd =
+  let doc = "create a logical volume" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Create a logical volume with a given name and size.";
+  ] @ help in
+  Term.(ret(pure Impl.create $ common_options_t $ filename $ lvname $ lvsize)),
+  Term.info "create" ~sdocs:_common_options ~doc ~man
+
+let rename_cmd =
+  let doc = "rename a logical volume" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Rename a logical volume which already exists.";
+  ] @ help in
+  let newname =
+    let doc = "new logical volume name" in
+    Arg.(value & pos 2 string "newname" & info [] ~doc) in
+  Term.(ret(pure Impl.rename $ common_options_t $ filename $ lvname $ newname)),
+  Term.info "rename" ~sdocs:_common_options ~doc ~man
+
+let resize_cmd =
+  let doc = "resize a logical volume" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Resize a logical volume. Note if the new size is smaller than the old size then data will be lost.";
+  ] @ help in
+  let newsize =
+    let doc = "new size" in
+    Arg.(value & pos 2 int64 0L & info [] ~doc) in
+  Term.(ret(pure Impl.resize $ common_options_t $ filename $ lvname $ newsize)),
+  Term.info "resize" ~sdocs:_common_options ~doc ~man
+
+let remove_cmd =
+  let doc = "remove a logical volume" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Remove a logical volume. All data within the volume will be lost but will not be erased.";
+  ] @ help in
+  Term.(ret(pure Impl.remove $ common_options_t $ filename $ lvname)),
+  Term.info "remove" ~sdocs:_common_options ~doc ~man
+
+let tag =
+  let doc = "tag" in
+  Arg.(value & pos 2 string "tag" & info [] ~doc)
+
+let add_tag_cmd =
+  let doc = "add a tag to a logical volume" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Add a tag to a logical volume.";
+  ] @ help in
+  Term.(ret(pure Impl.add_tag $ common_options_t $ filename $ lvname $ tag)),
+  Term.info "add-tag" ~sdocs:_common_options ~doc ~man
+
+let remove_tag_cmd =
+  let doc = "remove a tag from a logical volume" in
+  let man = [
+    `S "DESCRPIPTION";
+    `P "Remove a tag from a logical volume.";
+  ] @ help in
+  Term.(ret(pure Impl.remove_tag $ common_options_t $ filename $ lvname $ tag)),
+  Term.info "remove-tag" ~sdocs:_common_options ~doc ~man
+
 let default_cmd = 
   let doc = "manipulate MLVM volumes" in
   let man = help in
   Term.(ret (pure (fun _ -> `Help (`Pager, None)) $ common_options_t)),
   Term.info (Sys.argv.(0)) ~version:"1.0.0" ~sdocs:_common_options ~doc ~man
        
-let cmds = [read_cmd; format_cmd]
+let cmds = [read_cmd; format_cmd; create_cmd; rename_cmd; resize_cmd;
+            add_tag_cmd; remove_tag_cmd; remove_cmd]
 
 let _ =
   match Term.eval_choice default_cmd cmds with 
