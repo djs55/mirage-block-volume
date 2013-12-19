@@ -28,7 +28,7 @@ type 'a io = ('a, string) Result.result Lwt.t
 
 val get_size: string -> int64 io
 
-val get_label: string -> Cstruct.t io
+val get_label: string -> int64 -> int -> Cstruct.t io
 
 val put_label: string -> int64 -> Cstruct.t -> unit io
 

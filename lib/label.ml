@@ -208,7 +208,7 @@ let get_device label =
 
 let read device =
   let open IO in
-  get_label device >>= fun buf ->
+  get_label device 0L Constants.label_scan_size >>= fun buf ->
   let open IO.FromResult in
   unmarshal buf >>= fun (t, _) ->
   let open IO in

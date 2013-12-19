@@ -76,9 +76,8 @@ let put name device offset buf =
       Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun _ ->
       Block.really_write fd buf)
 
-let get_label device =
-  let length = if !Constants.dummy_mode then Constants.sector_size * 2 else Constants.label_scan_size in
-  get "pvh" device 0L length
+let get_label device offset len =
+  get "pvh" device offset len
 
 let put_label device offset buf =
   put "pvh" device offset buf
