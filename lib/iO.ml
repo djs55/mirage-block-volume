@@ -17,6 +17,14 @@ open Lwt
 type 'a io = ('a, string) Result.result Lwt.t 
 type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
 
+type kind = Label | MDA_header | MD1 | MD2
+
+let string_of_kind = function
+  | Label -> "pvh"
+  | MDA_header -> "mdah"
+  | MD1 -> "md1"
+  | MD2 -> "md2"
+
 let rec mkdir_p x =
   if Sys.file_exists x
   then ()
@@ -57,7 +65,8 @@ let with_file filename flags f =
     (fun () -> f fd >>= fun x -> Lwt_unix.close fd >>= fun () -> return (`Ok x))
     (fun e -> Lwt_unix.close fd >>= fun () -> return (`Error (Printexc.to_string e)))
 
-let get name device offset length =
+let get kind device offset length =
+  let name = string_of_kind kind in
   let filename = if !Constants.dummy_mode then dummy_fname device name else device in
   let offset = if !Constants.dummy_mode then 0L else offset in
   let buf = Cstruct.create length in
@@ -67,7 +76,8 @@ let get name device offset length =
       Block.really_read fd buf >>= fun () ->
       return buf)
 
-let put name device offset buf =
+let put kind device offset buf =
+  let name = string_of_kind kind in
   let filename = if !Constants.dummy_mode then dummy_fname device name else device in
   let flags = [ Lwt_unix.O_RDWR; Lwt_unix.O_DSYNC ] @ (if !Constants.dummy_mode then [ Lwt_unix.O_CREAT ] else []) in
   let offset = if !Constants.dummy_mode then 0L else offset in
@@ -76,35 +86,11 @@ let put name device offset buf =
       Lwt_unix.LargeFile.lseek fd offset Lwt_unix.SEEK_SET >>= fun _ ->
       Block.really_write fd buf)
 
-let get_label device offset len =
-  get "pvh" device offset len
-
-let put_label device offset buf =
-  put "pvh" device offset buf
-
-let get_mda_header device offset mda_header_size =
-  get "mdah" device offset mda_header_size
-
-let put_mda_header device offset buf =
-  put "mdah" device offset buf
-
 let ( >>= ) m f = m >>= function
   | `Error x -> return (`Error x)
   | `Ok x -> f x
 
 let return x = return (`Ok x)
-
-let get_md device offset offset' firstbit secondbit =
-  get "md1" device offset firstbit >>= fun a ->
-  get "md2" device offset' secondbit >>= fun b ->
-  let buf = Cstruct.create (firstbit + secondbit) in
-  Cstruct.blit a 0 buf 0 firstbit;
-  Cstruct.blit b 0 buf firstbit secondbit;
-  return buf
-
-let put_md device offset offset' firstbitbuf secondbitbuf =
-  put "md1" device offset firstbitbuf >>= fun () ->
-  put "md2" device offset' secondbitbuf
 
 module FromResult = struct
   type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
