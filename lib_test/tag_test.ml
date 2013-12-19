@@ -158,9 +158,10 @@ let _ =
   ] (fun x -> Printf.fprintf stderr "Ignoring argument: %s" x)
     "MLVM test suite";
 
-  run_test_tt ~verbose:!verbose tag_suite;
-  run_test_tt ~verbose:!verbose mda_suite;
-  run_test_tt ~verbose:!verbose label_suite;
-  run_test_tt ~verbose:!verbose pv_header_suite;
-  run_test_tt ~verbose:!verbose uuid_suite
-
+  List.iter (fun suite -> ignore (run_test_tt ~verbose:!verbose suite)) [
+    tag_suite;
+    mda_suite;
+    label_suite;
+    pv_header_suite;
+    uuid_suite;
+  ]
