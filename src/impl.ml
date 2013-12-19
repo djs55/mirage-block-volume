@@ -103,6 +103,28 @@ let format common filename vgname pvname =
     | Failure x ->
       `Error(true, x)
 
+let map common filename lvname =
+  apply common;
+  try
+    let filename = require "filename" filename in
+    let t =
+      Vg.read [ filename ] >>|= fun vg ->
+      let lv = List.find (fun lv -> lv.Lv.name = lvname) vg.Vg.lvs in
+      List.iter (fun seg ->
+        Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
+          (match seg.Lv.Segment.cls with
+           | Lv.Segment.Linear x ->
+             Printf.sprintf "from %s starting at %Ld" x.Lv.Linear.name x.Lv.Linear.start_extent
+           | Lv.Segment.Striped _ -> "striped")
+      ) lv.Lv.segments;
+      return () in
+    Lwt_main.run t;
+    `Ok ()
+  with
+    | Failure x ->
+      `Error(true, x)
+
+
 let update_vg filename f =
   try
     let filename = require "filename" filename in
