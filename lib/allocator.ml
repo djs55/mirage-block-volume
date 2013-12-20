@@ -144,6 +144,9 @@ let normalize : t -> t =
    What if there's no containing area? Is this only called under certain circumstances? Verify. *)
 exception NonSingular_Containing_Area
 let alloc_specified_area (free_list : t) (a : area) =
+    if get_size a = 0L
+    then free_list
+    else
     (* We assume areas don't overlap, or do we? *)
     (* Match against [] instead of _: Better die as soon as possible, when something is wrong. 
      * And that was right!  Just caught a bug that would have been masked otherwise. *)

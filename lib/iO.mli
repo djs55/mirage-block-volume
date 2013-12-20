@@ -28,14 +28,13 @@ type 'a io = ('a, string) Result.result Lwt.t
 
 val get_size: string -> int64 io
 
-val get_label: string -> Cstruct.t io
+(* The data being read or written has a 'kind' *)
+type kind =
+  | Label      (** PV label *)
+  | MDA_header (** Metadata area header *)
+  | MD1        (** Metadata fragment 1 *)
+  | MD2        (** Metadata fragment 2 *)
 
-val put_label: string -> int64 -> Cstruct.t -> unit io
+val get: kind -> string -> int64 -> int -> Cstruct.t io
 
-val get_mda_header: string -> int64 -> int -> Cstruct.t io
-
-val put_mda_header: string -> int64 -> Cstruct.t -> unit io
-
-val get_md: string -> int64 -> int64 -> int -> int -> Cstruct.t io
-
-val put_md: string -> int64 -> int64 -> Cstruct.t -> Cstruct.t -> unit io
+val put: kind -> string -> int64 -> Cstruct.t -> unit io

@@ -78,7 +78,7 @@ module Header = struct
 
   let read device location =
     let open IO in
-    get_mda_header device location.Label.Location.offset sizeof >>= fun buf ->
+    get MDA_header device location.Label.Location.offset sizeof >>= fun buf ->
     let open IO.FromResult in
     unmarshal buf >>= fun (t, _) ->
     return t
@@ -121,7 +121,7 @@ module Header = struct
     let sector = Cstruct.create sizeof in
     Utils.zero sector;
     let _ = marshal mdah sector in
-    put_mda_header device mdah.mdah_start sector
+    put MDA_header device mdah.mdah_start sector
 
   let create () =
     let mda_raw_locn = {
@@ -155,11 +155,15 @@ let read dev mdah n =
   let offset = Int64.add mdah.mdah_start locn.mrl_offset in
   let offset' = Int64.add mdah.mdah_start 512L in
   let open IO in
-  IO.get_md dev offset offset' firstbit secondbit >>= fun buf ->
-  let checksum = Crc.crc buf in
+  get MD1 dev offset firstbit >>= fun buf ->
+  get MD2 dev offset' secondbit >>= fun buf' ->
+  let result = Cstruct.create (firstbit + secondbit) in
+  Cstruct.blit buf 0 result 0 firstbit;
+  Cstruct.blit buf' 0 result firstbit secondbit;
+  let checksum = Crc.crc result in
     if checksum <> locn.mrl_checksum then
     warn "Ignoring invalid checksum in metadata: Found %lx, expecting %lx" checksum locn.mrl_checksum;
-  return buf
+  return result
       
 let write device mdah md =
   (* Find the current raw location of the metadata, assuming there's only one copy *)
@@ -190,7 +194,8 @@ let write device mdah md =
 
   let absnewpos = Int64.add mrl_offset mdah.mdah_start in
   let open IO in
-  IO.put_md device absnewpos (Int64.add mdah.mdah_start 512L) firstbitbuf secondbitbuf >>= fun () ->
+  put MD1 device absnewpos firstbitbuf >>= fun () ->
+  put MD2 device (Int64.add mdah.mdah_start 512L) secondbitbuf >>= fun () ->
 
   (* Now we have to update the crc and pointer to the metadata *)
     

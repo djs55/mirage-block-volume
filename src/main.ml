@@ -88,6 +88,15 @@ let create_cmd =
   Term.(ret(pure Impl.create $ common_options_t $ filename $ lvname $ lvsize)),
   Term.info "create" ~sdocs:_common_options ~doc ~man
 
+let map_cmd =
+  let doc = "display the segment map for a logical volume" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Display the mapping of logical blocks to physical blocks for a named volume."
+  ] @ help in
+  Term.(ret(pure Impl.map $ common_options_t $ filename $ lvname)),
+  Term.info "map" ~sdocs:_common_options ~doc ~man
+
 let rename_cmd =
   let doc = "rename a logical volume" in
   let man = [
@@ -150,7 +159,7 @@ let default_cmd =
   Term.info (Sys.argv.(0)) ~version:"1.0.0" ~sdocs:_common_options ~doc ~man
        
 let cmds = [read_cmd; format_cmd; create_cmd; rename_cmd; resize_cmd;
-            add_tag_cmd; remove_tag_cmd; remove_cmd]
+            add_tag_cmd; remove_tag_cmd; remove_cmd; map_cmd]
 
 let _ =
   match Term.eval_choice default_cmd cmds with 
