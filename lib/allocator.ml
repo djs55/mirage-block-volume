@@ -17,10 +17,10 @@
 type area = (string * (int64 * int64)) with rpc
 type t = area list with rpc
 
-let to_string1 (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" p s l
+let string_of_area (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" p s l
 let to_string t =
   String.concat ", "
-    (List.map to_string1 t)
+    (List.map string_of_area t)
 
 let (++) f g x = f (g x)
 let ($) f a = f a
