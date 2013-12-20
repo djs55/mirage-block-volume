@@ -1,5 +1,7 @@
 trunk (unreleased)
 * add LICENSE, license headers
+* port to Mirage libraries
+* add 'mlvm' command-line tool
 
 0.1.0 (18-Nov-2013)
 * Initial release
