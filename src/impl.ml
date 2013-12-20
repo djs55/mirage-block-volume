@@ -27,12 +27,14 @@ let (>>*=) m f = match m with
   | `Error e -> fail (Failure e)
   | `Ok x -> f x
 
+module Disk_mirage_unix = Disk_mirage.Make(Block)(Io_page)
+
 let apply common =
   if common.Common.debug
   then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s);
   if common.Common.dummy
   then (module Disk_dummy: S.DISK)
-  else (module Disk_unix: S.DISK)
+  else (module Disk_mirage_unix: S.DISK)
 
 let add_prefix x xs = List.map (function
   | [] -> []

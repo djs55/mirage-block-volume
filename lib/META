@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 33641beb63bad34e2cccc6538ce09303)
+# DO NOT EDIT (digest: 74ff591338600037306933bef97281f3)
 version = "0.1"
 description = "Pure OCaml volume manager, compatible with Linux LVM"
 requires =
-"rpclib.syntax rpclib threads camldm uuidm re.str cstruct mirage-block-unix"
+"rpclib.syntax rpclib threads camldm uuidm re.str cstruct mirage-block-unix mirage-types"
 archive(byte) = "lvm.cma"
 archive(byte, plugin) = "lvm.cma"
 archive(native) = "lvm.cmxa"
@@ -17,6 +17,16 @@ package "unix" (
  archive(native) = "lvm_unix.cmxa"
  archive(native, plugin) = "lvm_unix.cmxs"
  exists_if = "lvm_unix.cma"
+)
+
+package "mirage" (
+ version = "0.1"
+ description = "Pure OCaml volume manager, compatible with Linux LVM"
+ archive(byte) = "lvm_mirage.cma"
+ archive(byte, plugin) = "lvm_mirage.cma"
+ archive(native) = "lvm_mirage.cmxa"
+ archive(native, plugin) = "lvm_mirage.cmxs"
+ exists_if = "lvm_mirage.cma"
 )
 
 package "mapper" (

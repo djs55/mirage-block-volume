@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 900c975f57c5299bb6e00318e8998e5b)
+# DO NOT EDIT (digest: 72a08e260cecfda64573e4ba8c02b3be)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -35,6 +35,7 @@
 "lib/tag.cmx": for-pack(Lvm)
 "lib/utils.cmx": for-pack(Lvm)
 "lib/vg.cmx": for-pack(Lvm)
+<lib/*.ml{,i}>: pkg_mirage-block-unix
 <lib/*.ml{,i}>: pkg_rpclib.syntax
 <lib/*.ml{,i}>: pkg_rpclib
 <lib/*.ml{,i}>: pkg_threads
@@ -42,7 +43,9 @@
 <lib/*.ml{,i}>: pkg_uuidm
 <lib/*.ml{,i}>: pkg_re.str
 <lib/*.ml{,i}>: pkg_cstruct
-<lib/*.ml{,i}>: pkg_mirage-block-unix
+<lib/*.ml{,i}>: pkg_mirage-types
+# Library lvm_mirage
+"lib/lvm_mirage.cmxs": use_lvm_mirage
 # Library lvm_unix
 "lib/lvm_unix.cmxs": use_lvm_unix
 # Library lvm_mapper
@@ -51,6 +54,8 @@
 <src/main.{native,byte}>: use_lvm
 <src/main.{native,byte}>: use_lvm_unix
 <src/main.{native,byte}>: pkg_cmdliner
+<src/main.{native,byte}>: pkg_io-page-unix
+<src/main.{native,byte}>: pkg_mirage-block-unix
 <src/main.{native,byte}>: pkg_rpclib.syntax
 <src/main.{native,byte}>: pkg_rpclib
 <src/main.{native,byte}>: pkg_threads
@@ -58,10 +63,12 @@
 <src/main.{native,byte}>: pkg_uuidm
 <src/main.{native,byte}>: pkg_re.str
 <src/main.{native,byte}>: pkg_cstruct
-<src/main.{native,byte}>: pkg_mirage-block-unix
+<src/main.{native,byte}>: pkg_mirage-types
 <src/*.ml{,i}>: use_lvm
 <src/*.ml{,i}>: use_lvm_unix
 <src/*.ml{,i}>: pkg_cmdliner
+<src/*.ml{,i}>: pkg_io-page-unix
+<src/*.ml{,i}>: pkg_mirage-block-unix
 <src/*.ml{,i}>: pkg_rpclib.syntax
 <src/*.ml{,i}>: pkg_rpclib
 <src/*.ml{,i}>: pkg_threads
@@ -69,11 +76,12 @@
 <src/*.ml{,i}>: pkg_uuidm
 <src/*.ml{,i}>: pkg_re.str
 <src/*.ml{,i}>: pkg_cstruct
-<src/*.ml{,i}>: pkg_mirage-block-unix
+<src/*.ml{,i}>: pkg_mirage-types
 <src/main.{native,byte}>: custom
 # Executable tag_test
 <lib_test/tag_test.{native,byte}>: use_lvm
 <lib_test/tag_test.{native,byte}>: pkg_oUnit
+<lib_test/tag_test.{native,byte}>: pkg_mirage-block-unix
 <lib_test/tag_test.{native,byte}>: pkg_rpclib.syntax
 <lib_test/tag_test.{native,byte}>: pkg_rpclib
 <lib_test/tag_test.{native,byte}>: pkg_threads
@@ -81,12 +89,13 @@
 <lib_test/tag_test.{native,byte}>: pkg_uuidm
 <lib_test/tag_test.{native,byte}>: pkg_re.str
 <lib_test/tag_test.{native,byte}>: pkg_cstruct
-<lib_test/tag_test.{native,byte}>: pkg_mirage-block-unix
+<lib_test/tag_test.{native,byte}>: pkg_mirage-types
 <lib_test/*.ml{,i}>: pkg_oUnit
 <lib_test/tag_test.{native,byte}>: custom
 # Executable allocator_test
 <lib_test/allocator_test.{native,byte}>: use_lvm
 <lib_test/allocator_test.{native,byte}>: pkg_kaputt
+<lib_test/allocator_test.{native,byte}>: pkg_mirage-block-unix
 <lib_test/allocator_test.{native,byte}>: pkg_rpclib.syntax
 <lib_test/allocator_test.{native,byte}>: pkg_rpclib
 <lib_test/allocator_test.{native,byte}>: pkg_threads
@@ -94,9 +103,10 @@
 <lib_test/allocator_test.{native,byte}>: pkg_uuidm
 <lib_test/allocator_test.{native,byte}>: pkg_re.str
 <lib_test/allocator_test.{native,byte}>: pkg_cstruct
-<lib_test/allocator_test.{native,byte}>: pkg_mirage-block-unix
+<lib_test/allocator_test.{native,byte}>: pkg_mirage-types
 <lib_test/*.ml{,i}>: use_lvm
 <lib_test/*.ml{,i}>: pkg_kaputt
+<lib_test/*.ml{,i}>: pkg_mirage-block-unix
 <lib_test/*.ml{,i}>: pkg_rpclib.syntax
 <lib_test/*.ml{,i}>: pkg_rpclib
 <lib_test/*.ml{,i}>: pkg_threads
@@ -104,7 +114,7 @@
 <lib_test/*.ml{,i}>: pkg_uuidm
 <lib_test/*.ml{,i}>: pkg_re.str
 <lib_test/*.ml{,i}>: pkg_cstruct
-<lib_test/*.ml{,i}>: pkg_mirage-block-unix
+<lib_test/*.ml{,i}>: pkg_mirage-types
 <lib_test/allocator_test.{native,byte}>: custom
 # OASIS_STOP
 <lib/*.ml{,i}>: syntax_camlp4o
