@@ -28,9 +28,11 @@ let (>>*=) m f = match m with
   | `Ok x -> f x
 
 let apply common =
-  Constants.dummy_mode := common.Common.dummy;
   if common.Common.debug
-  then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s)
+  then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s);
+  if common.Common.dummy
+  then (module Disk_dummy: S.DISK)
+  else (module Disk_unix: S.DISK)
 
 let add_prefix x xs = List.map (function
   | [] -> []
@@ -77,11 +79,12 @@ let table_of_vg vg =
 ]
 
 let read common filename =
-  apply common;
+  let module Disk = (val apply common: S.DISK) in
+  let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg.read [ filename ] >>|= fun vg ->
+      Vg_IO.read [ filename ] >>|= fun vg ->
       return vg in
     let vg = Lwt_main.run t in
     Common.print_table [ "key"; "value" ] (table_of_vg vg);
@@ -91,11 +94,12 @@ let read common filename =
       `Error(true, x)
 
 let format common filename vgname pvname =
-  apply common;
+  let module Disk = (val apply common: S.DISK) in
+  let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg.format vgname [ filename, pvname ] >>|= fun () ->
+      Vg_IO.format vgname [ filename, pvname ] >>|= fun () ->
       return () in
     Lwt_main.run t;
     `Ok ()
@@ -104,11 +108,12 @@ let format common filename vgname pvname =
       `Error(true, x)
 
 let map common filename lvname =
-  apply common;
+  let module Disk = (val apply common: S.DISK) in
+  let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg.read [ filename ] >>|= fun vg ->
+      Vg_IO.read [ filename ] >>|= fun vg ->
       let lv = List.find (fun lv -> lv.Lv.name = lvname) vg.Vg.lvs in
       List.iter (fun seg ->
         Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
@@ -125,13 +130,15 @@ let map common filename lvname =
       `Error(true, x)
 
 
-let update_vg filename f =
+let update_vg common filename f =
+  let module Disk = (val apply common: S.DISK) in
+  let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg.read [ filename ] >>|= fun vg ->
+      Vg_IO.read [ filename ] >>|= fun vg ->
       f vg >>*= fun vg ->
-      Vg.write vg >>|= fun _ ->
+      Vg_IO.write vg >>|= fun _ ->
       return () in
     Lwt_main.run t;
     `Ok ()
@@ -140,31 +147,25 @@ let update_vg filename f =
       `Error(true, x)
 
 let create common filename lvname size =
-  apply common;
   let size_in_bytes = Common.parse_size size in
-  update_vg filename (fun vg -> Vg.create vg lvname size_in_bytes)
+  update_vg common filename (fun vg -> Vg.create vg lvname size_in_bytes)
 
 let rename common filename lvname newname =
-  apply common;
-  update_vg filename (fun vg -> Vg.rename vg lvname newname)
+  update_vg common filename (fun vg -> Vg.rename vg lvname newname)
 
 let resize common filename lvname newsize =
-  apply common;
   match newsize with
   | "" ->
     `Error(true, "Please supply a new size for the volume")
   | size ->
     let size_in_bytes = Common.parse_size size in
-    update_vg filename (fun vg -> Vg.resize vg lvname size_in_bytes)
+    update_vg common filename (fun vg -> Vg.resize vg lvname size_in_bytes)
 
 let remove common filename lvname =
-  apply common;
-  update_vg filename (fun vg -> Vg.remove vg lvname)
+  update_vg common filename (fun vg -> Vg.remove vg lvname)
 
 let add_tag common filename lvname tag =
-  apply common;
-  update_vg filename (fun vg -> Vg.add_tag vg lvname (Tag.of_string tag))
+  update_vg common filename (fun vg -> Vg.add_tag vg lvname (Tag.of_string tag))
 
 let remove_tag common filename lvname tag =
-  apply common;
-  update_vg filename (fun vg -> Vg.remove_tag vg lvname (Tag.of_string tag))
+  update_vg common filename (fun vg -> Vg.remove_tag vg lvname (Tag.of_string tag))

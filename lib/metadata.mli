@@ -28,15 +28,18 @@ module Header: sig
   include S.UNMARSHAL with type t := t
   include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
-  val write: t -> string -> unit IO.io
-  (** [write t device] writes [t] to the [device] *)
+  module Make : functor(DISK: S.DISK) -> sig
 
-  val read: string -> Label.Location.t -> t IO.io
-  (** [read device location] reads [t] from the [device] *)
+    val write: t -> string -> unit S.io
+    (** [write t device] writes [t] to the [device] *)
 
-  val read_all: string -> Label.Location.t list -> t list IO.io
-  (** [read device locations] reads the [t]s found at [location]s,
-      or an error if any single one can't be read. *)
+    val read: string -> Label.Location.t -> t S.io
+    (** [read device location] reads [t] from the [device] *)
+
+    val read_all: string -> Label.Location.t list -> t list S.io
+    (** [read device locations] reads the [t]s found at [location]s,
+        or an error if any single one can't be read. *)
+  end
 
   val create: unit -> t
   (** [create ()] returns an instance of [t] *)
@@ -48,7 +51,8 @@ val default_start: int64
 val default_size: int64
 (** Default length of the metadata area in bytes *)
 
-val read: string -> Header.t -> int -> Cstruct.t IO.io
+module Make : functor(DISK: S.DISK) -> sig
+  val read: string -> Header.t -> int -> Cstruct.t S.io
 
-val write: string -> Header.t -> Cstruct.t -> Header.t IO.io
- 
+  val write: string -> Header.t -> Cstruct.t -> Header.t S.io
+end

@@ -185,6 +185,12 @@ let add_tag vg name tag =
 let remove_tag vg name tag =
   do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)}
 
+module Make(DISK: S.DISK) = struct
+
+module Pv_IO = Pv.Make(DISK)
+module Label_IO = Label.Make(DISK)
+module Metadata_IO = Metadata.Make(DISK)
+
 let write vg =
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal vg buf in
@@ -193,12 +199,12 @@ let write vg =
   let rec write_pv pv acc = function
     | [] -> return (List.rev acc)
     | m :: ms ->
-      Metadata.write pv.Pv.real_device m md >>= fun h ->
+      Metadata_IO.write pv.Pv.real_device m md >>= fun h ->
       write_pv pv (h :: acc) ms in
   let rec write_vg acc = function
     | [] -> return (List.rev acc)
     | pv :: pvs ->
-      Label.write pv.Pv.label >>= fun () ->
+      Label_IO.write pv.Pv.label >>= fun () ->
       write_pv pv [] pv.Pv.headers >>= fun headers ->
       write_vg ({ pv with Pv.headers = headers } :: acc) pvs in
   write_vg [] vg.pvs >>= fun pvs ->
@@ -237,7 +243,7 @@ let of_metadata config =
     let open IO.FromResult in
     expect_mapped_struct a pvs >>= fun x ->
     let open IO in
-    Pv.read a x
+    Pv_IO.read a x
   ) pvs) >>= fun pvs ->
   all (Lwt_list.map_s (fun (a,_) ->
     let open IO.FromResult in
@@ -256,12 +262,17 @@ let of_metadata config =
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; ops } in
   return vg
 
+let parse buf =
+  let text = Cstruct.to_string buf in
+  let lexbuf = Lexing.from_string text in
+  of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf)
+
 let format name devices_and_names =
   let open IO in
   let rec write_pv acc = function
     | [] -> return (List.rev acc)
     | (dev, name) :: pvs ->
-      Pv.format dev name >>= fun pv ->
+      Pv_IO.format dev name >>= fun pv ->
       write_pv (pv :: acc) pvs in
   write_pv [] devices_and_names >>= fun pvs ->
   debug "PVs created";
@@ -273,21 +284,18 @@ let format name devices_and_names =
   debug "VG created";
   return ()
 
-let parse buf =
-  let text = Cstruct.to_string buf in
-  let lexbuf = Lexing.from_string text in
-  of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf)
-
 open IO
 let read = function
 | [] -> Lwt.return (`Error "Vg.load needs at least one device")
 | devices ->
   debug "Vg.load";
-  IO.FromResult.all (Lwt_list.map_s Pv.read_metadata devices) >>= fun md ->
+  IO.FromResult.all (Lwt_list.map_s Pv_IO.read_metadata devices) >>= fun md ->
   parse (List.hd md)
-
+end
+(*
 let set_dummy_mode base_dir mapper_name full_provision =
   Constants.dummy_mode := true;
   Constants.dummy_base := base_dir;
   Constants.mapper_name := mapper_name;
   Constants.full_provision := full_provision
+*)

@@ -206,22 +206,6 @@ let get_pv_id label =
 let get_device label = 
   label.device
 
-let read device =
-  let open IO in
-  get Label device 0L Constants.label_scan_size >>= fun buf ->
-  let open IO.FromResult in
-  unmarshal buf >>= fun (t, _) ->
-  let open IO in
-  return { t with device }
-      
-let write t =
-  let buf = Cstruct.create 512 in
-  Utils.zero buf;
-  let _ = marshal t buf in
-  
-  let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
-  IO.put Label t.device pos buf
-
 let create device id size mda_start mda_size =
   let label = Label_header.create () in
   let pvh = Pv_header.create id size mda_start mda_size in
@@ -233,3 +217,21 @@ let to_string label =
   Printf.sprintf "Label header:\n%s\nPV Header:\n%s\n" 
     (Label_header.to_string label.label_header)
     (Pv_header.to_string label.pv_header)
+
+module Make(DISK: S.DISK) = struct
+let read device =
+  let open IO in
+  DISK.get S.Label device 0L Constants.label_scan_size >>= fun buf ->
+  let open IO.FromResult in
+  unmarshal buf >>= fun (t, _) ->
+  let open IO in
+  return { t with device }
+      
+let write t =
+  let buf = Cstruct.create 512 in
+  Utils.zero buf;
+  let _ = marshal t buf in
+  
+  let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
+  DISK.put S.Label t.device pos buf
+end

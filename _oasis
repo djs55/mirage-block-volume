@@ -19,6 +19,12 @@ Library lvm
   Pack: true
   BuildDepends: rpclib.syntax,rpclib,threads,camldm,uuidm,re.str,cstruct,mirage-block-unix
 
+Library lvm_unix
+  Path: lib
+  Modules: Disk_unix, Disk_dummy
+  Findlibname: unix
+  Findlibparent: lvm
+
 Library lvm_mapper
   Build$: flag(mapper)
   Install$: flag(mapper)
@@ -33,7 +39,7 @@ Executable mlvm
   MainIs:             main.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, cmdliner
+  BuildDepends:       lvm, lvm.unix, cmdliner
 
 Executable tag_test
   CompiledObject:     best

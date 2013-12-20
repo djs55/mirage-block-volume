@@ -47,15 +47,18 @@ include S.VOLUME
   and type tag := Tag.t
   and type size := int64
 
-val format: string -> (string * string) list -> unit IO.io
-(** [format name names_and_devices] initialises a new volume group
-    with name [name], using physical volumes
-    [names_and_devices = [ name1, device1; ...]] *)
+module Make : functor(DISK: S.DISK) -> sig
 
-val read: string list -> t IO.io
-(** [read devices] reads the volume group information from
-    the set of physical volumes [devices] *)
+  val format: string -> (string * string) list -> unit S.io
+  (** [format name names_and_devices] initialises a new volume group
+      with name [name], using physical volumes
+      [names_and_devices = [ name1, device1; ...]] *)
 
-val write: t -> t IO.io
-(** [write t] flushes the metadata of [t] to the physical volumes *)
+  val read: string list -> t S.io
+  (** [read devices] reads the volume group information from
+      the set of physical volumes [devices] *)
 
+  val write: t -> t S.io
+  (** [write t] flushes the metadata of [t] to the physical volumes *)
+
+end

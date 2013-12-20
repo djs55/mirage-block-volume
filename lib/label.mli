@@ -71,7 +71,8 @@ val get_pv_id: t -> Uuid.t
 
 val get_device: t -> string
 
-val read: string -> t IO.io
+module Make : functor(DISK: S.DISK) -> sig
+  val read: string -> t S.io
 
-val write: t -> unit IO.io
-
+  val write: t -> unit S.io
+end

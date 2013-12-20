@@ -76,22 +76,6 @@ module Header = struct
     then `Error (Printf.sprintf "Bad checksum in metadata area: expected %08lx, got %08lx" mdah_checksum crc)
     else `Ok ({mdah_checksum; mdah_magic; mdah_version; mdah_start; mdah_size; mdah_raw_locns}, b)
 
-  let read device location =
-    let open IO in
-    get MDA_header device location.Label.Location.offset sizeof >>= fun buf ->
-    let open IO.FromResult in
-    unmarshal buf >>= fun (t, _) ->
-    return t
-
-  let read_all device locations =
-    let open IO in
-    let rec loop acc = function
-    | [] -> return (List.rev acc)
-    | m :: ms ->
-      read device m >>= fun m' ->
-      loop (m' :: acc) ms in
-    loop [] locations
-
   let to_string mdah =
     let rl2ascii r = Printf.sprintf "{offset:%Ld,size:%Ld,checksum:%ld,filler:%ld}" r.mrl_offset r.mrl_size r.mrl_checksum r.mrl_filler in
     Printf.sprintf "checksum: %ld\nmagic: %s\nversion: %ld\nstart: %Ld\nsize: %Ld\nraw_locns:[%s]\n"
@@ -115,13 +99,31 @@ module Header = struct
     Cstruct.LE.set_uint32 buf 0 crc;
     buf'
 
+  module Make(DISK: S.DISK) = struct
+  let read device location =
+    let open IO in
+    DISK.get S.MDA_header device location.Label.Location.offset sizeof >>= fun buf ->
+    let open IO.FromResult in
+    unmarshal buf >>= fun (t, _) ->
+    return t
+
+  let read_all device locations =
+    let open IO in
+    let rec loop acc = function
+    | [] -> return (List.rev acc)
+    | m :: ms ->
+      read device m >>= fun m' ->
+      loop (m' :: acc) ms in
+    loop [] locations
+
   let write mdah device  =
     debug "Writing MDA header";
     debug "Writing: %s" (to_string mdah);
     let sector = Cstruct.create sizeof in
     Utils.zero sector;
     let _ = marshal mdah sector in
-    put MDA_header device mdah.mdah_start sector
+    DISK.put S.MDA_header device mdah.mdah_start sector
+  end
 
   let create () =
     let mda_raw_locn = {
@@ -144,6 +146,10 @@ end
 
 open Header
 
+module Make(DISK: S.DISK) = struct
+
+module Header_IO = Header.Make(DISK)
+
 let read dev mdah n =
   let locn = List.nth mdah.mdah_raw_locns n in
   let firstbit, secondbit =
@@ -155,8 +161,8 @@ let read dev mdah n =
   let offset = Int64.add mdah.mdah_start locn.mrl_offset in
   let offset' = Int64.add mdah.mdah_start 512L in
   let open IO in
-  get MD1 dev offset firstbit >>= fun buf ->
-  get MD2 dev offset' secondbit >>= fun buf' ->
+  DISK.get S.MD1 dev offset firstbit >>= fun buf ->
+  DISK.get S.MD2 dev offset' secondbit >>= fun buf' ->
   let result = Cstruct.create (firstbit + secondbit) in
   Cstruct.blit buf 0 result 0 firstbit;
   Cstruct.blit buf' 0 result firstbit secondbit;
@@ -194,8 +200,8 @@ let write device mdah md =
 
   let absnewpos = Int64.add mrl_offset mdah.mdah_start in
   let open IO in
-  put MD1 device absnewpos firstbitbuf >>= fun () ->
-  put MD2 device (Int64.add mdah.mdah_start 512L) secondbitbuf >>= fun () ->
+  DISK.put S.MD1 device absnewpos firstbitbuf >>= fun () ->
+  DISK.put S.MD2 device (Int64.add mdah.mdah_start 512L) secondbitbuf >>= fun () ->
 
   (* Now we have to update the crc and pointer to the metadata *)
     
@@ -203,5 +209,6 @@ let write device mdah md =
   let new_raw_locn = { mrl_offset; mrl_size=Int64.of_int mrl_size; mrl_checksum; mrl_filler=0l; } in
 
   let mdah = {mdah with mdah_raw_locns=[new_raw_locn]} in
-  write mdah device >>= fun () ->
+  Header_IO.write mdah device >>= fun () ->
   return mdah
+end

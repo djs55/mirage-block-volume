@@ -15,6 +15,9 @@
 open Logging
 open Vg
 
+let dummy_mode = ref false
+let dummy_base = ref "/tmp"
+
 let rec mkdir_p x =
   if Sys.file_exists x
   then ()
@@ -75,8 +78,8 @@ let dm_name_of vg lv =
   Printf.sprintf "%s-%s" vgname lvname
 
 let dev_path_of vg lv =
-  if !Constants.dummy_mode then begin
-    let fname = Printf.sprintf "%s/%s/%s" (!Constants.dummy_base) (!Constants.mapper_name) (dm_name_of vg lv) in
+  if !dummy_mode then begin
+    let fname = Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) (dm_name_of vg lv) in
     let dirname = Filename.dirname fname in
     mkdir_p dirname;
     fname
@@ -84,8 +87,8 @@ let dev_path_of vg lv =
     Printf.sprintf "/dev/mapper/%s" (dm_name_of vg lv)
 
 let dev_path_of_dm_name dm_name =
-  if !Constants.dummy_mode then
-    Printf.sprintf "%s/%s/%s" (!Constants.dummy_base) (!Constants.mapper_name) dm_name
+  if !dummy_mode then
+    Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) dm_name
   else
     Printf.sprintf "/dev/mapper/%s" dm_name
 
@@ -93,13 +96,13 @@ let lv_activate_internal name dm_map dereference_table use_tmp dev =
   let realname = if use_tmp then Uuidm.to_string (Uuidm.create `V4) else name in
   let nod = dev_path_of_dm_name realname in
   debug "Using dm_name=%s (use_tmp=%b)" realname use_tmp;
-  if not !Constants.dummy_mode then begin
+  if not !dummy_mode then begin
     Camldm.create realname dm_map dereference_table;
     let s = Camldm.table realname in
     let (major,minor) = s.Camldm.major,s.Camldm.minor in
     Camldm.mknod nod 0o644 (Int32.to_int major) (Int32.to_int minor);
   end else begin
-    let fname = (Printf.sprintf "%s/%s/%s" !Constants.dummy_base dev name) in
+    let fname = (Printf.sprintf "%s/%s/%s" !dummy_base dev name) in
     (* Make sure that a file corresponding to the LV is existant *)
     begin
       try
@@ -127,7 +130,7 @@ let lv_activate vg lv =
 
 let lv_deactivate_internal nod dm_name =
   let nod = match nod with None -> dev_path_of_dm_name dm_name | Some x -> x in
-  if not !Constants.dummy_mode then Camldm.remove dm_name;
+  if not !dummy_mode then Camldm.remove dm_name;
   Unix.unlink nod
 let lv_deactivate vg lv =
         let dm_name = dm_name_of vg lv in
@@ -135,7 +138,7 @@ let lv_deactivate vg lv =
          lv_deactivate_internal None dm_name)
 
 let lv_change_internal dm_name dm_map dereference_table =
-  if not !Constants.dummy_mode then begin
+  if not !dummy_mode then begin
     Camldm.reload dm_name dm_map dereference_table;
     Camldm.suspend dm_name;
     Camldm.resume dm_name

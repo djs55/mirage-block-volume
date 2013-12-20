@@ -38,6 +38,23 @@ module type RPC = sig
   val rpc_of_t: t -> Rpc.t
 end
 
+(* The data being read from or written to disk has a 'kind' *)
+type kind =
+  | Label      (** PV label *)
+  | MDA_header (** Metadata area header *)
+  | MD1        (** Metadata fragment 1 *)
+  | MD2        (** Metadata fragment 2 *)
+
+type 'a io = ('a, string) Result.result Lwt.t
+
+module type DISK = sig
+  val get_size: string -> int64 io
+
+  val get: kind -> string -> int64 -> int -> Cstruct.t io
+
+  val put: kind -> string -> int64 -> Cstruct.t -> unit io
+end
+
 module type VOLUME = sig
 
   type t

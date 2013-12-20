@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 80d66a474e6697db935aae85550acecd)
-# Ignore VCS directories, you can use the same kind of rule outside
-# OASIS_START/STOP if you want to exclude directories that contains
+# DO NOT EDIT (digest: 900c975f57c5299bb6e00318e8998e5b)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -43,10 +43,13 @@
 <lib/*.ml{,i}>: pkg_re.str
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_mirage-block-unix
+# Library lvm_unix
+"lib/lvm_unix.cmxs": use_lvm_unix
 # Library lvm_mapper
 "lib/lvm_mapper.cmxs": use_lvm_mapper
 # Executable mlvm
 <src/main.{native,byte}>: use_lvm
+<src/main.{native,byte}>: use_lvm_unix
 <src/main.{native,byte}>: pkg_cmdliner
 <src/main.{native,byte}>: pkg_rpclib.syntax
 <src/main.{native,byte}>: pkg_rpclib
@@ -57,6 +60,7 @@
 <src/main.{native,byte}>: pkg_cstruct
 <src/main.{native,byte}>: pkg_mirage-block-unix
 <src/*.ml{,i}>: use_lvm
+<src/*.ml{,i}>: use_lvm_unix
 <src/*.ml{,i}>: pkg_cmdliner
 <src/*.ml{,i}>: pkg_rpclib.syntax
 <src/*.ml{,i}>: pkg_rpclib

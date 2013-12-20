@@ -38,7 +38,5 @@ let tib = Int64.mul mib mib
 let max_metadata_size = Int64.mul mib 16L
 
 (* Ahem, mutable constants? *)
-let dummy_mode = ref false 
-let dummy_base = ref "/tmp"
 let mapper_name = ref "mapper"
 let full_provision = ref false

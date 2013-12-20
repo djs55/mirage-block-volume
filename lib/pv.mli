@@ -39,16 +39,18 @@ include S.RPC with type t := t
 include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 
-val format: string -> string -> t IO.io
-(** [format device name] initialises a physical volume on [device]
-    with [name]. One metadata area will be created, 10 MiB in size,
-    at a fixed location. Any existing metadata on this device will
-    be destroyed. *)
+module Make : functor(DISK: S.DISK) -> sig
+  val format: string -> string -> t S.io
+  (** [format device name] initialises a physical volume on [device]
+      with [name]. One metadata area will be created, 10 MiB in size,
+      at a fixed location. Any existing metadata on this device will
+      be destroyed. *)
 
-val read_metadata: string -> Cstruct.t IO.io
-(** [read_metadata device]: locates the metadata area on [device] and
-    returns the volume group metadata. *)
+  val read_metadata: string -> Cstruct.t S.io
+  (** [read_metadata device]: locates the metadata area on [device] and
+      returns the volume group metadata. *)
 
-val read: string -> (string * Absty.absty) list -> t IO.io
-(** [read name config] reads the information of physical volume [name]
-    with configuration [config] read from the volume group metadata. *)
+  val read: string -> (string * Absty.absty) list -> t S.io
+  (** [read name config] reads the information of physical volume [name]
+      with configuration [config] read from the volume group metadata. *)
+end
