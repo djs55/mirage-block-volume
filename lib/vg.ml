@@ -142,7 +142,14 @@ let do_op vg op : (t, string) Result.result =
       let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
       return {vg with lvs = lv'::others})
 
-let create vg name size = match Allocator.find vg.free_space size with
+(* Convert from bytes to extents, rounding up *)
+let bytes_to_extents bytes vg =
+  let extents_in_sectors = vg.extent_size in
+  let open Int64 in
+  let extents_in_bytes = mul extents_in_sectors 512L in
+  div (add bytes (sub extents_in_bytes 1L)) extents_in_bytes
+
+let create vg name size = match Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
     let lvc_id = Uuid.create () in
     do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id; lvc_segments})}
@@ -153,6 +160,7 @@ let rename vg old_name new_name =
   do_op vg {so_seqno=vg.seqno; so_op=LvRename (old_name,{lvmv_new_name=new_name})}
 
 let resize vg name new_size =
+  let new_size = bytes_to_extents new_size vg in
   let lv,others = List.partition (fun lv -> lv.Lv.name=name) vg.lvs in
   ( match lv with 
     | [lv] ->

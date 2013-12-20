@@ -39,21 +39,43 @@ module type RPC = sig
 end
 
 module type VOLUME = sig
+
   type t
+  (** a set of logical volumes and free space *)
+
   type tag
+  (** an arbitrary tag added to a volume *)
+
   type name
+  (** the name of a volume. This must be unique within a set *)
+
   type size
+  (** the size of a volume in bytes *)
 
   val create: t -> name -> int64 -> (t, string) Result.result
+  (** [create t name size] extends the volume group [t] with a new
+      volume named [name] with size at least [size] bytes. The actual
+      size of the volume may be rounded up. *)
 
   val rename: t -> name -> name -> (t, string) Result.result
+  (** [rename t name new_name] returns a new volume group [t] where
+      the volume previously named [name] has been renamed to [new_name] *)
 
   val resize: t -> name -> size -> (t, string) Result.result
+  (** [resize t name new_size] returns a new volume group [t] where
+      the volume with [name] has new size at least [new_size]. The
+      size of the volume may be rounded up. *)
 
   val remove: t -> name -> (t, string) Result.result
+  (** [remove t name] returns a new volume group [t] where the volume
+      with [name] has been deallocated. *)
 
   val add_tag: t -> name -> tag -> (t, string) Result.result
+  (** [add_tag t name tag] returns a new volume group [t] where the
+      volume with [name] has a new tag [tag] *)
 
   val remove_tag: t -> name -> tag -> (t, string) Result.result
+  (** [remove_tag t name tag] returns a new volume group [t] where the
+      volume with [name] has no tag [tag] *)
 end
 
