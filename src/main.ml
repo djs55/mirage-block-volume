@@ -77,7 +77,7 @@ let lvname =
 
 let lvsize =
   let doc = "logical volume size" in
-  Arg.(value & opt int64 0L & info [ "size" ] ~doc)
+  Arg.(value & opt string "0" & info [ "size" ] ~doc)
 
 let create_cmd =
   let doc = "create a logical volume" in
@@ -108,7 +108,7 @@ let resize_cmd =
   ] @ help in
   let newsize =
     let doc = "new size" in
-    Arg.(value & pos 2 int64 0L & info [] ~doc) in
+    Arg.(value & pos 2 string "" & info [] ~doc) in
   Term.(ret(pure Impl.resize $ common_options_t $ filename $ lvname $ newsize)),
   Term.info "resize" ~sdocs:_common_options ~doc ~man
 

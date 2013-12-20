@@ -119,7 +119,8 @@ let update_vg filename f =
 
 let create common filename lvname size =
   apply common;
-  update_vg filename (fun vg -> Vg.create vg lvname size)
+  let size_in_bytes = Common.parse_size size in
+  update_vg filename (fun vg -> Vg.create vg lvname size_in_bytes)
 
 let rename common filename lvname newname =
   apply common;
@@ -127,7 +128,12 @@ let rename common filename lvname newname =
 
 let resize common filename lvname newsize =
   apply common;
-  update_vg filename (fun vg -> Vg.resize vg lvname newsize)
+  match newsize with
+  | "" ->
+    `Error(true, "Please supply a new size for the volume")
+  | size ->
+    let size_in_bytes = Common.parse_size size in
+    update_vg filename (fun vg -> Vg.resize vg lvname size_in_bytes)
 
 let remove common filename lvname =
   apply common;
