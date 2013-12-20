@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 1b0c047be37c808f1f7b3879beebce55) *)
+(* DO NOT EDIT (digest: 44d95f2b1f2235fe2c087e41e84d6aa1) *)
 module OASISGettext = struct
 (* # 21 "src/oasis/OASISGettext.ml" *)
 
@@ -481,7 +481,7 @@ let package_default =
        [
           ("lvm", ["lib"]);
           ("lvm_mirage", ["lib"]);
-          ("lvm_unix", ["lib"]);
+          ("lvm_dummy", ["lib"]);
           ("lvm_mapper", ["lib"])
        ];
      lib_c = [];
