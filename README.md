@@ -1,4 +1,10 @@
-Pure ocaml implementation of LVM.
+A Linux-LVM compatible logical volume manager for mirage
+========================================================
 
-Relies on camldm to do the device-mapper manipulation.
+A logical volume manager allows you to group together multiple physical
+disks (volumes) and treat them as a pool of disk blocks, from which you
+can allocate multiple logical disks (volumes).
+
+This implementation attempts to use the same on-disk format as Linux
+LVM.
 
