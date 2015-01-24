@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: bb30aac7a29780b8b527c33d859717fb)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: 32a601454242a96225bba2a0217e4fe6)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
+true: annot, bin_annot
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
 ".bzr": -traverse
@@ -35,89 +36,83 @@
 "lib/tag.cmx": for-pack(Lvm)
 "lib/utils.cmx": for-pack(Lvm)
 "lib/vg.cmx": for-pack(Lvm)
-<lib/*.ml{,i}>: pkg_rpclib.syntax
-<lib/*.ml{,i}>: pkg_rpclib
-<lib/*.ml{,i}>: pkg_threads
-<lib/*.ml{,i}>: pkg_camldm
-<lib/*.ml{,i}>: pkg_uuidm
-<lib/*.ml{,i}>: pkg_re.str
-<lib/*.ml{,i}>: pkg_cstruct
-<lib/*.ml{,i}>: pkg_mirage-types
-<lib/*.ml{,i}>: pkg_lwt
+<lib/*.ml{,i,y}>: pkg_cstruct
+<lib/*.ml{,i,y}>: pkg_lwt
+<lib/*.ml{,i,y}>: pkg_mirage-types
+<lib/*.ml{,i,y}>: pkg_re.str
+<lib/*.ml{,i,y}>: pkg_rpclib
+<lib/*.ml{,i,y}>: pkg_rpclib.syntax
+<lib/*.ml{,i,y}>: pkg_threads
+<lib/*.ml{,i,y}>: pkg_uuidm
 # Library lvm_mirage
 "lib/lvm_mirage.cmxs": use_lvm_mirage
 # Library lvm_dummy
 "lib/lvm_dummy.cmxs": use_lvm_dummy
-<lib/*.ml{,i}>: pkg_mirage-block-unix
+<lib/*.ml{,i,y}>: pkg_mirage-block-unix
 # Library lvm_mapper
 "lib/lvm_mapper.cmxs": use_lvm_mapper
 # Executable mlvm
+<src/main.{native,byte}>: pkg_cmdliner
+<src/main.{native,byte}>: pkg_cstruct
+<src/main.{native,byte}>: pkg_io-page-unix
+<src/main.{native,byte}>: pkg_lwt
+<src/main.{native,byte}>: pkg_mirage-block-unix
+<src/main.{native,byte}>: pkg_mirage-types
+<src/main.{native,byte}>: pkg_re.str
+<src/main.{native,byte}>: pkg_rpclib
+<src/main.{native,byte}>: pkg_rpclib.syntax
+<src/main.{native,byte}>: pkg_threads
+<src/main.{native,byte}>: pkg_uuidm
 <src/main.{native,byte}>: use_lvm
 <src/main.{native,byte}>: use_lvm_mirage
-<src/main.{native,byte}>: pkg_cmdliner
-<src/main.{native,byte}>: pkg_io-page-unix
-<src/main.{native,byte}>: pkg_mirage-block-unix
-<src/main.{native,byte}>: pkg_rpclib.syntax
-<src/main.{native,byte}>: pkg_rpclib
-<src/main.{native,byte}>: pkg_threads
-<src/main.{native,byte}>: pkg_camldm
-<src/main.{native,byte}>: pkg_uuidm
-<src/main.{native,byte}>: pkg_re.str
-<src/main.{native,byte}>: pkg_cstruct
-<src/main.{native,byte}>: pkg_mirage-types
-<src/main.{native,byte}>: pkg_lwt
-<src/*.ml{,i}>: use_lvm
-<src/*.ml{,i}>: use_lvm_mirage
-<src/*.ml{,i}>: pkg_cmdliner
-<src/*.ml{,i}>: pkg_io-page-unix
-<src/*.ml{,i}>: pkg_mirage-block-unix
-<src/*.ml{,i}>: pkg_rpclib.syntax
-<src/*.ml{,i}>: pkg_rpclib
-<src/*.ml{,i}>: pkg_threads
-<src/*.ml{,i}>: pkg_camldm
-<src/*.ml{,i}>: pkg_uuidm
-<src/*.ml{,i}>: pkg_re.str
-<src/*.ml{,i}>: pkg_cstruct
-<src/*.ml{,i}>: pkg_mirage-types
-<src/*.ml{,i}>: pkg_lwt
+<src/*.ml{,i,y}>: pkg_cmdliner
+<src/*.ml{,i,y}>: pkg_cstruct
+<src/*.ml{,i,y}>: pkg_io-page-unix
+<src/*.ml{,i,y}>: pkg_lwt
+<src/*.ml{,i,y}>: pkg_mirage-block-unix
+<src/*.ml{,i,y}>: pkg_mirage-types
+<src/*.ml{,i,y}>: pkg_re.str
+<src/*.ml{,i,y}>: pkg_rpclib
+<src/*.ml{,i,y}>: pkg_rpclib.syntax
+<src/*.ml{,i,y}>: pkg_threads
+<src/*.ml{,i,y}>: pkg_uuidm
+<src/*.ml{,i,y}>: use_lvm
+<src/*.ml{,i,y}>: use_lvm_mirage
 <src/main.{native,byte}>: custom
 # Executable tag_test
-<lib_test/tag_test.{native,byte}>: use_lvm
-<lib_test/tag_test.{native,byte}>: pkg_oUnit
-<lib_test/tag_test.{native,byte}>: pkg_rpclib.syntax
-<lib_test/tag_test.{native,byte}>: pkg_rpclib
-<lib_test/tag_test.{native,byte}>: pkg_threads
-<lib_test/tag_test.{native,byte}>: pkg_camldm
-<lib_test/tag_test.{native,byte}>: pkg_uuidm
-<lib_test/tag_test.{native,byte}>: pkg_re.str
 <lib_test/tag_test.{native,byte}>: pkg_cstruct
-<lib_test/tag_test.{native,byte}>: pkg_mirage-types
 <lib_test/tag_test.{native,byte}>: pkg_lwt
-<lib_test/*.ml{,i}>: pkg_oUnit
+<lib_test/tag_test.{native,byte}>: pkg_mirage-types
+<lib_test/tag_test.{native,byte}>: pkg_oUnit
+<lib_test/tag_test.{native,byte}>: pkg_re.str
+<lib_test/tag_test.{native,byte}>: pkg_rpclib
+<lib_test/tag_test.{native,byte}>: pkg_rpclib.syntax
+<lib_test/tag_test.{native,byte}>: pkg_threads
+<lib_test/tag_test.{native,byte}>: pkg_uuidm
+<lib_test/tag_test.{native,byte}>: use_lvm
+<lib_test/*.ml{,i,y}>: pkg_oUnit
 <lib_test/tag_test.{native,byte}>: custom
 # Executable allocator_test
-<lib_test/allocator_test.{native,byte}>: use_lvm
-<lib_test/allocator_test.{native,byte}>: pkg_kaputt
-<lib_test/allocator_test.{native,byte}>: pkg_rpclib.syntax
-<lib_test/allocator_test.{native,byte}>: pkg_rpclib
-<lib_test/allocator_test.{native,byte}>: pkg_threads
-<lib_test/allocator_test.{native,byte}>: pkg_camldm
-<lib_test/allocator_test.{native,byte}>: pkg_uuidm
-<lib_test/allocator_test.{native,byte}>: pkg_re.str
 <lib_test/allocator_test.{native,byte}>: pkg_cstruct
-<lib_test/allocator_test.{native,byte}>: pkg_mirage-types
+<lib_test/allocator_test.{native,byte}>: pkg_kaputt
 <lib_test/allocator_test.{native,byte}>: pkg_lwt
-<lib_test/*.ml{,i}>: use_lvm
-<lib_test/*.ml{,i}>: pkg_kaputt
-<lib_test/*.ml{,i}>: pkg_rpclib.syntax
-<lib_test/*.ml{,i}>: pkg_rpclib
-<lib_test/*.ml{,i}>: pkg_threads
-<lib_test/*.ml{,i}>: pkg_camldm
-<lib_test/*.ml{,i}>: pkg_uuidm
-<lib_test/*.ml{,i}>: pkg_re.str
-<lib_test/*.ml{,i}>: pkg_cstruct
-<lib_test/*.ml{,i}>: pkg_mirage-types
-<lib_test/*.ml{,i}>: pkg_lwt
+<lib_test/allocator_test.{native,byte}>: pkg_mirage-types
+<lib_test/allocator_test.{native,byte}>: pkg_re.str
+<lib_test/allocator_test.{native,byte}>: pkg_rpclib
+<lib_test/allocator_test.{native,byte}>: pkg_rpclib.syntax
+<lib_test/allocator_test.{native,byte}>: pkg_threads
+<lib_test/allocator_test.{native,byte}>: pkg_uuidm
+<lib_test/allocator_test.{native,byte}>: use_lvm
+<lib_test/*.ml{,i,y}>: pkg_cstruct
+<lib_test/*.ml{,i,y}>: pkg_kaputt
+<lib_test/*.ml{,i,y}>: pkg_lwt
+<lib_test/*.ml{,i,y}>: pkg_mirage-types
+<lib_test/*.ml{,i,y}>: pkg_re.str
+<lib_test/*.ml{,i,y}>: pkg_rpclib
+<lib_test/*.ml{,i,y}>: pkg_rpclib.syntax
+<lib_test/*.ml{,i,y}>: pkg_threads
+<lib_test/*.ml{,i,y}>: pkg_uuidm
+<lib_test/*.ml{,i,y}>: use_lvm
 <lib_test/allocator_test.{native,byte}>: custom
 # OASIS_STOP
 <lib/*.ml{,i}>: syntax_camlp4o

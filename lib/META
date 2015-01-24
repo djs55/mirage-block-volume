@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 73e612d1ad48fefa3b26e3a8736c0e12)
+# DO NOT EDIT (digest: dfb216f51cf3b777fd5d2897cde6717d)
 version = "0.1"
 description = "Pure OCaml volume manager, compatible with Linux LVM"
 requires =
-"rpclib.syntax rpclib threads camldm uuidm re.str cstruct mirage-types lwt"
+"rpclib.syntax rpclib threads uuidm re.str cstruct mirage-types lwt"
 archive(byte) = "lvm.cma"
 archive(byte, plugin) = "lvm.cma"
 archive(native) = "lvm.cmxa"
