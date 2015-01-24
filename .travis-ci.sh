@@ -1,5 +1,5 @@
 # OPAM packages needed to build tests.
-OPAM_PACKAGES="uuidm ounit rpc camldm kaputt cmdliner cstruct mirage-block-unix.1.1.0 re"
+OPAM_PACKAGES="uuidm ounit sexplib kaputt cmdliner cstruct re"
 
 
 case "$OCAML_VERSION,$OPAM_VERSION" in
@@ -14,7 +14,7 @@ esac
 
 echo "yes" | sudo add-apt-repository ppa:$ppa
 sudo apt-get update -qq
-sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam libdevmapper-dev
+sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam
 export OPAMYES=1
 export OPAMVERBOSE=1
 echo OCaml version
@@ -24,7 +24,6 @@ opam --version
 opam --git-version
 
 opam init
-opam remote add xapi-project git://github.com/xapi-project/opam-repo-dev
 opam install ${OPAM_PACKAGES}
 
 eval `opam config -env`
