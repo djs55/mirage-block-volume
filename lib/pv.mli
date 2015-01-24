@@ -35,7 +35,7 @@ type t = {
 }
 (** a Physical Volume (a disk), which is associated with a Volume Group *)
 
-include S.RPC with type t := t
+include S.SEXPABLE with type t := t
 include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 

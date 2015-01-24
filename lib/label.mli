@@ -62,7 +62,7 @@ include S.EQUALS with type t := t
 include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 include S.UNMARSHAL with type t := t
-include S.RPC with type t := t
+include S.SEXPABLE with type t := t
 include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
 val get_metadata_locations: t -> Location.t list

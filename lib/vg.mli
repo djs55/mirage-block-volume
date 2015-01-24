@@ -39,7 +39,7 @@ type t = {
 }
 (** A volume group *)
 
-include S.RPC with type t := t
+include S.SEXPABLE with type t := t
 include S.MARSHAL with type t := t
 include S.VOLUME
   with type t := t

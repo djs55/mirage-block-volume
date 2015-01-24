@@ -18,7 +18,7 @@ type area = string * (int64 * int64)
 type t = area list
 (** contiguous virtual space represented by an ordered list of 'areas' *)
 
-include S.RPC with type t := t
+include S.SEXPABLE with type t := t
 include S.PRINT with type t := t
 
 val create: string -> int64 -> t

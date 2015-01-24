@@ -15,7 +15,7 @@
 type t
 (** A valid LVM volume tag *)
 
-include S.RPC with type t := t
+include S.SEXPABLE with type t := t
 include S.PRINT with type t := t
 
 val of_string : string -> t

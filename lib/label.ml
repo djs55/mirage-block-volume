@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Sexplib.Std
 
 (** Physical Volume module *)
 
@@ -29,7 +29,7 @@ module Label_header = struct
     crc : int32;
     offset : int32;
     ty : string (* 8 bytes, equal to "LVM2 001" - Constants.label_type*)
-  } with rpc
+  } with sexp
 
   let equals a b =
     a.id = b.id
@@ -82,7 +82,7 @@ module Location = struct
   type t = {
     offset : int64;
     size : int64;
-  } with rpc
+  } with sexp
 end
 
 module Pv_header = struct
@@ -91,7 +91,7 @@ module Pv_header = struct
     device_size : int64;
     extents: Location.t list;
     metadata_areas: Location.t list;
-  } with rpc
+  } with sexp
 
   let equals a b =
     a.id = b.id
@@ -157,7 +157,7 @@ type t = {
   device : string;
   label_header : Label_header.t;
   pv_header : Pv_header.t;
-} with rpc 
+} with sexp
 
 let equals a b =
   a.device = b.device

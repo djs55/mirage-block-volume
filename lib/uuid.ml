@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,11 +11,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Sexplib.Std
 
 (* LVM uses uuids that aren't really proper uuids. This module manipulates them *)
 
-type t = string with rpc
+type t = string with sexp
 
 let format = [6; 4; 4; 4; 4; 4; 6] 
 

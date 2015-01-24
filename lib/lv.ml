@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Sexplib.Std
 open Absty
 open Logging
 open Result
@@ -21,7 +21,7 @@ module Status = struct
     | Read
     | Write
     | Visible
-  with rpc
+  with sexp
 	
   let to_string = function
     | Read -> "READ"
@@ -39,14 +39,14 @@ module Stripe = struct
   type t = {
     size_in_sectors : int64;
     stripes : (string * int64) list;
-  } with rpc
+  } with sexp
 end
 
 module Linear = struct
   type t = {
     name : string;
     start_extent : int64;
-  } with rpc
+  } with sexp
 end
 
 module Segment = struct
@@ -59,7 +59,7 @@ module Segment = struct
     extent_count : int64;
     cls : cls;
   }
-  with rpc
+  with sexp
 
   let sort s =
     List.sort (fun s1 s2 -> compare s1.start_extent s2.start_extent) s
@@ -118,7 +118,7 @@ type t = {
   tags : Tag.t list;
   status : Status.t list;
   segments : Segment.t list;
-} with rpc
+} with sexp
 
 open Result
 

@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,6 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
+open Sexplib.Std
 
 (* Note according to
    https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Logical_Volume_Manager_Administration/lvm_tags.html
@@ -18,7 +19,7 @@
    after RH 6.1 tags can be 1024 characters and can contain  [/=!:#&]
 *) 
 
-type t = string with rpc
+type t = string with sexp
 
 module CharSet = Set.Make(struct type t = char let compare = compare end)
 

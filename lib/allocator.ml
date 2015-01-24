@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,11 +11,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
+open Sexplib.Std
 
 (* Sparse allocation should be fast. Expanding memory should be fast, for a bunch of volumes. *)
 
-type area = (string * (int64 * int64)) with rpc
-type t = area list with rpc
+type area = (string * (int64 * int64)) with sexp 
+type t = area list with sexp
 
 let string_of_area (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" p s l
 let to_string t =
