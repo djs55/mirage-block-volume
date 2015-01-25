@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: cd25f4de30c6d8024caa391104964643)
+# DO NOT EDIT (digest: f41e77257007b74af5470da1b94c9f24)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -54,7 +54,8 @@ true: annot, bin_annot
 # Executable mlvm
 <src/main.{native,byte}>: pkg_cmdliner
 <src/main.{native,byte}>: pkg_cstruct
-<src/main.{native,byte}>: pkg_io-page-unix
+<src/main.{native,byte}>: pkg_io-page
+<src/main.{native,byte}>: pkg_io-page.unix
 <src/main.{native,byte}>: pkg_lwt
 <src/main.{native,byte}>: pkg_mirage-block-unix
 <src/main.{native,byte}>: pkg_mirage-types
@@ -67,7 +68,8 @@ true: annot, bin_annot
 <src/main.{native,byte}>: use_lvm_mirage
 <src/*.ml{,i,y}>: pkg_cmdliner
 <src/*.ml{,i,y}>: pkg_cstruct
-<src/*.ml{,i,y}>: pkg_io-page-unix
+<src/*.ml{,i,y}>: pkg_io-page
+<src/*.ml{,i,y}>: pkg_io-page.unix
 <src/*.ml{,i,y}>: pkg_lwt
 <src/*.ml{,i,y}>: pkg_mirage-block-unix
 <src/*.ml{,i,y}>: pkg_mirage-types
