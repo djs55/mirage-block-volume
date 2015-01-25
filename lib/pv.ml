@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Sexplib.Std
 
 (** Physical Volumes:
     Note we start with a physical volume and then use it to discover
@@ -25,7 +25,7 @@ open Result
 module Status = struct  
   type t = 
     | Allocatable
-  with rpc
+  with sexp
 
   let to_string = function
     | Allocatable -> "ALLOCATABLE"
@@ -46,7 +46,7 @@ type t = {
   pe_count : int64;
   label : Label.t;  (* The one label for this PV *)
   headers : Metadata.Header.t list; 
-} with rpc 
+} with sexp
 
 let marshal pv b =
   let ofs = ref 0 in

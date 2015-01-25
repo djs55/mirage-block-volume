@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Sexplib.Std
 
 open Absty
 open Logging
@@ -42,7 +42,7 @@ module Header = struct
     mdah_start: int64;
     mdah_size: int64;
     mdah_raw_locns : mda_raw_locn list;
-  } with rpc
+  } with sexp
 
   include Result
 

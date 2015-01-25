@@ -62,7 +62,7 @@ type t = {
 }
 (** a logical volume within a volume group *)
 
-include S.RPC with type t := t
+include S.SEXPABLE with type t := t
 include S.MARSHAL with type t := t
 
 val of_metadata: string -> (string * Absty.absty) list -> (t, string) Result.result

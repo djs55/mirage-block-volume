@@ -32,10 +32,10 @@ module type EQUALS = sig
   val equals: t -> t -> bool
 end
 
-module type RPC = sig
+module type SEXPABLE = sig
   type t
-  val t_of_rpc: Rpc.t -> t
-  val rpc_of_t: t -> Rpc.t
+  val t_of_sexp: Sexplib.Sexp.t -> t
+  val sexp_of_t: t -> Sexplib.Sexp.t
 end
 
 (* The data being read from or written to disk has a 'kind' *)

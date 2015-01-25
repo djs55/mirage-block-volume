@@ -17,7 +17,7 @@ Library lvm
   Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg 
   Findlibname: lvm
   Pack: true
-  BuildDepends: rpclib.syntax,rpclib,threads,camldm,uuidm,re.str,cstruct,mirage-types,lwt
+  BuildDepends: sexplib.syntax,sexplib,threads,uuidm,re.str,cstruct,mirage-types,lwt
 
 Library lvm_mirage
   Path: lib
@@ -46,7 +46,7 @@ Executable mlvm
   MainIs:             main.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, lvm.mirage, cmdliner, io-page-unix, mirage-block-unix
+  BuildDepends:       lvm, lvm.mirage, cmdliner, io-page.unix, io-page, mirage-block-unix
 
 Executable tag_test
   CompiledObject:     best

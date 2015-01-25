@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Sexplib.Std
 open Absty
 open Redo
 open Logging
@@ -23,7 +23,7 @@ module Status = struct
     | Write
     | Resizeable
     | Clustered
-  with rpc
+  with sexp
 
   let to_string = function
     | Resizeable -> "RESIZEABLE"
@@ -52,7 +52,7 @@ type t = {
   free_space : Allocator.t;
   (* XXX: hook in the redo log *)
   ops : sequenced_op list;
-} with rpc
+} with sexp
   
 let marshal vg b =
   let b = ref b in

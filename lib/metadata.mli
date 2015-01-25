@@ -22,7 +22,7 @@ module Header: sig
   (** The MDA header is always of fixed size *)
 
   include S.EQUALS with type t := t
-  include S.RPC with type t := t
+  include S.SEXPABLE with type t := t
   include S.PRINT with type t := t
   include S.MARSHAL with type t := t
   include S.UNMARSHAL with type t := t
