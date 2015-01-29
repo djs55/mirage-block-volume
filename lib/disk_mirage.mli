@@ -17,7 +17,11 @@ module type Block = V1.BLOCK
   and type page_aligned_buffer = Cstruct.t
   and type id = string
 
-module type Memory = V1.IO_PAGE
-  with type buf = Cstruct.t
+module type Memory = sig
+  type t
+
+  val get: int -> t
+  val to_cstruct: t -> Cstruct.t
+end
 
 module Make : functor (B: Block) -> functor(M: Memory) -> S.DISK
