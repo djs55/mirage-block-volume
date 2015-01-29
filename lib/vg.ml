@@ -149,7 +149,10 @@ let bytes_to_extents bytes vg =
   let extents_in_bytes = mul extents_in_sectors 512L in
   div (add bytes (sub extents_in_bytes 1L)) extents_in_bytes
 
-let create vg name size = match Allocator.find vg.free_space (bytes_to_extents size vg) with
+let create vg name size = 
+  if List.exists (fun lv -> lv.Lv.name = name) vg.lvs
+  then `Error "Duplicate name detected"
+  else match Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
     let lvc_id = Uuid.create () in
     do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id; lvc_segments})}
