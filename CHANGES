@@ -5,6 +5,7 @@ trunk (unreleased)
 * replace 'rpc' with 'sexplib'
 * add 'opam' file
 * use minimalist travis style
+* update to io-page interface change in 1.3.0
 
 0.1.0 (18-Nov-2013)
 * Initial release
