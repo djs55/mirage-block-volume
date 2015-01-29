@@ -19,7 +19,7 @@ depends: [
   "mirage-types"
   "ounit"
   "kaputt"
-  "io-page"
+  "io-page" {= "1.2.0"}
   "mirage-block-unix"
   "cmdliner"
 ]
