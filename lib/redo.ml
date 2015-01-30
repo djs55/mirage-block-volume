@@ -17,7 +17,7 @@ open Logging
 
 type lvcreate_t = {
   lvc_id : Uuid.t;
-  lvc_segments : Allocator.t
+  lvc_segments : Pv.Allocator.t
 }
 
 and lvrename_t = {
@@ -29,7 +29,7 @@ and lvreduce_t = {
 }
 
 and lvexpand_t = {
-  lvex_segments : Allocator.t;
+  lvex_segments : Pv.Allocator.t;
 }
 
 (** First string corresponds to the name of the LV. *)
@@ -120,9 +120,9 @@ let reset fd offset =
 (** Converts the redo operation to a human-readable string. *)
 let redo_to_human_readable op =
 	let lvcreate_t_to_string l =
-		Printf.sprintf "{id:'%s', segments:[%s]}" (Uuid.to_string l.lvc_id) (Allocator.to_string l.lvc_segments) in
+		Printf.sprintf "{id:'%s', segments:[%s]}" (Uuid.to_string l.lvc_id) (Pv.Allocator.to_string l.lvc_segments) in
 	let lvexpand_t_to_string l =
-		Printf.sprintf "[%s]" (Allocator.to_string l.lvex_segments) in
+		Printf.sprintf "[%s]" (Pv.Allocator.to_string l.lvex_segments) in
 	let opstr =
 		match op.so_op with
 			| LvCreate (name,lvc) -> Printf.sprintf "LvCreate(%s,%s)" name (lvcreate_t_to_string lvc)

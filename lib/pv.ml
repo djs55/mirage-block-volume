@@ -124,3 +124,9 @@ let format real_device name =
   return { name; id; stored_device = real_device; real_device; status=[Status.Allocatable];
            size_in_sectors; pe_start; pe_count; label; headers = [mda_header]; }
 end
+
+module Allocator = Allocator.Make(struct
+  type t = string with sexp
+  let compare (a: t) (b: t) = compare a b
+  let to_string x = x
+end)
