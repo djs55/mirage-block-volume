@@ -77,7 +77,7 @@ let table_of_vg vg =
   [ "max_lv"; string_of_int vg.Vg.max_lv ];
   [ "max_pv"; string_of_int vg.Vg.max_pv ];
 ] @ pvs @ lvs @ [
-  [ "free_space"; Int64.to_string (Allocator.size vg.Vg.free_space) ];
+  [ "free_space"; Int64.to_string (Pv.Allocator.size vg.Vg.free_space) ];
 ]
 
 let read common filename =

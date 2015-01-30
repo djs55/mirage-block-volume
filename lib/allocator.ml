@@ -13,12 +13,16 @@
  *)
 open Sexplib.Std
 
+module Make(Name: S.NAME) = struct
+
+type name = Name.t with sexp
+
 (* Sparse allocation should be fast. Expanding memory should be fast, for a bunch of volumes. *)
 
-type area = (string * (int64 * int64)) with sexp 
+type area = (name * (int64 * int64)) with sexp 
 type t = area list with sexp
 
-let string_of_area (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" p s l
+let string_of_area (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" (Name.to_string p) s l
 let to_string t =
   String.concat ", "
     (List.map string_of_area t)
@@ -103,7 +107,7 @@ let contained : area -> area -> bool =
 	let (name2, (start2, size2)) = unpack_area a2 in
 	name=name2 && start >= start2 && Int64.add start size <= Int64.add start2 size2
 
-exception PVS_DONT_MATCH of string * string
+exception PVS_DONT_MATCH of name * name
 
 (* assumes all areas stem from the same pv *)
 let normalize_single_pv areas =
@@ -112,7 +116,7 @@ let normalize_single_pv areas =
     let merge1 (a1, acc) a2 =
 	let (name, (start1, size1)) = unpack_area a1
 	and (name2, (start2, size2)) = unpack_area a2 in
-	if (name <> name2) then raise (PVS_DONT_MATCH (name, name2))
+	if (name <> name2) then raise (PVS_DONT_MATCH(name, name2))
 	else if (Int64.add start1 size1) = start2 then
 	    (make_area name start1 (Int64.add size1 size2), acc)
 	else
@@ -126,13 +130,13 @@ let normalize : t -> t =
     fun areas ->
     (* The next lines are to be read backwards, since we defined function composition that way. *)
 
-    let module StringMap = Mapext.Make (String) in
+    let module NameMap = Mapext.Make (Name) in
     (* put free areas of all PVs back together *)
-    List.flatten ++ StringMap.values
+    List.flatten ++ NameMap.values
 	(* normalize each pv's areas *)
-    ++ StringMap.map normalize_single_pv
+    ++ NameMap.map normalize_single_pv
 	(* separate by pv *)
-    ++ StringMap.fromListWith List.append ++ List.map (fun seg -> (get_name seg, [seg]))
+    ++ NameMap.fromListWith List.append ++ List.map (fun seg -> (get_name seg, [seg]))
 	$ areas
 
 (* Which invariants does t have to satisfy?  Which invariants does our
@@ -153,9 +157,7 @@ let alloc_specified_area (free_list : t) (a : area) =
      * And that was right!  Just caught a bug that would have been masked otherwise. *)
     match List.partition (contained a) ++ normalize $ free_list with
 	| (containing_area::[]), other_areas -> normalize $ combine (minus containing_area a) other_areas
-	| x,_ -> (print_string "alloc_specified_area:\t";
-		  print_endline ++ to_string $ x;
-		  raise NonSingular_Containing_Area;)
+	| x,_ -> raise NonSingular_Containing_Area
 
 let sub : t -> t -> t =
    List.fold_left alloc_specified_area
@@ -191,3 +193,11 @@ let find (free_list : t) (newsize : int64) =
 
 (* Probably de-allocation won't be used much. *)
 let merge to_free free_list = normalize (combine to_free free_list)
+end
+
+module StringAllocator = Make(struct
+  type t = string with sexp
+  let compare (a: t) (b: t) = compare a b
+  let to_string x = x
+end)
+include StringAllocator

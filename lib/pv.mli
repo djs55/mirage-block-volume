@@ -54,3 +54,6 @@ module Make : functor(DISK: S.DISK) -> sig
   (** [read name config] reads the information of physical volume [name]
       with configuration [config] read from the volume group metadata. *)
 end
+
+module Allocator: S.ALLOCATOR
+  with type name = string

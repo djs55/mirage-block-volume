@@ -49,7 +49,7 @@ type t = {
   max_pv : int;
   pvs : Pv.t list; (* Device to pv map *)
   lvs : Lv.t list;
-  free_space : Allocator.t;
+  free_space : Pv.Allocator.t;
   (* XXX: hook in the redo log *)
   ops : sequenced_op list;
 } with sexp
@@ -91,9 +91,9 @@ let do_op vg op : (t, string) Result.result =
     else return () ) >>= fun () ->
   let rec createsegs acc ss s_start_extent = match ss with
   | a::ss ->
-    let start_extent = Allocator.get_start a in
-    let extent_count = Allocator.get_size a in
-    let name = Allocator.get_name a in
+    let start_extent = Pv.Allocator.get_start a in
+    let extent_count = Pv.Allocator.get_size a in
+    let name = Pv.Allocator.get_name a in
     let cls = Lv.Segment.Linear { Lv.Linear.name; start_extent; } in
     createsegs ({ Lv.Segment.start_extent; cls; extent_count } :: acc) ss  (Int64.add start_extent extent_count)
   | [] -> List.rev acc in	
@@ -105,14 +105,14 @@ let do_op vg op : (t, string) Result.result =
   let vg = {vg with seqno = vg.seqno + 1; ops=op::vg.ops} in
   match op.so_op with
   | LvCreate (name,l) ->
-    let new_free_space = Allocator.sub vg.free_space l.lvc_segments in
+    let new_free_space = Pv.Allocator.sub vg.free_space l.lvc_segments in
     let segments = Lv.Segment.sort (createsegs [] l.lvc_segments 0L) in
     let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Visible]; segments }) in
     return {vg with lvs = lv::vg.lvs; free_space = new_free_space}
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
       let old_size = Lv.size_in_extents lv in
-      let free_space = Allocator.sub vg.free_space l.lvex_segments in
+      let free_space = Pv.Allocator.sub vg.free_space l.lvex_segments in
       let segments = createsegs [] l.lvex_segments old_size in
       let segments = Lv.Segment.sort (segments @ lv.Lv.segments) in
       let lv = {lv with Lv.segments} in
@@ -122,12 +122,12 @@ let do_op vg op : (t, string) Result.result =
       let allocation = Lv.to_allocation lv in
       Lv.reduce_size_to lv l.lvrd_new_extent_count >>= fun lv ->
       let new_allocation = Lv.to_allocation lv in
-      let free_space = Allocator.sub (Allocator.merge vg.free_space allocation) new_allocation in
+      let free_space = Pv.Allocator.sub (Pv.Allocator.merge vg.free_space allocation) new_allocation in
       return {vg with lvs = lv::others; free_space})
   | LvRemove name ->
     change_lv name (fun lv others ->
       let allocation = Lv.to_allocation lv in
-      return {vg with lvs = others; free_space = Allocator.merge vg.free_space allocation })
+      return {vg with lvs = others; free_space = Pv.Allocator.merge vg.free_space allocation })
   | LvRename (name,l) ->
     change_lv name (fun lv others ->
       return {vg with lvs = {lv with Lv.name=l.lvmv_new_name}::others })
@@ -152,7 +152,7 @@ let bytes_to_extents bytes vg =
 let create vg name size = 
   if List.exists (fun lv -> lv.Lv.name = name) vg.lvs
   then `Error "Duplicate name detected"
-  else match Allocator.find vg.free_space (bytes_to_extents size vg) with
+  else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
     let lvc_id = Uuid.create () in
     do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id; lvc_segments})}
@@ -169,7 +169,7 @@ let resize vg name new_size =
     | [lv] ->
 	let current_size = Lv.size_in_extents lv in
         let to_allocate = Int64.sub new_size current_size in
-	if to_allocate > 0L then match Allocator.find vg.free_space to_allocate with
+	if to_allocate > 0L then match Pv.Allocator.find vg.free_space to_allocate with
         | `Ok lvex_segments ->
 	  return (LvExpand (name,{lvex_segments}))
         | `Error free ->
@@ -255,12 +255,12 @@ let of_metadata config =
   ) lvs) >>= fun lvs ->
 
   (* Now we need to set up the free space structure in the PVs *)
-  let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
+  let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
 
   let free_space = List.fold_left (fun free_space lv -> 
     let lv_allocations = Lv.to_allocation lv in
-    debug "Allocations for lv %s: %s" lv.Lv.name (Allocator.to_string lv_allocations);
-    Allocator.sub free_space lv_allocations) free_space lvs in
+    debug "Allocations for lv %s: %s" lv.Lv.name (Pv.Allocator.to_string lv_allocations);
+    Pv.Allocator.sub free_space lv_allocations) free_space lvs in
   let ops = [] in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; ops } in
   return vg
@@ -279,7 +279,7 @@ let format name devices_and_names =
       write_pv (pv :: acc) pvs in
   write_pv [] devices_and_names >>= fun pvs ->
   debug "PVs created";
-  let free_space = List.flatten (List.map (fun pv -> Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
+  let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; ops=[]; } in

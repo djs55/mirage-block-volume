@@ -13,7 +13,7 @@
  *)
 
 open Kaputt.Abbreviations
-open Lvm.Allocator
+open Lvm.Pv.Allocator
 
 let id a = a
 let ($) f a = f a
