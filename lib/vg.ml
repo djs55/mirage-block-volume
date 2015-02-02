@@ -51,7 +51,7 @@ type t = {
   lvs : Lv.t list;
   free_space : Pv.Allocator.t;
   (* XXX: hook in the redo log *)
-  ops : sequenced_op list;
+  ops : Redo.Op.t list;
 } with sexp
   
 let marshal vg b =
@@ -86,9 +86,7 @@ let marshal vg b =
 (*************************************************************)
 
 let do_op vg op : (t, string) Result.result =
-  ( if vg.seqno <> op.so_seqno
-    then fail (Printf.sprintf "VG: cannot perform operation out-of-order: expected %d, actual %d" vg.seqno op.so_seqno)
-    else return () ) >>= fun () ->
+  let open Redo.Op in
   let rec createsegs acc ss s_start_extent = match ss with
   | a::ss ->
     let start_extent = Pv.Allocator.get_start a in
@@ -102,8 +100,8 @@ let do_op vg op : (t, string) Result.result =
     match lv with
     | [lv] -> fn lv others
     | _ -> fail (Printf.sprintf "VG: unknown LV %s" lv_name) in
-  let vg = {vg with seqno = vg.seqno + 1; ops=op::vg.ops} in
-  match op.so_op with
+  let vg = {vg with ops=op::vg.ops} in
+  match op with
   | LvCreate (name,l) ->
     let new_free_space = Pv.Allocator.sub vg.free_space l.lvc_segments in
     let segments = Lv.Segment.sort (createsegs [] l.lvc_segments 0L) in
@@ -155,12 +153,12 @@ let create vg name size =
   else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
     let lvc_id = Uuid.create () in
-    do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id; lvc_segments})}
+    do_op vg Redo.Op.(LvCreate (name,{lvc_id; lvc_segments}))
   | `Error free ->
     `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" size free)
 
 let rename vg old_name new_name =
-  do_op vg {so_seqno=vg.seqno; so_op=LvRename (old_name,{lvmv_new_name=new_name})}
+  do_op vg Redo.Op.(LvRename (old_name,{lvmv_new_name=new_name}))
 
 let resize vg name new_size =
   let new_size = bytes_to_extents new_size vg in
@@ -171,22 +169,22 @@ let resize vg name new_size =
         let to_allocate = Int64.sub new_size current_size in
 	if to_allocate > 0L then match Pv.Allocator.find vg.free_space to_allocate with
         | `Ok lvex_segments ->
-	  return (LvExpand (name,{lvex_segments}))
+	  return Redo.Op.(LvExpand (name,{lvex_segments}))
         | `Error free ->
           `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" to_allocate free)
 	else
-	  return (LvReduce (name,{lvrd_new_extent_count=new_size}))
+	  return Redo.Op.(LvReduce (name,{lvrd_new_extent_count=new_size}))
     | _ -> fail (Printf.sprintf "Can't find LV %s" name) ) >>= fun op ->
-  do_op vg {so_seqno=vg.seqno; so_op=op}
+  do_op vg op
 
 let remove vg name =
-  do_op vg {so_seqno=vg.seqno; so_op=LvRemove name}
+  do_op vg Redo.Op.(LvRemove name)
 
 let add_tag vg name tag =
-  do_op vg {so_seqno = vg.seqno; so_op = LvAddTag (name, tag)}
+  do_op vg Redo.Op.(LvAddTag (name, tag))
 
 let remove_tag vg name tag =
-  do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)}
+  do_op vg Redo.Op.(LvRemoveTag (name, tag))
 
 module Make(DISK: S.DISK) = struct
 
