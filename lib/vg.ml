@@ -84,7 +84,9 @@ let marshal vg b =
 (* METADATA CHANGING OPERATIONS                              *)
 (*************************************************************)
 
-let do_op vg op : (t, string) Result.result =
+type op = Redo.Op.t
+
+let do_op vg op : (t * op, string) Result.result =
   let open Redo.Op in
   let rec createsegs acc ss s_start_extent = match ss with
   | a::ss ->
@@ -104,7 +106,7 @@ let do_op vg op : (t, string) Result.result =
     let new_free_space = Pv.Allocator.sub vg.free_space l.lvc_segments in
     let segments = Lv.Segment.sort (createsegs [] l.lvc_segments 0L) in
     let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Visible]; segments }) in
-    return {vg with lvs = lv::vg.lvs; free_space = new_free_space}
+    return ({vg with lvs = lv::vg.lvs; free_space = new_free_space},op)
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
       let old_size = Lv.size_in_extents lv in
@@ -112,31 +114,31 @@ let do_op vg op : (t, string) Result.result =
       let segments = createsegs [] l.lvex_segments old_size in
       let segments = Lv.Segment.sort (segments @ lv.Lv.segments) in
       let lv = {lv with Lv.segments} in
-      return {vg with lvs = lv::others; free_space=free_space} )
+      return ({vg with lvs = lv::others; free_space=free_space},op))
   | LvReduce (name,l) ->
     change_lv name (fun lv others ->
       let allocation = Lv.to_allocation lv in
       Lv.reduce_size_to lv l.lvrd_new_extent_count >>= fun lv ->
       let new_allocation = Lv.to_allocation lv in
       let free_space = Pv.Allocator.sub (Pv.Allocator.merge vg.free_space allocation) new_allocation in
-      return {vg with lvs = lv::others; free_space})
+      return ({vg with lvs = lv::others; free_space},op))
   | LvRemove name ->
     change_lv name (fun lv others ->
       let allocation = Lv.to_allocation lv in
-      return {vg with lvs = others; free_space = Pv.Allocator.merge vg.free_space allocation })
+      return ({vg with lvs = others; free_space = Pv.Allocator.merge vg.free_space allocation },op))
   | LvRename (name,l) ->
     change_lv name (fun lv others ->
-      return {vg with lvs = {lv with Lv.name=l.lvmv_new_name}::others })
+      return ({vg with lvs = {lv with Lv.name=l.lvmv_new_name}::others },op))
   | LvAddTag (name, tag) ->
     change_lv name (fun lv others ->
       let tags = lv.Lv.tags in
       let lv' = {lv with Lv.tags = if List.mem tag tags then tags else tag::tags} in
-      return {vg with lvs = lv'::others})
+      return ({vg with lvs = lv'::others},op))
   | LvRemoveTag (name, tag) ->
     change_lv name (fun lv others ->
       let tags = lv.Lv.tags in
       let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
-      return {vg with lvs = lv'::others})
+      return ({vg with lvs = lv'::others},op))
 
 (* Convert from bytes to extents, rounding up *)
 let bytes_to_extents bytes vg =

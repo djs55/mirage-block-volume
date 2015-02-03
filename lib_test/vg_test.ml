@@ -54,7 +54,7 @@ let mirage_lv_name_clash () =
       let t = 
         Vg_IO_mirage.format "vg" [ filename, "pv" ] >>|= fun () ->
         Vg_IO_mirage.read [ filename ] >>|= fun vg ->
-        Vg.create vg "name" size >>*= fun vg ->
+        Vg.create vg "name" size >>*= fun (vg,_) ->
         expect_failure (Vg.create vg "name") size >>*= 
         Lwt.return
       in

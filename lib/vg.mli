@@ -45,6 +45,7 @@ include S.VOLUME
   and type name := string
   and type tag := Tag.t
   and type size := int64
+  and type op := Redo.Op.t
 
 module Make : functor(DISK: S.DISK) -> sig
 
