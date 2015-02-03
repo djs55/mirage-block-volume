@@ -35,7 +35,6 @@ type t = {
   pvs : Pv.t list;              (** physical volumes *)
   lvs : Lv.t list;              (** logical volumes *)
   free_space : Pv.Allocator.t;  (** free space in physical volumes, which can be used for logical volumes *)
-  ops : Redo.Op.t list; (** a list of uncommitted operations *)
 }
 (** A volume group *)
 

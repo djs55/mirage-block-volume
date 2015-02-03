@@ -51,7 +51,6 @@ type t = {
   lvs : Lv.t list;
   free_space : Pv.Allocator.t;
   (* XXX: hook in the redo log *)
-  ops : Redo.Op.t list;
 } with sexp
   
 let marshal vg b =
@@ -100,7 +99,6 @@ let do_op vg op : (t, string) Result.result =
     match lv with
     | [lv] -> fn lv others
     | _ -> fail (Printf.sprintf "VG: unknown LV %s" lv_name) in
-  let vg = {vg with ops=op::vg.ops} in
   match op with
   | LvCreate (name,l) ->
     let new_free_space = Pv.Allocator.sub vg.free_space l.lvc_segments in
@@ -259,8 +257,7 @@ let of_metadata config =
     let lv_allocations = Lv.to_allocation lv in
     debug "Allocations for lv %s: %s" lv.Lv.name (Pv.Allocator.to_string lv_allocations);
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
-  let ops = [] in
-  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; ops } in
+  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
   return vg
 
 let parse buf =
@@ -280,7 +277,7 @@ let format name devices_and_names =
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
-    lvs=[]; free_space; ops=[]; } in
+    lvs=[]; free_space; } in
   write vg >>= fun _ ->
   debug "VG created";
   return ()
