@@ -13,6 +13,7 @@
  *)
 
 open Lwt
+open Lvm
 open S
 
 let dummy_base = ref "/tmp"

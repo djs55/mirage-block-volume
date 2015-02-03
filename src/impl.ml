@@ -15,6 +15,7 @@
 open Common
 open Cmdliner
 open Lwt
+open Lvm
 
 let require name arg = match arg with
   | None -> failwith (Printf.sprintf "Please supply a %s argument" name)

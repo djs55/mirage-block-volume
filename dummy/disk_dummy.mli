@@ -12,7 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 
-include S.DISK
+include Lvm.S.DISK
 
 val dummy_base: string ref
 (** directory to read from and write to *)
