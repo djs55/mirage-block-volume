@@ -13,6 +13,7 @@
  *)
 
 open OUnit
+open Lvm
 open Vg
 open Lwt
 

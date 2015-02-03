@@ -24,4 +24,4 @@ module type Memory = sig
   val to_cstruct: t -> Cstruct.t
 end
 
-module Make : functor (B: Block) -> functor(M: Memory) -> S.DISK
+module Make : functor (B: Block) -> functor(M: Memory) -> Lvm.S.DISK
