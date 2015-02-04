@@ -17,7 +17,7 @@ Library lvm
   Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg 
   Findlibname: lvm
   Pack: true
-  BuildDepends: sexplib.syntax,sexplib,threads,uuidm,re.str,cstruct,mirage-types,lwt
+  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt
 
 Library lvm_mirage
   Path: mirage

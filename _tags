@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 597d83044b21758fb09826d7cf45cfa2)
+# DO NOT EDIT (digest: 8c499bbacaa5f548e63b682d5d7afae7)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -42,7 +42,6 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: pkg_re.str
 <lib/*.ml{,i,y}>: pkg_sexplib
 <lib/*.ml{,i,y}>: pkg_sexplib.syntax
-<lib/*.ml{,i,y}>: pkg_threads
 <lib/*.ml{,i,y}>: pkg_uuidm
 # Library lvm_mirage
 "mirage/lvm_mirage.cmxs": use_lvm_mirage
@@ -53,7 +52,6 @@ true: annot, bin_annot
 <mirage/*.ml{,i,y}>: pkg_re.str
 <mirage/*.ml{,i,y}>: pkg_sexplib
 <mirage/*.ml{,i,y}>: pkg_sexplib.syntax
-<mirage/*.ml{,i,y}>: pkg_threads
 <mirage/*.ml{,i,y}>: pkg_uuidm
 <mirage/*.ml{,i,y}>: use_lvm
 # Library lvm_dummy
@@ -65,7 +63,6 @@ true: annot, bin_annot
 <dummy/*.ml{,i,y}>: pkg_re.str
 <dummy/*.ml{,i,y}>: pkg_sexplib
 <dummy/*.ml{,i,y}>: pkg_sexplib.syntax
-<dummy/*.ml{,i,y}>: pkg_threads
 <dummy/*.ml{,i,y}>: pkg_uuidm
 <dummy/*.ml{,i,y}>: use_lvm
 # Library lvm_mapper
@@ -82,7 +79,6 @@ true: annot, bin_annot
 <src/main.{native,byte}>: pkg_re.str
 <src/main.{native,byte}>: pkg_sexplib
 <src/main.{native,byte}>: pkg_sexplib.syntax
-<src/main.{native,byte}>: pkg_threads
 <src/main.{native,byte}>: pkg_uuidm
 <src/main.{native,byte}>: use_lvm
 <src/main.{native,byte}>: use_lvm_dummy
@@ -98,7 +94,6 @@ true: annot, bin_annot
 <src/*.ml{,i,y}>: pkg_re.str
 <src/*.ml{,i,y}>: pkg_sexplib
 <src/*.ml{,i,y}>: pkg_sexplib.syntax
-<src/*.ml{,i,y}>: pkg_threads
 <src/*.ml{,i,y}>: pkg_uuidm
 <src/*.ml{,i,y}>: use_lvm
 <src/*.ml{,i,y}>: use_lvm_dummy
@@ -112,7 +107,6 @@ true: annot, bin_annot
 <lib_test/tag_test.{native,byte}>: pkg_re.str
 <lib_test/tag_test.{native,byte}>: pkg_sexplib
 <lib_test/tag_test.{native,byte}>: pkg_sexplib.syntax
-<lib_test/tag_test.{native,byte}>: pkg_threads
 <lib_test/tag_test.{native,byte}>: pkg_uuidm
 <lib_test/tag_test.{native,byte}>: use_lvm
 <lib_test/tag_test.{native,byte}>: custom
@@ -128,7 +122,6 @@ true: annot, bin_annot
 <lib_test/vg_test.{native,byte}>: pkg_re.str
 <lib_test/vg_test.{native,byte}>: pkg_sexplib
 <lib_test/vg_test.{native,byte}>: pkg_sexplib.syntax
-<lib_test/vg_test.{native,byte}>: pkg_threads
 <lib_test/vg_test.{native,byte}>: pkg_uuidm
 <lib_test/vg_test.{native,byte}>: use_lvm
 <lib_test/vg_test.{native,byte}>: use_lvm_dummy
@@ -149,7 +142,6 @@ true: annot, bin_annot
 <lib_test/allocator_test.{native,byte}>: pkg_re.str
 <lib_test/allocator_test.{native,byte}>: pkg_sexplib
 <lib_test/allocator_test.{native,byte}>: pkg_sexplib.syntax
-<lib_test/allocator_test.{native,byte}>: pkg_threads
 <lib_test/allocator_test.{native,byte}>: pkg_uuidm
 <lib_test/allocator_test.{native,byte}>: use_lvm
 <lib_test/*.ml{,i,y}>: pkg_cstruct
@@ -159,7 +151,6 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: pkg_re.str
 <lib_test/*.ml{,i,y}>: pkg_sexplib
 <lib_test/*.ml{,i,y}>: pkg_sexplib.syntax
-<lib_test/*.ml{,i,y}>: pkg_threads
 <lib_test/*.ml{,i,y}>: pkg_uuidm
 <lib_test/*.ml{,i,y}>: use_lvm
 <lib_test/allocator_test.{native,byte}>: custom
