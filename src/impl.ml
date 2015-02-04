@@ -140,7 +140,7 @@ let update_vg common filename f =
     let filename = require "filename" filename in
     let t =
       Vg_IO.read [ filename ] >>|= fun vg ->
-      f vg >>*= fun vg ->
+      f vg >>*= fun (vg,_) ->
       Vg_IO.write vg >>|= fun _ ->
       return () in
     Lwt_main.run t;

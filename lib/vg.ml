@@ -51,7 +51,6 @@ type t = {
   lvs : Lv.t list;
   free_space : Pv.Allocator.t;
   (* XXX: hook in the redo log *)
-  ops : sequenced_op list;
 } with sexp
   
 let marshal vg b =
@@ -85,10 +84,10 @@ let marshal vg b =
 (* METADATA CHANGING OPERATIONS                              *)
 (*************************************************************)
 
-let do_op vg op : (t, string) Result.result =
-  ( if vg.seqno <> op.so_seqno
-    then fail (Printf.sprintf "VG: cannot perform operation out-of-order: expected %d, actual %d" vg.seqno op.so_seqno)
-    else return () ) >>= fun () ->
+type op = Redo.Op.t
+
+let do_op vg op : (t * op, string) Result.result =
+  let open Redo.Op in
   let rec createsegs acc ss s_start_extent = match ss with
   | a::ss ->
     let start_extent = Pv.Allocator.get_start a in
@@ -102,13 +101,12 @@ let do_op vg op : (t, string) Result.result =
     match lv with
     | [lv] -> fn lv others
     | _ -> fail (Printf.sprintf "VG: unknown LV %s" lv_name) in
-  let vg = {vg with seqno = vg.seqno + 1; ops=op::vg.ops} in
-  match op.so_op with
+  match op with
   | LvCreate (name,l) ->
     let new_free_space = Pv.Allocator.sub vg.free_space l.lvc_segments in
     let segments = Lv.Segment.sort (createsegs [] l.lvc_segments 0L) in
     let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Visible]; segments }) in
-    return {vg with lvs = lv::vg.lvs; free_space = new_free_space}
+    return ({vg with lvs = lv::vg.lvs; free_space = new_free_space},op)
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
       let old_size = Lv.size_in_extents lv in
@@ -116,31 +114,31 @@ let do_op vg op : (t, string) Result.result =
       let segments = createsegs [] l.lvex_segments old_size in
       let segments = Lv.Segment.sort (segments @ lv.Lv.segments) in
       let lv = {lv with Lv.segments} in
-      return {vg with lvs = lv::others; free_space=free_space} )
+      return ({vg with lvs = lv::others; free_space=free_space},op))
   | LvReduce (name,l) ->
     change_lv name (fun lv others ->
       let allocation = Lv.to_allocation lv in
       Lv.reduce_size_to lv l.lvrd_new_extent_count >>= fun lv ->
       let new_allocation = Lv.to_allocation lv in
       let free_space = Pv.Allocator.sub (Pv.Allocator.merge vg.free_space allocation) new_allocation in
-      return {vg with lvs = lv::others; free_space})
+      return ({vg with lvs = lv::others; free_space},op))
   | LvRemove name ->
     change_lv name (fun lv others ->
       let allocation = Lv.to_allocation lv in
-      return {vg with lvs = others; free_space = Pv.Allocator.merge vg.free_space allocation })
+      return ({vg with lvs = others; free_space = Pv.Allocator.merge vg.free_space allocation },op))
   | LvRename (name,l) ->
     change_lv name (fun lv others ->
-      return {vg with lvs = {lv with Lv.name=l.lvmv_new_name}::others })
+      return ({vg with lvs = {lv with Lv.name=l.lvmv_new_name}::others },op))
   | LvAddTag (name, tag) ->
     change_lv name (fun lv others ->
       let tags = lv.Lv.tags in
       let lv' = {lv with Lv.tags = if List.mem tag tags then tags else tag::tags} in
-      return {vg with lvs = lv'::others})
+      return ({vg with lvs = lv'::others},op))
   | LvRemoveTag (name, tag) ->
     change_lv name (fun lv others ->
       let tags = lv.Lv.tags in
       let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
-      return {vg with lvs = lv'::others})
+      return ({vg with lvs = lv'::others},op))
 
 (* Convert from bytes to extents, rounding up *)
 let bytes_to_extents bytes vg =
@@ -155,12 +153,12 @@ let create vg name size =
   else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
     let lvc_id = Uuid.create () in
-    do_op vg {so_seqno=vg.seqno; so_op=LvCreate (name,{lvc_id; lvc_segments})}
+    do_op vg Redo.Op.(LvCreate (name,{lvc_id; lvc_segments}))
   | `Error free ->
     `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" size free)
 
 let rename vg old_name new_name =
-  do_op vg {so_seqno=vg.seqno; so_op=LvRename (old_name,{lvmv_new_name=new_name})}
+  do_op vg Redo.Op.(LvRename (old_name,{lvmv_new_name=new_name}))
 
 let resize vg name new_size =
   let new_size = bytes_to_extents new_size vg in
@@ -171,22 +169,22 @@ let resize vg name new_size =
         let to_allocate = Int64.sub new_size current_size in
 	if to_allocate > 0L then match Pv.Allocator.find vg.free_space to_allocate with
         | `Ok lvex_segments ->
-	  return (LvExpand (name,{lvex_segments}))
+	  return Redo.Op.(LvExpand (name,{lvex_segments}))
         | `Error free ->
           `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" to_allocate free)
 	else
-	  return (LvReduce (name,{lvrd_new_extent_count=new_size}))
+	  return Redo.Op.(LvReduce (name,{lvrd_new_extent_count=new_size}))
     | _ -> fail (Printf.sprintf "Can't find LV %s" name) ) >>= fun op ->
-  do_op vg {so_seqno=vg.seqno; so_op=op}
+  do_op vg op
 
 let remove vg name =
-  do_op vg {so_seqno=vg.seqno; so_op=LvRemove name}
+  do_op vg Redo.Op.(LvRemove name)
 
 let add_tag vg name tag =
-  do_op vg {so_seqno = vg.seqno; so_op = LvAddTag (name, tag)}
+  do_op vg Redo.Op.(LvAddTag (name, tag))
 
 let remove_tag vg name tag =
-  do_op vg {so_seqno = vg.seqno; so_op = LvRemoveTag (name, tag)}
+  do_op vg Redo.Op.(LvRemoveTag (name, tag))
 
 module Make(DISK: S.DISK) = struct
 
@@ -261,8 +259,7 @@ let of_metadata config =
     let lv_allocations = Lv.to_allocation lv in
     debug "Allocations for lv %s: %s" lv.Lv.name (Pv.Allocator.to_string lv_allocations);
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
-  let ops = [] in
-  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; ops } in
+  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
   return vg
 
 let parse buf =
@@ -282,7 +279,7 @@ let format name devices_and_names =
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
-    lvs=[]; free_space; ops=[]; } in
+    lvs=[]; free_space; } in
   write vg >>= fun _ ->
   debug "VG created";
   return ()

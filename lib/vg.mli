@@ -35,7 +35,6 @@ type t = {
   pvs : Pv.t list;              (** physical volumes *)
   lvs : Lv.t list;              (** logical volumes *)
   free_space : Pv.Allocator.t;  (** free space in physical volumes, which can be used for logical volumes *)
-  ops : Redo.sequenced_op list; (** a list of uncommitted operations *)
 }
 (** A volume group *)
 
@@ -46,6 +45,7 @@ include S.VOLUME
   and type name := string
   and type tag := Tag.t
   and type size := int64
+  and type op := Redo.Op.t
 
 module Make : functor(DISK: S.DISK) -> sig
 
