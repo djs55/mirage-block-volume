@@ -70,19 +70,19 @@ let to_targets vg lv =
 
 let dash = Re_str.regexp_string "-"
 
-let dm_name_of vg lv =
+let name_of vg lv =
   let vgname = String.concat "--" (Re_str.split_delim dash vg.name) in
   let lvname = String.concat "--" (Re_str.split_delim dash lv.Lv.name) in
   Printf.sprintf "%s-%s" vgname lvname
 
 let dev_path_of vg lv =
   if !dummy_mode then begin
-    let fname = Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) (dm_name_of vg lv) in
+    let fname = Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) (name_of vg lv) in
     let dirname = Filename.dirname fname in
     mkdir_p dirname;
     fname
   end else
-    Printf.sprintf "/dev/mapper/%s" (dm_name_of vg lv)
+    Printf.sprintf "/dev/mapper/%s" (name_of vg lv)
 
 let dev_path_of_dm_name dm_name =
   if !dummy_mode then
