@@ -26,7 +26,7 @@ let rec mkdir_p x =
     if not(Sys.file_exists parent) then mkdir_p parent;
     Unix.mkdir x 0o0755
 
-let dm_map_of_lv vg lv =
+let to_targets vg lv =
   let segments = Lv.Segment.sort lv.Lv.segments in
 
   (* Sanity check - make sure the segments are logically contiguous *)
@@ -66,7 +66,7 @@ let dm_map_of_lv vg lv =
       | _ -> []
   in
 
-  Array.of_list (construct_dm_map segments)
+  construct_dm_map segments
 
 let dash = Re_str.regexp_string "-"
 

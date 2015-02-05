@@ -17,3 +17,7 @@ val dm_name_of: Vg.t -> Lv.t -> string
 (** [dm_name_of vg lv] returns the conventional name used for a device mapper
     device corresponding to [lv]. Device mapper devices are arbitrary but this
     is the naming convention that LVM uses. *)
+
+val to_targets: Vg.t -> Lv.t -> Devmapper.Target.t list
+(** [to_targets vg lv] returns the device mapper targets needed to access
+    the data stored within [lv] *)
