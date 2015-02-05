@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Lvm
 open Logging
 open Vg
 
@@ -26,7 +26,7 @@ let rec mkdir_p x =
     if not(Sys.file_exists parent) then mkdir_p parent;
     Unix.mkdir x 0o0755
 
-let dm_map_of_lv vg lv use_pv_id =
+let to_targets vg lv =
   let segments = Lv.Segment.sort lv.Lv.segments in
 
   (* Sanity check - make sure the segments are logically contiguous *)
@@ -46,53 +46,51 @@ let dm_map_of_lv vg lv use_pv_id =
   test 0L segments;
 
   let rec construct_dm_map segs =
+    let open Devmapper in
     match segs with
       | s::ss ->
           let start = extent_to_sector s.Lv.Segment.start_extent in
-          let len = extent_to_sector s.Lv.Segment.extent_count in
-          { Camldm.start=start;
-            len = len;
-            map =
+          let size = extent_to_sector s.Lv.Segment.extent_count in
+          { Target.start;
+            size;
+            kind =
               match s.Lv.Segment.cls with
                 | Lv.Segment.Linear l ->
                     let pv = List.find (fun pv -> pv.Pv.name=l.Lv.Linear.name) vg.pvs in
-                    Camldm.Linear {
-                      Camldm.device =
-                        if use_pv_id
-                        then Camldm.Dereferenced (Uuid.to_string pv.Pv.label.Label.pv_header.Label.Pv_header.id)
-                        else Camldm.Real pv.Pv.stored_device;
-                      offset=extent_to_phys_sector pv l.Lv.Linear.start_extent }
+                    Target.Linear {
+                      Location.device = Location.Path pv.Pv.stored_device;
+                      offset = extent_to_phys_sector pv l.Lv.Linear.start_extent }
                 | Lv.Segment.Striped st ->
                     failwith "Not implemented"
           }::construct_dm_map ss
       | _ -> []
   in
 
-  Array.of_list (construct_dm_map segments)
+  construct_dm_map segments
 
 let dash = Re_str.regexp_string "-"
 
-let dm_name_of vg lv =
+let name_of vg lv =
   let vgname = String.concat "--" (Re_str.split_delim dash vg.name) in
   let lvname = String.concat "--" (Re_str.split_delim dash lv.Lv.name) in
   Printf.sprintf "%s-%s" vgname lvname
 
 let dev_path_of vg lv =
   if !dummy_mode then begin
-    let fname = Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) (dm_name_of vg lv) in
+    let fname = Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) (name_of vg lv) in
     let dirname = Filename.dirname fname in
     mkdir_p dirname;
     fname
   end else
-    Printf.sprintf "/dev/mapper/%s" (dm_name_of vg lv)
+    Printf.sprintf "/dev/mapper/%s" (name_of vg lv)
 
 let dev_path_of_dm_name dm_name =
   if !dummy_mode then
     Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) dm_name
   else
     Printf.sprintf "/dev/mapper/%s" dm_name
-
-let lv_activate_internal name dm_map dereference_table use_tmp dev =
+(*
+let lv_activate_internal name dm_map use_tmp dev =
   let realname = if use_tmp then Uuidm.to_string (Uuidm.create `V4) else name in
   let nod = dev_path_of_dm_name realname in
   debug "Using dm_name=%s (use_tmp=%b)" realname use_tmp;
@@ -126,7 +124,7 @@ let lv_activate vg lv =
   let name = dm_name_of vg lv in
   let dm_map = dm_map_of_lv vg lv false in
   let dev = (List.hd vg.pvs).Pv.stored_device in
-  fst (lv_activate_internal name dm_map [] false dev)
+  fst (lv_activate_internal name dm_map false dev)
 
 let lv_deactivate_internal nod dm_name =
   let nod = match nod with None -> dev_path_of_dm_name dm_name | Some x -> x in
@@ -172,4 +170,4 @@ let get_absolute_pos_of_sector vg lv sector_num =
       (device,Int64.mul offset (Int64.of_int Constants.sector_size))
   in
   find 0 sector_num
-
+*)
