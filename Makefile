@@ -1,7 +1,6 @@
 include config.mk
 
-# OASIS_START
-# DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
+MAPPER ?= $(shell if ocamlfind query devmapper >/dev/null 2>&1; then echo --enable-mapper; fi)
 
 SETUP = ocaml setup.ml
 
@@ -24,6 +23,7 @@ uninstall: setup.data
 	$(SETUP) -uninstall $(UNINSTALLFLAGS)
 
 reinstall: setup.data
+	ocamlfind remove lvm
 	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
 clean:
@@ -33,14 +33,12 @@ distclean:
 	$(SETUP) -distclean $(DISTCLEANFLAGS)
 
 setup.data:
-	$(SETUP) -configure $(CONFIGUREFLAGS)
+	$(SETUP) -configure $(MAPPER)
 
 configure:
-	$(SETUP) -configure $(CONFIGUREFLAGS)
+	$(SETUP) -configure $(MAPPER)
 
 .PHONY: build doc test all install uninstall reinstall clean distclean configure
-
-# OASIS_STOP
 
 config.mk:
 	./configure

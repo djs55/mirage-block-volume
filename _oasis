@@ -40,6 +40,7 @@ Library lvm_mapper
   Modules: Mapper
   Findlibname: mapper
   Findlibparent: lvm
+  BuildDepends: lvm, devmapper
 
 Executable mlvm
   CompiledObject:     best
