@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8c499bbacaa5f548e63b682d5d7afae7)
+# DO NOT EDIT (digest: 3098c812c9d6c8760f4754c4e5ab54df)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -67,6 +67,15 @@ true: annot, bin_annot
 <dummy/*.ml{,i,y}>: use_lvm
 # Library lvm_mapper
 "mapper/lvm_mapper.cmxs": use_lvm_mapper
+<mapper/*.ml{,i,y}>: pkg_cstruct
+<mapper/*.ml{,i,y}>: pkg_devmapper
+<mapper/*.ml{,i,y}>: pkg_lwt
+<mapper/*.ml{,i,y}>: pkg_mirage-types
+<mapper/*.ml{,i,y}>: pkg_re.str
+<mapper/*.ml{,i,y}>: pkg_sexplib
+<mapper/*.ml{,i,y}>: pkg_sexplib.syntax
+<mapper/*.ml{,i,y}>: pkg_uuidm
+<mapper/*.ml{,i,y}>: use_lvm
 # Executable mlvm
 <src/main.{native,byte}>: pkg_cmdliner
 <src/main.{native,byte}>: pkg_cstruct

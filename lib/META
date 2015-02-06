@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 762c39318da030d4e56a174020109ada)
+# DO NOT EDIT (digest: 2f5df6ec97ae97a6eeef420fbcf4af6e)
 version = "0.1"
 description = "Pure OCaml volume manager, compatible with Linux LVM"
 requires = "sexplib.syntax sexplib uuidm re.str cstruct mirage-types lwt"
@@ -22,6 +22,7 @@ package "mirage" (
 package "mapper" (
  version = "0.1"
  description = "Pure OCaml volume manager, compatible with Linux LVM"
+ requires = "lvm devmapper"
  archive(byte) = "lvm_mapper.cma"
  archive(byte, plugin) = "lvm_mapper.cma"
  archive(native) = "lvm_mapper.cmxa"
