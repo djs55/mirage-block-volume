@@ -107,37 +107,33 @@ let contained : area -> area -> bool =
 	let (name2, (start2, size2)) = unpack_area a2 in
 	name=name2 && start >= start2 && Int64.add start size <= Int64.add start2 size2
 
-exception PVS_DONT_MATCH of name * name
+let normalize areas =
+    (* Merge adjacent extents by folding over them in order *)
+    let normalise pairs =
+      match List.sort (fun a b -> compare (fst a) (fst b)) pairs with
+      | [] -> []
+      | p :: ps ->
+        let last, pairs =
+          List.fold_left (fun ((merge_start, merge_size), acc) (next_start, next_size) ->
+            let merge_end = Int64.(add merge_start merge_size)
+            and next_end  = Int64.(add next_start  next_size) in
+            if next_start > merge_end
+            then ((next_start, next_size), (merge_start, merge_size) :: acc)
+            else ((merge_start, Int64.(sub (max merge_end next_end) merge_start)), acc)
+          ) (p, []) ps in
+        last :: pairs in
 
-(* assumes all areas stem from the same pv *)
-let normalize_single_pv areas =
-    (* Underlying structure for merge1: foldM merge1 (for a1) on WriterMonad (for acc) over segs *)
-    (* The type of the accumulator here is a bit ugly.  Perhaps a real non-empty list would be better? *)
-    let merge1 (a1, acc) a2 =
-	let (name, (start1, size1)) = unpack_area a1
-	and (name2, (start2, size2)) = unpack_area a2 in
-	if (name <> name2) then raise (PVS_DONT_MATCH(name, name2))
-	else if (Int64.add start1 size1) = start2 then
-	    (make_area name start1 (Int64.add size1 size2), acc)
-	else
-	    (a2, a1 :: acc) in
-    (function
-	 | start::segs -> 
-	       (uncurry cons) $ List.fold_left merge1 (start, []) segs
-	 | [] -> [] (* shouldn't be necessary! *))
-    ++ List.sort (on compare get_start) ++ List.filter ((<) 0L ++ get_size) $ areas
-let normalize : t -> t = 
-    fun areas ->
-    (* The next lines are to be read backwards, since we defined function composition that way. *)
+    let module M = Map.Make(Name) in
+    (* This would probably be a better structure to store the data in, rather than
+       a jumbled list *)
+    let by_name =
+      List.fold_left (fun acc (name, e) ->
+        M.add name (if M.mem name acc then e :: M.find name acc else [e]) acc
+      ) M.empty areas in
 
-    let module NameMap = Mapext.Make (Name) in
-    (* put free areas of all PVs back together *)
-    List.flatten ++ NameMap.values
-	(* normalize each pv's areas *)
-    ++ NameMap.map normalize_single_pv
-	(* separate by pv *)
-    ++ NameMap.fromListWith List.append ++ List.map (fun seg -> (get_name seg, [seg]))
-	$ areas
+    let by_name = M.map normalise by_name in
+
+    M.fold (fun name pairs acc -> List.map (fun p -> name, p) pairs @ acc) by_name []
 
 (* Which invariants does t have to satisfy?  Which invariants does our
    result here satisfy?
