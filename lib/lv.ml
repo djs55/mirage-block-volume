@@ -110,6 +110,17 @@ module Segment = struct
 		    (name,(start,allocated_extents)))
 	  (st.Stripe.stripes)
 
+  let linear s_start_extent ss =
+    let rec loop acc ss s_start_extent = match ss with
+    | a::ss ->
+      let start_extent = Pv.Allocator.get_start a in
+      let extent_count = Pv.Allocator.get_size a in
+      let name = Pv.Allocator.get_name a in
+      let cls = Linear { Linear.name; start_extent; } in
+      loop ({ start_extent; cls; extent_count } :: acc) ss  (Int64.add start_extent extent_count)
+    | [] -> List.rev acc in
+    loop [] ss s_start_extent
+
 end
 
 type t = {

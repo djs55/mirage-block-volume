@@ -55,6 +55,10 @@ module Segment : sig
 
   val to_allocation: t -> (string * (int64 * int64)) list
   (** Compute the physical extents occupied by the storage *)
+
+  val linear: int64 -> Pv.Allocator.t -> t list
+  (** [create segment space] creates segments mapping from
+      [segment] linearly covering all the [space] *)
 end
 
 type t = {
