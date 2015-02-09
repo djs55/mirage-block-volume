@@ -45,7 +45,11 @@ module Op = struct
   with sexp
 
   let of_cstruct x =
-    Cstruct.to_string x |> Sexplib.Sexp.of_string |> t_of_sexp
+    try
+      Some (Cstruct.to_string x |> Sexplib.Sexp.of_string |> t_of_sexp)
+    with _ -> 
+      None
+
   let to_cstruct t =
     let s = sexp_of_t t |> Sexplib.Sexp.to_string in
     let c = Cstruct.create (String.length s) in
