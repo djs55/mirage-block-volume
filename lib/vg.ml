@@ -86,16 +86,17 @@ let marshal vg b =
 
 type op = Redo.Op.t
 
+let rec createsegs acc ss s_start_extent = match ss with
+| a::ss ->
+  let start_extent = Pv.Allocator.get_start a in
+  let extent_count = Pv.Allocator.get_size a in
+  let name = Pv.Allocator.get_name a in
+  let cls = Lv.Segment.Linear { Lv.Linear.name; start_extent; } in
+  createsegs ({ Lv.Segment.start_extent; cls; extent_count } :: acc) ss  (Int64.add start_extent extent_count)
+| [] -> List.rev acc
+
 let do_op vg op : (t * op, string) Result.result =
   let open Redo.Op in
-  let rec createsegs acc ss s_start_extent = match ss with
-  | a::ss ->
-    let start_extent = Pv.Allocator.get_start a in
-    let extent_count = Pv.Allocator.get_size a in
-    let name = Pv.Allocator.get_name a in
-    let cls = Lv.Segment.Linear { Lv.Linear.name; start_extent; } in
-    createsegs ({ Lv.Segment.start_extent; cls; extent_count } :: acc) ss  (Int64.add start_extent extent_count)
-  | [] -> List.rev acc in	
   let change_lv lv_name fn =
     let lv,others = List.partition (fun lv -> lv.Lv.name=lv_name) vg.lvs in
     match lv with
@@ -109,10 +110,22 @@ let do_op vg op : (t * op, string) Result.result =
     return ({vg with lvs = lv::vg.lvs; free_space = new_free_space},op)
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
-      let old_size = Lv.size_in_extents lv in
-      let free_space = Pv.Allocator.sub vg.free_space l.lvex_segments in
-      let segments = createsegs [] l.lvex_segments old_size in
-      let segments = Lv.Segment.sort (segments @ lv.Lv.segments) in
+      (* Compute the new physical extents, remove from free space *)
+      let extents = List.fold_left (fun acc x ->
+        Pv.Allocator.merge acc (Lv.Segment.to_allocation x)
+      ) [] l.lvex_segments in
+      let free_space = Pv.Allocator.sub vg.free_space extents in
+      (* This operation is idempotent so we assume that segments may be
+         duplicated. We remove the duplicates here. *)
+      let segments =
+           Lv.Segment.sort (l.lvex_segments @ lv.Lv.segments)
+        |> List.fold_left (fun (last_start, acc) segment ->
+             (* Check if the segments are identical *)
+             if segment.Lv.Segment.start_extent = last_start
+             then last_start, acc
+             else segment.Lv.Segment.start_extent, segment :: acc
+           ) (-1L, [])
+        |> snd in
       let lv = {lv with Lv.segments} in
       return ({vg with lvs = lv::others; free_space=free_space},op))
   | LvReduce (name,l) ->
@@ -168,8 +181,9 @@ let resize vg name new_size =
 	let current_size = Lv.size_in_extents lv in
         let to_allocate = Int64.sub new_size current_size in
 	if to_allocate > 0L then match Pv.Allocator.find vg.free_space to_allocate with
-        | `Ok lvex_segments ->
-	  return Redo.Op.(LvExpand (name,{lvex_segments}))
+        | `Ok extents ->
+           let lvex_segments = createsegs [] extents current_size in
+	   return Redo.Op.(LvExpand (name,{lvex_segments}))
         | `Error free ->
           `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" to_allocate free)
 	else

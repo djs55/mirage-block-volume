@@ -54,6 +54,7 @@ module Segment : sig
   val sort: t list -> t list
 
   val to_allocation: t -> (string * (int64 * int64)) list
+  (** Compute the physical extents occupied by the storage *)
 end
 
 type t = {
