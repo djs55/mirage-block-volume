@@ -38,6 +38,9 @@ type t = {
 }
 (** A volume group *)
 
+val do_op: t -> Redo.Op.t -> (t * Redo.Op.t, string) Result.result
+(** [do_op t op] performs [op], returning the modified volume group [t] *)
+
 include S.SEXPABLE with type t := t
 include S.MARSHAL with type t := t
 include S.VOLUME

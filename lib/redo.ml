@@ -30,7 +30,7 @@ module Op = struct
   }
 
   and lvexpand_t = {
-    lvex_segments : Pv.Allocator.t;
+    lvex_segments : Lv.Segment.t list;
   } with sexp
 
   (** First string corresponds to the name of the LV. *)

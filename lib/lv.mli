@@ -54,6 +54,11 @@ module Segment : sig
   val sort: t list -> t list
 
   val to_allocation: t -> (string * (int64 * int64)) list
+  (** Compute the physical extents occupied by the storage *)
+
+  val linear: int64 -> Pv.Allocator.t -> t list
+  (** [create segment space] creates segments mapping from
+      [segment] linearly covering all the [space] *)
 end
 
 type t = {
@@ -61,6 +66,8 @@ type t = {
   id : Uuid.t;               (** arbitrary unique id *)
   tags : Tag.t list;         (** tags given by the user *)
   status : Status.t list;    (** status flags *)
+  (* TODO: this must be written in ascending order of start_extent.
+     Should we convert this into a Map? *)
   segments : Segment.t list; (** an ordered list of blocks ('segments') *)
 } with sexp
 (** a logical volume within a volume group *)
