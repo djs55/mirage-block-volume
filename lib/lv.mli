@@ -11,12 +11,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
+open Sexplib.Std
 
 module Status : sig
   type t = 
     | Read
     | Write
     | Visible
+  with sexp
 
   include S.PRINT with type t := t
 
@@ -27,26 +29,27 @@ module Stripe : sig
   type t = {
     size_in_sectors : int64;
     stripes : (string * int64) list; (** Pv.name * start extent *)
-  }
+  } with sexp
 end
 
 module Linear : sig
   type t = {
     name : string; (** Pv.name *)
     start_extent : int64;
-  }
+  } with sexp
 end
 
 module Segment : sig
   type cls = 
     | Linear of Linear.t
     | Striped of Stripe.t
+  with sexp
 
   type t = {
     start_extent : int64; 
     extent_count : int64;
     cls : cls;
-  }
+  } with sexp
 
   val sort: t list -> t list
 
@@ -59,7 +62,7 @@ type t = {
   tags : Tag.t list;         (** tags given by the user *)
   status : Status.t list;    (** status flags *)
   segments : Segment.t list; (** an ordered list of blocks ('segments') *)
-}
+} with sexp
 (** a logical volume within a volume group *)
 
 include S.SEXPABLE with type t := t
