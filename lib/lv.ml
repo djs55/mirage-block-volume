@@ -117,7 +117,7 @@ module Segment = struct
       let extent_count = Pv.Allocator.get_size a in
       let name = Pv.Allocator.get_name a in
       let cls = Linear { Linear.name; start_extent; } in
-      loop ({ start_extent; cls; extent_count } :: acc) ss  (Int64.add start_extent extent_count)
+      loop ({ start_extent = s_start_extent; cls; extent_count } :: acc) ss  (Int64.add s_start_extent extent_count)
     | [] -> List.rev acc in
     loop [] ss s_start_extent
 
