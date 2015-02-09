@@ -116,7 +116,8 @@ let do_op vg op : (t * op, string) Result.result =
              then last_start, acc
              else segment.Lv.Segment.start_extent, segment :: acc
            ) (-1L, [])
-        |> snd in
+        |> snd
+        |> List.rev in
       let lv = {lv with Lv.segments} in
       return ({vg with lvs = lv::others; free_space=free_space},op))
   | LvReduce (name,l) ->

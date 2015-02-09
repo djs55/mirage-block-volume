@@ -66,6 +66,8 @@ type t = {
   id : Uuid.t;               (** arbitrary unique id *)
   tags : Tag.t list;         (** tags given by the user *)
   status : Status.t list;    (** status flags *)
+  (* TODO: this must be written in ascending order of start_extent.
+     Should we convert this into a Map? *)
   segments : Segment.t list; (** an ordered list of blocks ('segments') *)
 } with sexp
 (** a logical volume within a volume group *)
