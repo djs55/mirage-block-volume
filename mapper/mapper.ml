@@ -75,6 +75,17 @@ let name_of vg lv =
   let lvname = String.concat "--" (Re_str.split_delim dash lv.Lv.name) in
   Printf.sprintf "%s-%s" vgname lvname
 
+let single_dash = Re_str.regexp "[^-]-[^-]"
+let double_dash = Re_str.regexp_string "--"
+
+let vg_lv_of_name path =
+  let name = Filename.basename path in
+  let dash_idx = Re_str.search_forward single_dash name 0 + 1 in
+  let vgname = String.sub name 0 dash_idx in
+  let lvname = String.sub name (dash_idx + 1) (String.length name - dash_idx - 1) in
+  let unescape x = String.concat "-" (Re_str.split_delim double_dash x) in
+  unescape vgname, unescape lvname
+
 let dev_path_of vg lv =
   if !dummy_mode then begin
     let fname = Printf.sprintf "%s/%s/%s" (!dummy_base) (!Constants.mapper_name) (name_of vg lv) in
