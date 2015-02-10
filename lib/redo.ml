@@ -29,6 +29,10 @@ module Op = struct
     lvrd_new_extent_count : int64;
   }
 
+  and lvcrop_t = {
+    lvc_segments: Lv.Segment.t list;
+  }
+
   and lvexpand_t = {
     lvex_segments : Lv.Segment.t list;
   } with sexp
@@ -37,6 +41,7 @@ module Op = struct
   type t =
     | LvCreate of string * lvcreate_t
     | LvReduce of string * lvreduce_t
+    | LvCrop   of string * lvcrop_t
     | LvExpand of string * lvexpand_t
     | LvRename of string * lvrename_t
     | LvRemove of string
