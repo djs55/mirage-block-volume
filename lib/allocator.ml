@@ -135,25 +135,12 @@ let normalize areas =
 
     M.fold (fun name pairs acc -> List.map (fun p -> name, p) pairs @ acc) by_name []
 
-(* Which invariants does t have to satisfy?  Which invariants does our
-   result here satisfy?
-
-   E.g. is it possible for areas to overlap or contain each other?  If not, should we warn if they do?
-
-   t is a free list.
-
-   What if there's no containing area? Is this only called under certain circumstances? Verify. *)
-exception NonSingular_Containing_Area
 let alloc_specified_area (free_list : t) (a : area) =
     if get_size a = 0L
     then free_list
     else
-    (* We assume areas don't overlap, or do we? *)
-    (* Match against [] instead of _: Better die as soon as possible, when something is wrong. 
-     * And that was right!  Just caught a bug that would have been masked otherwise. *)
-    match List.partition (contained a) ++ normalize $ free_list with
-	| (containing_area::[]), other_areas -> normalize $ combine (minus containing_area a) other_areas
-	| x,_ -> raise NonSingular_Containing_Area
+        let t = List.concat (List.map (fun x -> minus x a) free_list) in
+        normalize t
 
 let sub : t -> t -> t =
    List.fold_left alloc_specified_area
