@@ -97,7 +97,7 @@ let do_op vg op : (t * op, string) Result.result =
   | LvCreate (name,l) ->
     let new_free_space = Pv.Allocator.sub vg.free_space l.lvc_segments in
     let segments = Lv.Segment.sort (Lv.Segment.linear 0L l.lvc_segments) in
-    let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Visible]; segments }) in
+    let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Write; Status.Visible]; segments }) in
     return ({vg with lvs = lv::vg.lvs; free_space = new_free_space},op)
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
