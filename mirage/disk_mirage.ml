@@ -46,7 +46,7 @@ module Make(B: Block)(M: Memory) = struct
     B.connect device >>= fun device ->
     let open Lwt in
     B.get_info device >>= fun info ->
-    (* XXX: disconnect *)
+    B.disconnect device >>= fun () ->
     return (`Ok (Int64.(mul info.B.size_sectors (of_int info.B.sector_size))))
 
   let get _ device offset length =
@@ -64,7 +64,9 @@ module Make(B: Block)(M: Memory) = struct
     let buf : Cstruct.t = M.to_cstruct ba in
     let open IO in
     B.read device start_sector [ buf ] >>= fun () ->
-    (* XXX: disconnect on error *)
+    let open Lwt in
+    B.disconnect device >>= fun () ->
+    let open IO in
     return (`Ok (Cstruct.sub buf start_offset length))
 
   let put _ device offset buf =
@@ -84,6 +86,8 @@ module Make(B: Block)(M: Memory) = struct
     B.read device start_sector [ aligned_buf ] >>= fun () ->
     Cstruct.blit buf 0 aligned_buf start_offset (Cstruct.len buf);
     B.write device start_sector [ aligned_buf ] >>= fun () ->
-    (* XXX: disconnect on error *)
+    let open Lwt in
+    B.disconnect device >>= fun () ->
+    let open IO in
     return (`Ok ())
 end
