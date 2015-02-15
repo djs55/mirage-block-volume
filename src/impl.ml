@@ -96,13 +96,13 @@ let read common filename =
     | Failure x ->
       `Error(true, x)
 
-let format common filename vgname pvname =
+let format common filename vgname pvname journalled =
   let module Disk = (val apply common: S.DISK) in
   let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg_IO.format vgname [ filename, pvname ] >>|= fun () ->
+      Vg_IO.format vgname ~label:(if journalled then `Journalled else `Lvm) [ filename, pvname ] >>|= fun () ->
       return () in
     Lwt_main.run t;
     `Ok ()

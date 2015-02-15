@@ -68,7 +68,10 @@ let format_cmd =
   let pvname =
     let doc = "Name for the physical volume" in
     Arg.(value & opt string "physicalvolume" & info ["physical-volume-name"] ~doc) in
-  Term.(ret(pure Impl.format $ common_options_t $ filename $ vgname $ pvname)),
+  let journalled =
+    let doc = "Use the async journalled format" in
+    Arg.(value & flag & info [ "journalled" ] ~doc) in
+  Term.(ret(pure Impl.format $ common_options_t $ filename $ vgname $ pvname $ journalled)),
   Term.info "format" ~sdocs:_common_options ~doc ~man
 
 let lvname =
