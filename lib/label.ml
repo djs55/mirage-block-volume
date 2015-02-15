@@ -22,13 +22,16 @@ open IO
 let crc_pos = 8 + 8
 let do_crc_from = crc_pos + 4
 
+let label_type            = "LVM2 001"
+let journalled_label_type = "JOUR 001"
+
 module Label_header = struct
   type t = {
     id : string; (* 8 bytes, equal to label_id in Constants *)
     sector : int64;
     crc : int32;
     offset : int32;
-    ty : string (* 8 bytes, equal to "LVM2 001" - Constants.label_type*)
+    ty : string (* 8 bytes, equal to "LVM2 001" - label_type*)
   } with sexp
 
   let equals a b =
@@ -38,12 +41,12 @@ module Label_header = struct
     && (a.offset = b.offset)
     && (a.ty = b.ty)
 
-  let create () = {
+  let create magic = {
     id=Constants.label_id;
     sector=1L;
     crc=0l;
     offset=32l;
-    ty=Constants.label_type;
+    ty=(if magic = `Lvm then label_type else journalled_label_type);
   }
     
   let unmarshal b0 =
@@ -206,17 +209,14 @@ let get_pv_id label =
 let get_device label = 
   label.device
 
-let create device id size mda_start mda_size =
-  let label = Label_header.create () in
+let create device ?(magic = `Lvm) id size mda_start mda_size =
+  let label = Label_header.create magic in
   let pvh = Pv_header.create id size mda_start mda_size in
   { device = device;
     label_header = label;
     pv_header = pvh }
 
-let to_string label =
-  Printf.sprintf "Label header:\n%s\nPV Header:\n%s\n" 
-    (Label_header.to_string label.label_header)
-    (Pv_header.to_string label.pv_header)
+let to_string label = Sexplib.Sexp.to_string_hum (sexp_of_t label)
 
 module Make(DISK: S.DISK) = struct
 let read device =

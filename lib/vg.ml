@@ -282,12 +282,12 @@ let parse buf =
   let lexbuf = Lexing.from_string text in
   of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf)
 
-let format name devices_and_names =
+let format name ?(magic = `Lvm) devices_and_names =
   let open IO in
   let rec write_pv acc = function
     | [] -> return (List.rev acc)
     | (dev, name) :: pvs ->
-      Pv_IO.format dev name >>= fun pv ->
+      Pv_IO.format dev ~magic name >>= fun pv ->
       write_pv (pv :: acc) pvs in
   write_pv [] devices_and_names >>= fun pvs ->
   debug "PVs created";

@@ -40,8 +40,8 @@ include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 
 module Make : functor(DISK: S.DISK) -> sig
-  val format: string -> string -> t S.io
-  (** [format device name] initialises a physical volume on [device]
+  val format: string -> ?magic: Magic.t -> string -> t S.io
+  (** [format device ?kind name] initialises a physical volume on [device]
       with [name]. One metadata area will be created, 10 MiB in size,
       at a fixed location. Any existing metadata on this device will
       be destroyed. *)

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3098c812c9d6c8760f4754c4e5ab54df)
+# DO NOT EDIT (digest: 8e9e99c87ecea31f85fbb6456400188b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -36,6 +36,7 @@ true: annot, bin_annot
 "lib/tag.cmx": for-pack(Lvm)
 "lib/utils.cmx": for-pack(Lvm)
 "lib/vg.cmx": for-pack(Lvm)
+"lib/magic.cmx": for-pack(Lvm)
 <lib/*.ml{,i,y}>: pkg_cstruct
 <lib/*.ml{,i,y}>: pkg_lwt
 <lib/*.ml{,i,y}>: pkg_mirage-types
