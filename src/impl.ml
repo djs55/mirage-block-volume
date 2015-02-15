@@ -102,7 +102,7 @@ let format common filename vgname pvname journalled =
   try
     let filename = require "filename" filename in
     let t =
-      Vg_IO.format vgname ~label:(if journalled then `Journalled else `Lvm) [ filename, pvname ] >>|= fun () ->
+      Vg_IO.format vgname ~magic:(if journalled then `Journalled else `Lvm) [ filename, pvname ] >>|= fun () ->
       return () in
     Lwt_main.run t;
     `Ok ()

@@ -18,7 +18,7 @@
 module Label_header : sig
   type t
 
-  val create: unit -> t
+  val create: Magic.t -> t
 
   include S.MARSHAL with type t := t
   include S.UNMARSHAL with type t := t
@@ -56,7 +56,7 @@ type t = {
   pv_header : Pv_header.t;
 }
 
-val create: string -> Uuid.t -> int64 -> int64 -> int64 -> t
+val create: string -> ?magic:Magic.t -> Uuid.t -> int64 -> int64 -> int64 -> t
 
 include S.EQUALS with type t := t
 include S.PRINT with type t := t

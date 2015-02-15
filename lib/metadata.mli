@@ -41,8 +41,8 @@ module Header: sig
         or an error if any single one can't be read. *)
   end
 
-  val create: unit -> t
-  (** [create ()] returns an instance of [t] *)
+  val create: Magic.t -> t
+  (** [create magic] returns an instance of [t] *)
 end
 
 val default_start: int64

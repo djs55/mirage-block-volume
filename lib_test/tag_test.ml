@@ -38,7 +38,7 @@ let mda = "\186\233\186\158 LVM2 x[5A%r0N*>\001\000\000\000\000\016\000\000\000\
 
 let well_known_mdaheader () =
   let open Metadata.Header in
-  let empty = create () in
+  let empty = create `Lvm in
   let data = Cstruct.create sizeof in
   Utils.zero data;
   let _ = marshal empty data in
@@ -46,7 +46,7 @@ let well_known_mdaheader () =
 
 let unmarshal_marshal_mdaheader () =
   let open Metadata.Header in
-  let empty = create () in
+  let empty = create `Lvm in
   let data = Cstruct.create sizeof in
   Utils.zero data;
   let _ = marshal empty data in
@@ -66,7 +66,7 @@ let label_header = "LABELONE\001\000\000\000\000\000\000\000\000\000\000\000 \00
 let well_known_label_header () =
   let open Label.Label_header in
   let buf = Cstruct.create 512 in
-  let sector = marshal (create ()) buf in
+  let sector = marshal (create `Lvm) buf in
   Utils.zero sector;
   let label_header' = Cstruct.(to_string (sub buf 0 (String.length label_header))) in
   assert_equal label_header label_header'

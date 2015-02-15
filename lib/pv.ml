@@ -104,7 +104,7 @@ let read_metadata device =
   Metadata_IO.read device (List.hd mdahs) 0 >>= fun mdt ->
   return mdt
 
-let format real_device name =
+let format real_device ?(magic=`Lvm) name =
   let open IO in
   DISK.get_size real_device >>= fun size ->
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
@@ -117,8 +117,8 @@ let format real_device name =
   let pe_count = Int64.(div (sub size pe_start_byte) Constants.extent_size) in
   let mda_len = Int64.sub pe_start_byte mda_pos in
   let id=Uuid.create () in
-  let label = Label.create real_device id size mda_pos mda_len in
-  let mda_header = Metadata.Header.create () in
+  let label = Label.create real_device ~magic id size mda_pos mda_len in
+  let mda_header = Metadata.Header.create magic in
   Label_IO.write label >>= fun () ->
   Header_IO.write mda_header real_device >>= fun () ->
   return { name; id; stored_device = real_device; real_device; status=[Status.Allocatable];

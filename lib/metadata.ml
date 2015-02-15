@@ -37,7 +37,7 @@ module Header = struct
 
   and t = {
     mdah_checksum : int32;
-    mdah_magic : string;
+    mdah_magic : Magic.t;
     mdah_version : int32;
     mdah_start: int64;
     mdah_size: int64;
@@ -55,8 +55,10 @@ module Header = struct
     && (a.mdah_raw_locns = b.mdah_raw_locns)
 
   let unmarshal buf =
+    let open Result in
     let mdah_checksum = Cstruct.LE.get_uint32 buf 0 in
-    let mdah_magic = Cstruct.(to_string (sub buf 4 16)) in
+    Magic.unmarshal (Cstruct.sub buf 4 16)
+    >>= fun (mdah_magic, _) ->
     let mdah_version = Cstruct.LE.get_uint32 buf 20 in
     let mdah_start = Cstruct.LE.get_uint64 buf 24 in
     let mdah_size = Cstruct.LE.get_uint64 buf 32 in
@@ -76,13 +78,10 @@ module Header = struct
     then `Error (Printf.sprintf "Bad checksum in metadata area: expected %08lx, got %08lx" mdah_checksum crc)
     else `Ok ({mdah_checksum; mdah_magic; mdah_version; mdah_start; mdah_size; mdah_raw_locns}, b)
 
-  let to_string mdah =
-    let rl2ascii r = Printf.sprintf "{offset:%Ld,size:%Ld,checksum:%ld,filler:%ld}" r.mrl_offset r.mrl_size r.mrl_checksum r.mrl_filler in
-    Printf.sprintf "checksum: %ld\nmagic: %s\nversion: %ld\nstart: %Ld\nsize: %Ld\nraw_locns:[%s]\n"
-      mdah.mdah_checksum mdah.mdah_magic mdah.mdah_version mdah.mdah_start mdah.mdah_size (String.concat "," (List.map rl2ascii mdah.mdah_raw_locns))
+  let to_string mdah = Sexplib.Sexp.to_string_hum (sexp_of_t mdah)
 
   let marshal mdah buf =
-    Cstruct.blit_from_string mdah.mdah_magic 0 buf 4 16;
+    let _ = Magic.marshal mdah.mdah_magic (Cstruct.shift buf 4) in
     Cstruct.LE.set_uint32 buf 20 mdah.mdah_version;
     Cstruct.LE.set_uint64 buf 24 mdah.mdah_start;
     Cstruct.LE.set_uint64 buf 32 mdah.mdah_size;
@@ -125,7 +124,7 @@ module Header = struct
     DISK.put S.MDA_header device mdah.mdah_start sector
   end
 
-  let create () =
+  let create magic =
     let mda_raw_locn = {
       mrl_offset = 512L;
       mrl_size = 0L;
@@ -134,7 +133,7 @@ module Header = struct
     } in
     let mda_header = {
       mdah_checksum = 0l;
-      mdah_magic = Constants.fmtt_magic;
+      mdah_magic = magic;
       mdah_version = 1l;
       mdah_start = default_start;
       mdah_size = default_size;

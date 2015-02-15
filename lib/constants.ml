@@ -20,13 +20,9 @@ let label_size = sector_size
 let label_scan_sectors = 4
 let label_scan_size = label_scan_sectors * sector_size
 
-let label_type = "LVM2 001"
-
 let extent_size = Int64.mul 4096L 1024L
 let extent_size_minus_one = Int64.sub extent_size 1L
 let extent_size_in_sectors = Int64.div extent_size sector_sizeL
-
-let fmtt_magic = " LVM2 x[5A%r0N*>"
 
 let pe_align = 65536L
 

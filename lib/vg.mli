@@ -52,7 +52,7 @@ include S.VOLUME
 
 module Make : functor(DISK: S.DISK) -> sig
 
-  val format: string -> (string * string) list -> unit S.io
+  val format: string -> ?magic:Magic.t -> (string * string) list -> unit S.io
   (** [format name names_and_devices] initialises a new volume group
       with name [name], using physical volumes
       [names_and_devices = [ name1, device1; ...]] *)
