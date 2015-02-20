@@ -28,7 +28,7 @@ module Header: sig
   include S.UNMARSHAL with type t := t
   include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
-  module Make : functor(DISK: S.DISK) -> sig
+  module Make : functor(Block: S.BLOCK) -> sig
 
     val write: t -> string -> unit S.io
     (** [write t device] writes [t] to the [device] *)
@@ -51,7 +51,7 @@ val default_start: int64
 val default_size: int64
 (** Default length of the metadata area in bytes *)
 
-module Make : functor(DISK: S.DISK) -> sig
+module Make : functor(Block: S.BLOCK) -> sig
   val read: string -> Header.t -> int -> Cstruct.t S.io
 
   val write: string -> Header.t -> Cstruct.t -> Header.t S.io

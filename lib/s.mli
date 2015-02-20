@@ -38,21 +38,12 @@ module type SEXPABLE = sig
   val sexp_of_t: t -> Sexplib.Sexp.t
 end
 
-(* The data being read from or written to disk has a 'kind' *)
-type kind =
-  | Label      (** PV label *)
-  | MDA_header (** Metadata area header *)
-  | MD1        (** Metadata fragment 1 *)
-  | MD2        (** Metadata fragment 2 *)
-
 type 'a io = ('a, string) Result.result Lwt.t
 
-module type DISK = sig
-  val get_size: string -> int64 io
+module type BLOCK = sig
+  include V1_LWT.BLOCK
 
-  val get: kind -> string -> int64 -> int -> Cstruct.t io
-
-  val put: kind -> string -> int64 -> Cstruct.t -> unit io
+  val connect: string -> [ `Ok of t | `Error of error ] Lwt.t
 end
 
 module type VOLUME = sig

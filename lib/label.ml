@@ -218,10 +218,12 @@ let create device ?(magic = `Lvm) id size mda_start mda_size =
 
 let to_string label = Sexplib.Sexp.to_string_hum (sexp_of_t label)
 
-module Make(DISK: S.DISK) = struct
+module Make(Block: S.BLOCK) = struct
+module B = UnalignedBlock.Make(Block)
+
 let read device =
   let open IO in
-  DISK.get S.Label device 0L Constants.label_scan_size >>= fun buf ->
+  B.read device 0L Constants.label_scan_size >>= fun buf ->
   let open IO.FromResult in
   unmarshal buf >>= fun (t, _) ->
   let open IO in
@@ -233,5 +235,5 @@ let write t =
   let _ = marshal t buf in
   
   let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
-  DISK.put S.Label t.device pos buf
+  B.write t.device pos buf
 end

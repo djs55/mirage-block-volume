@@ -68,11 +68,12 @@ let to_string pv =
   Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
     (Label.to_string pv.label) mdah_ascii (Cstruct.(to_string (sub buf 0 buf'.Cstruct.off)))
 
-module Make(DISK: S.DISK) = struct
+module Make(Block: S.BLOCK) = struct
 
-module Label_IO = Label.Make(DISK)
-module Metadata_IO = Metadata.Make(DISK)
-module Header_IO = Metadata.Header.Make(DISK)
+module Label_IO = Label.Make(Block)
+module Metadata_IO = Metadata.Make(Block)
+module Header_IO = Metadata.Header.Make(Block)
+module B = UnalignedBlock.Make(Block)
 
 let read name config =
   let open IO.FromResult in
@@ -106,7 +107,7 @@ let read_metadata device =
 
 let format real_device ?(magic=`Lvm) name =
   let open IO in
-  DISK.get_size real_device >>= fun size ->
+  B.get_size real_device >>= fun size ->
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
   let size_in_sectors = Int64.div size (Int64.of_int Constants.sector_size) in
   let mda_pos = Metadata.default_start in

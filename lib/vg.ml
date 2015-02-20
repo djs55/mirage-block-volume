@@ -201,11 +201,11 @@ let add_tag vg name tag =
 let remove_tag vg name tag =
   do_op vg Redo.Op.(LvRemoveTag (name, tag))
 
-module Make(DISK: S.DISK) = struct
+module Make(Block: S.BLOCK) = struct
 
-module Pv_IO = Pv.Make(DISK)
-module Label_IO = Label.Make(DISK)
-module Metadata_IO = Metadata.Make(DISK)
+module Pv_IO = Pv.Make(Block)
+module Label_IO = Label.Make(Block)
+module Metadata_IO = Metadata.Make(Block)
 
 let write vg =
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
