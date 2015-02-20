@@ -28,13 +28,13 @@ end
 module Stripe : sig
   type t = {
     size_in_sectors : int64;
-    stripes : (string * int64) list; (** Pv.name * start extent *)
+    stripes : (Pv.Name.t * int64) list; (** Pv.name * start extent *)
   } with sexp
 end
 
 module Linear : sig
   type t = {
-    name : string; (** Pv.name *)
+    name : Pv.Name.t;
     start_extent : int64;
   } with sexp
 end
@@ -53,7 +53,7 @@ module Segment : sig
 
   val sort: t list -> t list
 
-  val to_allocation: t -> (string * (int64 * int64)) list
+  val to_allocation: t -> (Pv.Name.t * (int64 * int64)) list
   (** Compute the physical extents occupied by the storage *)
 
   val linear: int64 -> Pv.Allocator.t -> t list
@@ -77,7 +77,7 @@ include S.MARSHAL with type t := t
 
 val of_metadata: string -> (string * Absty.absty) list -> (t, string) Result.result
 
-val to_allocation: t -> (string * (int64 * int64)) list
+val to_allocation: t -> (Pv.Name.t * (int64 * int64)) list
 
 val size_in_extents: t -> int64
 

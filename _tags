@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9040ad829a9c048aae015968b1bb8a64)
+# DO NOT EDIT (digest: b9c67dc3dea549b8ccc6d4d4312c5841)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -111,32 +111,18 @@ true: annot, bin_annot
 <lib_test/vg_test.{native,byte}>: pkg_sexplib.syntax
 <lib_test/vg_test.{native,byte}>: pkg_uuidm
 <lib_test/vg_test.{native,byte}>: use_lvm
-<lib_test/*.ml{,i,y}>: pkg_mirage-block-unix
-<lib_test/*.ml{,i,y}>: pkg_oUnit
-<lib_test/vg_test.{native,byte}>: custom
-# Executable allocator_test
-<lib_test/allocator_test.{native,byte}>: pkg_cstruct
-<lib_test/allocator_test.{native,byte}>: pkg_io-page
-<lib_test/allocator_test.{native,byte}>: pkg_io-page.unix
-<lib_test/allocator_test.{native,byte}>: pkg_kaputt
-<lib_test/allocator_test.{native,byte}>: pkg_lwt
-<lib_test/allocator_test.{native,byte}>: pkg_mirage-types
-<lib_test/allocator_test.{native,byte}>: pkg_re.str
-<lib_test/allocator_test.{native,byte}>: pkg_sexplib
-<lib_test/allocator_test.{native,byte}>: pkg_sexplib.syntax
-<lib_test/allocator_test.{native,byte}>: pkg_uuidm
-<lib_test/allocator_test.{native,byte}>: use_lvm
 <lib_test/*.ml{,i,y}>: pkg_cstruct
 <lib_test/*.ml{,i,y}>: pkg_io-page
 <lib_test/*.ml{,i,y}>: pkg_io-page.unix
-<lib_test/*.ml{,i,y}>: pkg_kaputt
 <lib_test/*.ml{,i,y}>: pkg_lwt
+<lib_test/*.ml{,i,y}>: pkg_mirage-block-unix
 <lib_test/*.ml{,i,y}>: pkg_mirage-types
+<lib_test/*.ml{,i,y}>: pkg_oUnit
 <lib_test/*.ml{,i,y}>: pkg_re.str
 <lib_test/*.ml{,i,y}>: pkg_sexplib
 <lib_test/*.ml{,i,y}>: pkg_sexplib.syntax
 <lib_test/*.ml{,i,y}>: pkg_uuidm
 <lib_test/*.ml{,i,y}>: use_lvm
-<lib_test/allocator_test.{native,byte}>: custom
+<lib_test/vg_test.{native,byte}>: custom
 # OASIS_STOP
 <lib/*.ml{,i}>: syntax_camlp4o

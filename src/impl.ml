@@ -44,14 +44,14 @@ let table_of_pv_header prefix pvh = add_prefix prefix [
   [ "metadata_areas"; string_of_int (List.length pvh.Label.Pv_header.metadata_areas) ];
 ]
 
-let table_of_pv pv = add_prefix pv.Pv.name [
-  [ "name"; pv.Pv.name; ];
+let table_of_pv pv = add_prefix (Pv.Name.to_string pv.Pv.name) [
+  [ "name"; Pv.Name.to_string pv.Pv.name; ];
   [ "id"; Uuid.to_string pv.Pv.id; ];
   [ "status"; String.concat ", " (List.map Pv.Status.to_string pv.Pv.status) ];
   [ "size_in_sectors"; Int64.to_string pv.Pv.size_in_sectors ];
   [ "pe_start"; Int64.to_string pv.Pv.pe_start ];
   [ "pe_count"; Int64.to_string pv.Pv.pe_count; ]
-] @ (table_of_pv_header (pv.Pv.name ^ "/label") pv.Pv.label.Label.pv_header)
+] @ (table_of_pv_header (Pv.Name.to_string pv.Pv.name ^ "/label") pv.Pv.label.Label.pv_header)
 
 let table_of_lv lv = add_prefix lv.Lv.name [
   [ "name"; lv.Lv.name; ];
@@ -105,17 +105,21 @@ let format common filename vgname pvname journalled =
   let module Vg_IO = Vg.Make(Block) in
   try
     let filename = require "filename" filename in
-    let t =
-      with_block filename
-        (fun x ->
-          Vg_IO.format vgname ~magic:(if journalled then `Journalled else `Lvm) [ x, pvname ] >>|= fun () ->
-          return ()
-        ) in
-    Lwt_main.run t;
-    `Ok ()
+    begin match Pv.Name.of_string pvname with
+    | `Error x -> failwith x
+    | `Ok pvname ->
+      let t =
+        with_block filename
+          (fun x ->
+            Vg_IO.format vgname ~magic:(if journalled then `Journalled else `Lvm) [ x, pvname ] >>|= fun () ->
+            return ()
+          ) in
+      Lwt_main.run t;
+      `Ok ()
+    end
   with
-    | Failure x ->
-      `Error(true, x)
+  | Failure x ->
+    `Error(true, x)
 
 let map common filename lvname =
   apply common;
@@ -131,7 +135,7 @@ let map common filename lvname =
             Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
               (match seg.Lv.Segment.cls with
                | Lv.Segment.Linear x ->
-                 Printf.sprintf "from %s starting at %Ld" x.Lv.Linear.name x.Lv.Linear.start_extent
+                 Printf.sprintf "from %s starting at %Ld" (Pv.Name.to_string x.Lv.Linear.name) x.Lv.Linear.start_extent
                | Lv.Segment.Striped _ -> "striped")
           ) lv.Lv.segments;
           return ()
