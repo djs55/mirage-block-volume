@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: efd00626bad6b4e8eeeacde90062518c)
+# DO NOT EDIT (digest: 52930d4d679fa12e8a4dc561fc0e0563)
 version = "0.1"
 description = "Pure OCaml volume manager, compatible with Linux LVM"
 requires =
@@ -12,7 +12,7 @@ exists_if = "lvm.cma"
 package "mapper" (
  version = "0.1"
  description = "Pure OCaml volume manager, compatible with Linux LVM"
- requires = "lvm devmapper"
+ requires = "lvm devmapper mirage-block-unix"
  archive(byte) = "lvm_mapper.cma"
  archive(byte, plugin) = "lvm_mapper.cma"
  archive(native) = "lvm_mapper.cmxa"
