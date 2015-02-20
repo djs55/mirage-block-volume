@@ -40,11 +40,7 @@ end
 
 type 'a io = ('a, string) Result.result Lwt.t
 
-module type BLOCK = sig
-  include V1_LWT.BLOCK
-
-  val connect: string -> [ `Ok of t | `Error of error ] Lwt.t
-end
+module type BLOCK = V1_LWT.BLOCK
 
 module type VOLUME = sig
 
