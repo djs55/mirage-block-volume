@@ -50,8 +50,8 @@ module Make : functor(Block: S.BLOCK) -> sig
   (** [read_metadata device]: locates the metadata area on [device] and
       returns the volume group metadata. *)
 
-  val read: string -> (string * Absty.absty) list -> t S.io
-  (** [read name config] reads the information of physical volume [name]
+  val read: string -> string -> (string * Absty.absty) list -> t S.io
+  (** [read device name config] reads the information of physical volume [name]
       with configuration [config] read from the volume group metadata. *)
 end
 

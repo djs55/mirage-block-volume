@@ -227,10 +227,49 @@ let write vg =
   let vg = { vg with pvs } in
   return vg
 
-let of_metadata config =
+let format name ?(magic = `Lvm) devices_and_names =
+  let open IO in
+  let rec write_pv acc = function
+    | [] -> return (List.rev acc)
+    | (dev, name) :: pvs ->
+      Pv_IO.format dev ~magic name >>= fun pv ->
+      write_pv (pv :: acc) pvs in
+  write_pv [] devices_and_names >>= fun pvs ->
+  debug "PVs created";
+  let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
+  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
+    extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
+    lvs=[]; free_space; } in
+  write vg >>= fun _ ->
+  debug "VG created";
+  return ()
+
+open IO
+let read devices =
+  (* We need the uuid contained within the Pv_header to figure out
+     the mapping between PV and real device. Note we don't use the
+     device 'hint' within the metadata itself. *)
+  IO.FromResult.all (Lwt_list.map_p (fun device ->
+    Label_IO.read device
+    >>= fun label ->
+    return (label.Label.pv_header.Label.Pv_header.id, device)
+  ) devices)
+  >>= fun id_to_devices ->
+
+  (* Read metadata from any of the provided devices *)
+  ( match devices with
+    | [] -> return (`Error "Vg.read needs at least one device")
+    | devices -> begin
+      IO.FromResult.all (Lwt_list.map_s Pv_IO.read_metadata devices) >>= function
+      | [] -> return (`Error "Failed to find metadata on any of the devices")
+      | md :: _ ->
+        let text = Cstruct.to_string md in
+        let lexbuf = Lexing.from_string text in
+        return (`Ok (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf))
+      end ) >>= fun config ->
   let open IO.FromResult in
   ( match config with
-    | AStruct c -> `Ok c
+    | `Ok (AStruct c) -> `Ok c
     | _ -> `Error "VG metadata doesn't begin with a structure element" ) >>= fun config ->
   let vg = filter_structs config in
   ( match vg with
@@ -258,8 +297,13 @@ let of_metadata config =
   all (Lwt_list.map_s (fun (a,_) ->
     let open IO.FromResult in
     expect_mapped_struct a pvs >>= fun x ->
-    let open IO in
-    Pv_IO.read a x
+    expect_mapped_string "id" x >>= fun id ->
+    match Uuid.of_string id with
+    | `Ok id ->
+      if not(List.mem_assoc id id_to_devices)
+      then fail (Printf.sprintf "Unable to find a device containing PV with id %s" (Uuid.to_string id))
+      else Pv_IO.read (List.assoc id id_to_devices) a x
+    | `Error x -> fail x
   ) pvs) >>= fun pvs ->
   all (Lwt_list.map_s (fun (a,_) ->
     let open IO.FromResult in
@@ -276,36 +320,6 @@ let of_metadata config =
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
   return vg
-
-let parse buf =
-  let text = Cstruct.to_string buf in
-  let lexbuf = Lexing.from_string text in
-  of_metadata (Lvmconfigparser.start Lvmconfiglex.lvmtok lexbuf)
-
-let format name ?(magic = `Lvm) devices_and_names =
-  let open IO in
-  let rec write_pv acc = function
-    | [] -> return (List.rev acc)
-    | (dev, name) :: pvs ->
-      Pv_IO.format dev ~magic name >>= fun pv ->
-      write_pv (pv :: acc) pvs in
-  write_pv [] devices_and_names >>= fun pvs ->
-  debug "PVs created";
-  let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
-  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
-    extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
-    lvs=[]; free_space; } in
-  write vg >>= fun _ ->
-  debug "VG created";
-  return ()
-
-open IO
-let read = function
-| [] -> Lwt.return (`Error "Vg.load needs at least one device")
-| devices ->
-  debug "Vg.load";
-  IO.FromResult.all (Lwt_list.map_s Pv_IO.read_metadata devices) >>= fun md ->
-  parse (List.hd md)
 end
 (*
 let set_dummy_mode base_dir mapper_name full_provision =
