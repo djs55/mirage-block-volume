@@ -241,10 +241,14 @@ let write devices vg =
   let rec write_vg acc = function
     | [] -> return (List.rev acc)
     | pv :: pvs ->
-      let open IO in
-      Label_IO.write pv.Pv.label >>= fun () ->
-      write_pv pv [] pv.Pv.headers >>= fun headers ->
-      write_vg ({ pv with Pv.headers = headers } :: acc) pvs in
+      if not(List.mem_assoc pv.Pv.id id_to_devices)
+      then fail (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))
+      else begin
+        let open IO in
+        Label_IO.write (List.assoc pv.Pv.id id_to_devices) pv.Pv.label >>= fun () ->
+        write_pv pv [] pv.Pv.headers >>= fun headers ->
+        write_vg ({ pv with Pv.headers = headers } :: acc) pvs
+      end in
   let open IO in
   write_vg [] vg.pvs >>= fun pvs ->
   let vg = { vg with pvs } in

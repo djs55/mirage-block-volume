@@ -30,8 +30,7 @@ let (>>*=) m f = match m with
 
 let apply common =
   if common.Common.debug
-  then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s);
-  (module Block: S.BLOCK)
+  then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s)
 
 let add_prefix x xs = List.map (function
   | [] -> []
@@ -75,14 +74,25 @@ let table_of_vg vg =
   [ "free_space"; Int64.to_string (Pv.Allocator.size vg.Vg.free_space) ];
 ]
 
+let with_block filename f =
+  let open Lwt in
+  Block.connect filename
+  >>= function
+  | `Error _ -> fail (Failure (Printf.sprintf "Unable to read %s" filename))
+  | `Ok x ->
+    Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
+
 let read common filename =
-  let module Disk = (val apply common: S.BLOCK) in
-  let module Vg_IO = Vg.Make(Disk) in
+  apply common;
+  let module Vg_IO = Vg.Make(Block) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg_IO.read [ filename ] >>|= fun vg ->
-      return vg in
+      with_block filename
+        (fun x ->
+          Vg_IO.read [ x ] >>|= fun vg ->
+          return vg 
+        )in
     let vg = Lwt_main.run t in
     Common.print_table [ "key"; "value" ] (table_of_vg vg);
     `Ok ()
@@ -91,13 +101,16 @@ let read common filename =
       `Error(true, x)
 
 let format common filename vgname pvname journalled =
-  let module Disk = (val apply common: S.BLOCK) in
-  let module Vg_IO = Vg.Make(Disk) in
+  apply common;
+  let module Vg_IO = Vg.Make(Block) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg_IO.format vgname ~magic:(if journalled then `Journalled else `Lvm) [ filename, pvname ] >>|= fun () ->
-      return () in
+      with_block filename
+        (fun x ->
+          Vg_IO.format vgname ~magic:(if journalled then `Journalled else `Lvm) [ x, pvname ] >>|= fun () ->
+          return ()
+        ) in
     Lwt_main.run t;
     `Ok ()
   with
@@ -105,21 +118,24 @@ let format common filename vgname pvname journalled =
       `Error(true, x)
 
 let map common filename lvname =
-  let module Disk = (val apply common: S.BLOCK) in
-  let module Vg_IO = Vg.Make(Disk) in
+  apply common;
+  let module Vg_IO = Vg.Make(Block) in
   try
     let filename = require "filename" filename in
     let t =
-      Vg_IO.read [ filename ] >>|= fun vg ->
-      let lv = List.find (fun lv -> lv.Lv.name = lvname) vg.Vg.lvs in
-      List.iter (fun seg ->
-        Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
-          (match seg.Lv.Segment.cls with
-           | Lv.Segment.Linear x ->
-             Printf.sprintf "from %s starting at %Ld" x.Lv.Linear.name x.Lv.Linear.start_extent
-           | Lv.Segment.Striped _ -> "striped")
-      ) lv.Lv.segments;
-      return () in
+      with_block filename
+        (fun x ->
+          Vg_IO.read [ x ] >>|= fun vg ->
+          let lv = List.find (fun lv -> lv.Lv.name = lvname) vg.Vg.lvs in
+          List.iter (fun seg ->
+            Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
+              (match seg.Lv.Segment.cls with
+               | Lv.Segment.Linear x ->
+                 Printf.sprintf "from %s starting at %Ld" x.Lv.Linear.name x.Lv.Linear.start_extent
+               | Lv.Segment.Striped _ -> "striped")
+          ) lv.Lv.segments;
+          return ()
+        ) in
     Lwt_main.run t;
     `Ok ()
   with
@@ -128,16 +144,19 @@ let map common filename lvname =
 
 
 let update_vg common filename f =
-  let module Disk = (val apply common: S.BLOCK) in
-  let module Vg_IO = Vg.Make(Disk) in
+  apply common;
+  let module Vg_IO = Vg.Make(Block) in
   try
     let filename = require "filename" filename in
-    let devices = [ filename ] in
     let t =
-      Vg_IO.read devices >>|= fun vg ->
-      f vg >>*= fun (vg,_) ->
-      Vg_IO.write devices vg >>|= fun _ ->
-      return () in
+      with_block filename
+        (fun x ->
+          let devices = [ x ] in
+          Vg_IO.read devices >>|= fun vg ->
+          f vg >>*= fun (vg,_) ->
+          Vg_IO.write devices vg >>|= fun _ ->
+          return ()
+        ) in
     Lwt_main.run t;
     `Ok ()
   with

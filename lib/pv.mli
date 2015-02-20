@@ -38,17 +38,17 @@ include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 
 module Make : functor(Block: S.BLOCK) -> sig
-  val format: string -> ?magic: Magic.t -> string -> t S.io
+  val format: Block.t -> ?magic: Magic.t -> string -> t S.io
   (** [format device ?kind name] initialises a physical volume on [device]
       with [name]. One metadata area will be created, 10 MiB in size,
       at a fixed location. Any existing metadata on this device will
       be destroyed. *)
 
-  val read_metadata: string -> Cstruct.t S.io
+  val read_metadata: Block.t -> Cstruct.t S.io
   (** [read_metadata device]: locates the metadata area on [device] and
       returns the volume group metadata. *)
 
-  val read: string -> string -> (string * Absty.absty) list -> t S.io
+  val read: Block.t -> string -> (string * Absty.absty) list -> t S.io
   (** [read device name config] reads the information of physical volume [name]
       with configuration [config] read from the volume group metadata. *)
 end

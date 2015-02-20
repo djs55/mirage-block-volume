@@ -28,18 +28,26 @@ let rec mkdir_p x =
 
 type devices = (Uuid.t * string) list
 
+let with_block filename f =
+  let open Lwt in
+  Block.connect filename
+  >>= function
+  | `Error _ -> fail (Failure (Printf.sprintf "Unable to read %s" filename))
+  | `Ok x ->
+    Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
+
 let read devices =
   let open Lwt in
   let module Label_IO = Label.Make(Block) in
-  IO.FromResult.all (Lwt_list.map_p (fun device ->
-    let open IO in
-    Label_IO.read device
-    >>= fun label ->
-    return (label.Label.pv_header.Label.Pv_header.id, device)
-  ) devices)
-  >>= function
-  | `Error x -> fail (Failure x)
-  | `Ok x -> return x
+  Lwt_list.map_p (fun device ->
+    with_block device
+      (fun t ->
+        Label_IO.read t
+        >>= function
+        | `Error x -> fail (Failure x)
+        | `Ok x -> return (x.Label.pv_header.Label.Pv_header.id, device)
+      )
+  ) devices
 
 let to_targets id_to_device vg lv =
   let segments = Lv.Segment.sort lv.Lv.segments in
