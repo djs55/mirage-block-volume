@@ -61,7 +61,7 @@ module Make : functor(Block: S.BLOCK) -> sig
   (** [read devices] reads the volume group information from
       the set of physical volumes [devices] *)
 
-  val write: t -> t S.io
-  (** [write t] flushes the metadata of [t] to the physical volumes *)
+  val write: string list -> t -> t S.io
+  (** [write devices t] flushes the metadata of [t] to the physical volumes *)
 
 end

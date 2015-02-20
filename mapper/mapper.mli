@@ -22,6 +22,13 @@ val vg_lv_of_name: string -> string * string
 (** [vg_lv_of_name filename] returns the (vg name, lv name) of the device mapper
     device [filename] *)
 
-val to_targets: Vg.t -> Lv.t -> Devmapper.Target.t list
-(** [to_targets vg lv] returns the device mapper targets needed to access
-    the data stored within [lv] *)
+type devices
+(** The set of local physical devices containing the PVs *)
+
+val read: string list -> devices Lwt.t
+(** Read the LVM headers on a set of local physical devices *)
+
+val to_targets: devices -> Vg.t -> Lv.t -> Devmapper.Target.t list
+(** [to_targets devices vg lv] returns the device mapper targets needed to access
+    the data stored within [lv], where [devices] are the local physical
+    disks containing the PVs. *)
