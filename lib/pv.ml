@@ -55,7 +55,7 @@ let marshal pv b =
     Cstruct.blit_from_string s 0 b !ofs len;
     ofs := !ofs + len
   ) fmt in
-  bprintf "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) pv.stored_device;
+  bprintf "\n%s {\nid = \"%s\"\ndevice = \"%s\"\n\n" pv.name (Uuid.to_string pv.id) "/dev/null";
   bprintf "status = [%s]\ndev_size = %Ld\npe_start = %Ld\npe_count = %Ld\n}\n" 
     (String.concat ", " (List.map (o quote Status.to_string) pv.status))
     pv.size_in_sectors pv.pe_start pv.pe_count;
@@ -75,7 +75,7 @@ module Metadata_IO = Metadata.Make(Block)
 module Header_IO = Metadata.Header.Make(Block)
 module B = UnalignedBlock.Make(Block)
 
-let read name config =
+let read device name config =
   let open IO.FromResult in
   expect_mapped_string "id" config >>= fun id ->
   Uuid.of_string id >>= fun id ->
@@ -87,9 +87,9 @@ let read name config =
   expect_mapped_int "pe_start" config >>= fun pe_start ->
   expect_mapped_int "pe_count" config >>= fun pe_count ->
   let open IO in
-      Label_IO.read stored_device >>= fun label ->
+      Label_IO.read device >>= fun label ->
       let mda_locs = Label.get_metadata_locations label in
-      Header_IO.read_all stored_device mda_locs >>= fun headers ->
+      Header_IO.read_all device mda_locs >>= fun headers ->
   let real_device = Label.get_device label in
   if real_device <> stored_device then
     warn "In PV label: stored_device (%s) and real_device (%s) are not the same" stored_device real_device;
