@@ -22,6 +22,7 @@ val vg_lv_of_name: string -> string * string
 (** [vg_lv_of_name filename] returns the (vg name, lv name) of the device mapper
     device [filename] *)
 
-val to_targets: Vg.t -> Lv.t -> Devmapper.Target.t list
-(** [to_targets vg lv] returns the device mapper targets needed to access
-    the data stored within [lv] *)
+val to_targets: (Uuid.t * string) list -> Vg.t -> Lv.t -> Devmapper.Target.t list
+(** [to_targets id_to_devices vg lv] returns the device mapper targets needed to access
+    the data stored within [lv]. [id_to_devices] is an association list of
+    PV (uu)id to Linux device path. *)

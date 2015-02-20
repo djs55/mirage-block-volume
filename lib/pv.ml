@@ -38,8 +38,6 @@ end
 type t = {
   name : string;
   id : Uuid.t;
-  stored_device : string;
-  real_device : string; (* Actual device we're reading/writing to/from *)
   status : Status.t list;
   size_in_sectors : int64;
   pe_start : int64;
@@ -79,7 +77,7 @@ let read device name config =
   let open IO.FromResult in
   expect_mapped_string "id" config >>= fun id ->
   Uuid.of_string id >>= fun id ->
-  expect_mapped_string "device" config >>= fun stored_device ->
+  expect_mapped_string "device" config >>= fun _stored_device ->
   map_expected_mapped_array "status" 
     (fun a -> let open Result in expect_string "status" a >>= fun x ->
               Status.of_string x) config >>= fun status ->
@@ -90,10 +88,7 @@ let read device name config =
       Label_IO.read device >>= fun label ->
       let mda_locs = Label.get_metadata_locations label in
       Header_IO.read_all device mda_locs >>= fun headers ->
-  let real_device = Label.get_device label in
-  if real_device <> stored_device then
-    warn "In PV label: stored_device (%s) and real_device (%s) are not the same" stored_device real_device;
-  return { name; id; stored_device; real_device; status; size_in_sectors; pe_start; pe_count; label; headers }
+  return { name; id; status; size_in_sectors; pe_start; pe_count; label; headers }
 
 (** Find the metadata area on a device and return the text of the metadata *)
 let read_metadata device =
@@ -105,9 +100,9 @@ let read_metadata device =
   Metadata_IO.read device (List.hd mdahs) 0 >>= fun mdt ->
   return mdt
 
-let format real_device ?(magic=`Lvm) name =
+let format device ?(magic=`Lvm) name =
   let open IO in
-  B.get_size real_device >>= fun size ->
+  B.get_size device >>= fun size ->
   (* Arbitrarily put the MDA at 4096. We'll have a 10 meg MDA too *)
   let size_in_sectors = Int64.div size (Int64.of_int Constants.sector_size) in
   let mda_pos = Metadata.default_start in
@@ -118,11 +113,11 @@ let format real_device ?(magic=`Lvm) name =
   let pe_count = Int64.(div (sub size pe_start_byte) Constants.extent_size) in
   let mda_len = Int64.sub pe_start_byte mda_pos in
   let id=Uuid.create () in
-  let label = Label.create real_device ~magic id size mda_pos mda_len in
+  let label = Label.create device ~magic id size mda_pos mda_len in
   let mda_header = Metadata.Header.create magic in
   Label_IO.write label >>= fun () ->
-  Header_IO.write mda_header real_device >>= fun () ->
-  return { name; id; stored_device = real_device; real_device; status=[Status.Allocatable];
+  Header_IO.write mda_header device >>= fun () ->
+  return { name; id; status=[Status.Allocatable];
            size_in_sectors; pe_start; pe_count; label; headers = [mda_header]; }
 end
 

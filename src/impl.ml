@@ -48,8 +48,6 @@ let table_of_pv_header prefix pvh = add_prefix prefix [
 let table_of_pv pv = add_prefix pv.Pv.name [
   [ "name"; pv.Pv.name; ];
   [ "id"; Uuid.to_string pv.Pv.id; ];
-  [ "stored_device"; pv.Pv.stored_device ];
-  [ "real_device"; pv.Pv.real_device ];
   [ "status"; String.concat ", " (List.map Pv.Status.to_string pv.Pv.status) ];
   [ "size_in_sectors"; Int64.to_string pv.Pv.size_in_sectors ];
   [ "pe_start"; Int64.to_string pv.Pv.pe_start ];
@@ -134,10 +132,11 @@ let update_vg common filename f =
   let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
+    let devices = [ filename ] in
     let t =
-      Vg_IO.read [ filename ] >>|= fun vg ->
+      Vg_IO.read devices >>|= fun vg ->
       f vg >>*= fun (vg,_) ->
-      Vg_IO.write vg >>|= fun _ ->
+      Vg_IO.write devices vg >>|= fun _ ->
       return () in
     Lwt_main.run t;
     `Ok ()

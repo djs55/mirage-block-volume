@@ -26,7 +26,7 @@ let rec mkdir_p x =
     if not(Sys.file_exists parent) then mkdir_p parent;
     Unix.mkdir x 0o0755
 
-let to_targets vg lv =
+let to_targets id_to_device vg lv =
   let segments = Lv.Segment.sort lv.Lv.segments in
 
   (* Sanity check - make sure the segments are logically contiguous *)
@@ -57,9 +57,13 @@ let to_targets vg lv =
               match s.Lv.Segment.cls with
                 | Lv.Segment.Linear l ->
                     let pv = List.find (fun pv -> pv.Pv.name=l.Lv.Linear.name) vg.pvs in
-                    Target.Linear {
-                      Location.device = Location.Path pv.Pv.stored_device;
-                      offset = extent_to_phys_sector pv l.Lv.Linear.start_extent }
+                    if List.mem_assoc pv.Pv.id id_to_device
+                    then
+                      Target.Linear {
+                        Location.device = Location.Path (List.assoc pv.Pv.id id_to_device);
+                        offset = extent_to_phys_sector pv l.Lv.Linear.start_extent }
+                    else
+                      failwith (Printf.sprintf "Unable to find a device containing PV with id %s" (Uuid.to_string pv.Pv.id))
                 | Lv.Segment.Striped st ->
                     failwith "Not implemented"
           }::construct_dm_map ss

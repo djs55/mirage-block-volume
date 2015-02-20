@@ -207,22 +207,45 @@ module Pv_IO = Pv.Make(Block)
 module Label_IO = Label.Make(Block)
 module Metadata_IO = Metadata.Make(Block)
 
-let write vg =
+open IO
+
+let id_to_devices devices =
+  (* We need the uuid contained within the Pv_header to figure out
+     the mapping between PV and real device. Note we don't use the
+     device 'hint' within the metadata itself. *)
+  IO.FromResult.all (Lwt_list.map_p (fun device ->
+    Label_IO.read device
+    >>= fun label ->
+    return (label.Label.pv_header.Label.Pv_header.id, device)
+  ) devices)
+
+let write devices vg =
+  id_to_devices devices
+  >>= function
+  | id_to_devices ->
+
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal vg buf in
   let md = Cstruct.sub buf 0 buf'.Cstruct.off in
-  let open IO in
+  let open IO.FromResult in
   let rec write_pv pv acc = function
     | [] -> return (List.rev acc)
     | m :: ms ->
-      Metadata_IO.write pv.Pv.real_device m md >>= fun h ->
-      write_pv pv (h :: acc) ms in
+      if not(List.mem_assoc pv.Pv.id id_to_devices)
+      then fail (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))
+      else begin
+        let open IO in
+        Metadata_IO.write (List.assoc pv.Pv.id id_to_devices) m md >>= fun h ->
+        write_pv pv (h :: acc) ms
+      end in
   let rec write_vg acc = function
     | [] -> return (List.rev acc)
     | pv :: pvs ->
+      let open IO in
       Label_IO.write pv.Pv.label >>= fun () ->
       write_pv pv [] pv.Pv.headers >>= fun headers ->
       write_vg ({ pv with Pv.headers = headers } :: acc) pvs in
+  let open IO in
   write_vg [] vg.pvs >>= fun pvs ->
   let vg = { vg with pvs } in
   return vg
@@ -240,20 +263,12 @@ let format name ?(magic = `Lvm) devices_and_names =
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; } in
-  write vg >>= fun _ ->
+  write (List.map fst devices_and_names) vg >>= fun _ ->
   debug "VG created";
   return ()
 
-open IO
 let read devices =
-  (* We need the uuid contained within the Pv_header to figure out
-     the mapping between PV and real device. Note we don't use the
-     device 'hint' within the metadata itself. *)
-  IO.FromResult.all (Lwt_list.map_p (fun device ->
-    Label_IO.read device
-    >>= fun label ->
-    return (label.Label.pv_header.Label.Pv_header.id, device)
-  ) devices)
+  id_to_devices devices
   >>= fun id_to_devices ->
 
   (* Read metadata from any of the provided devices *)
