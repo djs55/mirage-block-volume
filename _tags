@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8e9e99c87ecea31f85fbb6456400188b)
+# DO NOT EDIT (digest: 676a686493bdfd5756f891fe6a10e586)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -37,39 +37,20 @@ true: annot, bin_annot
 "lib/utils.cmx": for-pack(Lvm)
 "lib/vg.cmx": for-pack(Lvm)
 "lib/magic.cmx": for-pack(Lvm)
+"lib/unalignedBlock.cmx": for-pack(Lvm)
 <lib/*.ml{,i,y}>: pkg_cstruct
+<lib/*.ml{,i,y}>: pkg_io-page
 <lib/*.ml{,i,y}>: pkg_lwt
 <lib/*.ml{,i,y}>: pkg_mirage-types
 <lib/*.ml{,i,y}>: pkg_re.str
 <lib/*.ml{,i,y}>: pkg_sexplib
 <lib/*.ml{,i,y}>: pkg_sexplib.syntax
 <lib/*.ml{,i,y}>: pkg_uuidm
-# Library lvm_mirage
-"mirage/lvm_mirage.cmxs": use_lvm_mirage
-<mirage/*.ml{,i,y}>: pkg_cstruct
-<mirage/*.ml{,i,y}>: pkg_lwt
-<mirage/*.ml{,i,y}>: pkg_mirage-types
-<mirage/*.ml{,i,y}>: pkg_mirage-types.lwt
-<mirage/*.ml{,i,y}>: pkg_re.str
-<mirage/*.ml{,i,y}>: pkg_sexplib
-<mirage/*.ml{,i,y}>: pkg_sexplib.syntax
-<mirage/*.ml{,i,y}>: pkg_uuidm
-<mirage/*.ml{,i,y}>: use_lvm
-# Library lvm_dummy
-"dummy/lvm_dummy.cmxs": use_lvm_dummy
-<dummy/*.ml{,i,y}>: pkg_cstruct
-<dummy/*.ml{,i,y}>: pkg_lwt
-<dummy/*.ml{,i,y}>: pkg_mirage-block-unix
-<dummy/*.ml{,i,y}>: pkg_mirage-types
-<dummy/*.ml{,i,y}>: pkg_re.str
-<dummy/*.ml{,i,y}>: pkg_sexplib
-<dummy/*.ml{,i,y}>: pkg_sexplib.syntax
-<dummy/*.ml{,i,y}>: pkg_uuidm
-<dummy/*.ml{,i,y}>: use_lvm
 # Library lvm_mapper
 "mapper/lvm_mapper.cmxs": use_lvm_mapper
 <mapper/*.ml{,i,y}>: pkg_cstruct
 <mapper/*.ml{,i,y}>: pkg_devmapper
+<mapper/*.ml{,i,y}>: pkg_io-page
 <mapper/*.ml{,i,y}>: pkg_lwt
 <mapper/*.ml{,i,y}>: pkg_mirage-types
 <mapper/*.ml{,i,y}>: pkg_re.str
@@ -85,14 +66,11 @@ true: annot, bin_annot
 <src/main.{native,byte}>: pkg_lwt
 <src/main.{native,byte}>: pkg_mirage-block-unix
 <src/main.{native,byte}>: pkg_mirage-types
-<src/main.{native,byte}>: pkg_mirage-types.lwt
 <src/main.{native,byte}>: pkg_re.str
 <src/main.{native,byte}>: pkg_sexplib
 <src/main.{native,byte}>: pkg_sexplib.syntax
 <src/main.{native,byte}>: pkg_uuidm
 <src/main.{native,byte}>: use_lvm
-<src/main.{native,byte}>: use_lvm_dummy
-<src/main.{native,byte}>: use_lvm_mirage
 <src/*.ml{,i,y}>: pkg_cmdliner
 <src/*.ml{,i,y}>: pkg_cstruct
 <src/*.ml{,i,y}>: pkg_io-page
@@ -100,17 +78,16 @@ true: annot, bin_annot
 <src/*.ml{,i,y}>: pkg_lwt
 <src/*.ml{,i,y}>: pkg_mirage-block-unix
 <src/*.ml{,i,y}>: pkg_mirage-types
-<src/*.ml{,i,y}>: pkg_mirage-types.lwt
 <src/*.ml{,i,y}>: pkg_re.str
 <src/*.ml{,i,y}>: pkg_sexplib
 <src/*.ml{,i,y}>: pkg_sexplib.syntax
 <src/*.ml{,i,y}>: pkg_uuidm
 <src/*.ml{,i,y}>: use_lvm
-<src/*.ml{,i,y}>: use_lvm_dummy
-<src/*.ml{,i,y}>: use_lvm_mirage
 <src/main.{native,byte}>: custom
 # Executable tag_test
 <lib_test/tag_test.{native,byte}>: pkg_cstruct
+<lib_test/tag_test.{native,byte}>: pkg_io-page
+<lib_test/tag_test.{native,byte}>: pkg_io-page.unix
 <lib_test/tag_test.{native,byte}>: pkg_lwt
 <lib_test/tag_test.{native,byte}>: pkg_mirage-types
 <lib_test/tag_test.{native,byte}>: pkg_oUnit
@@ -127,25 +104,19 @@ true: annot, bin_annot
 <lib_test/vg_test.{native,byte}>: pkg_lwt
 <lib_test/vg_test.{native,byte}>: pkg_mirage-block-unix
 <lib_test/vg_test.{native,byte}>: pkg_mirage-types
-<lib_test/vg_test.{native,byte}>: pkg_mirage-types.lwt
 <lib_test/vg_test.{native,byte}>: pkg_oUnit
 <lib_test/vg_test.{native,byte}>: pkg_re.str
 <lib_test/vg_test.{native,byte}>: pkg_sexplib
 <lib_test/vg_test.{native,byte}>: pkg_sexplib.syntax
 <lib_test/vg_test.{native,byte}>: pkg_uuidm
 <lib_test/vg_test.{native,byte}>: use_lvm
-<lib_test/vg_test.{native,byte}>: use_lvm_dummy
-<lib_test/vg_test.{native,byte}>: use_lvm_mirage
-<lib_test/*.ml{,i,y}>: pkg_io-page
-<lib_test/*.ml{,i,y}>: pkg_io-page.unix
 <lib_test/*.ml{,i,y}>: pkg_mirage-block-unix
-<lib_test/*.ml{,i,y}>: pkg_mirage-types.lwt
 <lib_test/*.ml{,i,y}>: pkg_oUnit
-<lib_test/*.ml{,i,y}>: use_lvm_dummy
-<lib_test/*.ml{,i,y}>: use_lvm_mirage
 <lib_test/vg_test.{native,byte}>: custom
 # Executable allocator_test
 <lib_test/allocator_test.{native,byte}>: pkg_cstruct
+<lib_test/allocator_test.{native,byte}>: pkg_io-page
+<lib_test/allocator_test.{native,byte}>: pkg_io-page.unix
 <lib_test/allocator_test.{native,byte}>: pkg_kaputt
 <lib_test/allocator_test.{native,byte}>: pkg_lwt
 <lib_test/allocator_test.{native,byte}>: pkg_mirage-types
@@ -155,6 +126,8 @@ true: annot, bin_annot
 <lib_test/allocator_test.{native,byte}>: pkg_uuidm
 <lib_test/allocator_test.{native,byte}>: use_lvm
 <lib_test/*.ml{,i,y}>: pkg_cstruct
+<lib_test/*.ml{,i,y}>: pkg_io-page
+<lib_test/*.ml{,i,y}>: pkg_io-page.unix
 <lib_test/*.ml{,i,y}>: pkg_kaputt
 <lib_test/*.ml{,i,y}>: pkg_lwt
 <lib_test/*.ml{,i,y}>: pkg_mirage-types

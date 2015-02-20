@@ -1,24 +1,14 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2f5df6ec97ae97a6eeef420fbcf4af6e)
+# DO NOT EDIT (digest: efd00626bad6b4e8eeeacde90062518c)
 version = "0.1"
 description = "Pure OCaml volume manager, compatible with Linux LVM"
-requires = "sexplib.syntax sexplib uuidm re.str cstruct mirage-types lwt"
+requires =
+"sexplib.syntax sexplib uuidm re.str cstruct mirage-types lwt io-page"
 archive(byte) = "lvm.cma"
 archive(byte, plugin) = "lvm.cma"
 archive(native) = "lvm.cmxa"
 archive(native, plugin) = "lvm.cmxs"
 exists_if = "lvm.cma"
-package "mirage" (
- version = "0.1"
- description = "Pure OCaml volume manager, compatible with Linux LVM"
- requires = "lvm mirage-types.lwt"
- archive(byte) = "lvm_mirage.cma"
- archive(byte, plugin) = "lvm_mirage.cma"
- archive(native) = "lvm_mirage.cmxa"
- archive(native, plugin) = "lvm_mirage.cmxs"
- exists_if = "lvm_mirage.cma"
-)
-
 package "mapper" (
  version = "0.1"
  description = "Pure OCaml volume manager, compatible with Linux LVM"
@@ -28,17 +18,6 @@ package "mapper" (
  archive(native) = "lvm_mapper.cmxa"
  archive(native, plugin) = "lvm_mapper.cmxs"
  exists_if = "lvm_mapper.cma"
-)
-
-package "dummy" (
- version = "0.1"
- description = "Pure OCaml volume manager, compatible with Linux LVM"
- requires = "lvm mirage-block-unix"
- archive(byte) = "lvm_dummy.cma"
- archive(byte, plugin) = "lvm_dummy.cma"
- archive(native) = "lvm_dummy.cmxa"
- archive(native, plugin) = "lvm_dummy.cmxs"
- exists_if = "lvm_dummy.cma"
 )
 # OASIS_STOP
 
