@@ -98,10 +98,11 @@ module Header = struct
     Cstruct.LE.set_uint32 buf 0 crc;
     buf'
 
-  module Make(DISK: S.DISK) = struct
+  module Make(Block: S.BLOCK) = struct
+  module B = UnalignedBlock.Make(Block)
   let read device location =
     let open IO in
-    DISK.get S.MDA_header device location.Label.Location.offset sizeof >>= fun buf ->
+    B.read device location.Label.Location.offset sizeof >>= fun buf ->
     let open IO.FromResult in
     unmarshal buf >>= fun (t, _) ->
     return t
@@ -121,7 +122,7 @@ module Header = struct
     let sector = Cstruct.create sizeof in
     Utils.zero sector;
     let _ = marshal mdah sector in
-    DISK.put S.MDA_header device mdah.mdah_start sector
+    B.write device mdah.mdah_start sector
   end
 
   let create magic =
@@ -145,9 +146,11 @@ end
 
 open Header
 
-module Make(DISK: S.DISK) = struct
+module Make(Block: S.BLOCK) = struct
 
-module Header_IO = Header.Make(DISK)
+module Header_IO = Header.Make(Block)
+
+module B = UnalignedBlock.Make(Block)
 
 let read dev mdah n =
   let locn = List.nth mdah.mdah_raw_locns n in
@@ -160,8 +163,8 @@ let read dev mdah n =
   let offset = Int64.add mdah.mdah_start locn.mrl_offset in
   let offset' = Int64.add mdah.mdah_start 512L in
   let open IO in
-  DISK.get S.MD1 dev offset firstbit >>= fun buf ->
-  DISK.get S.MD2 dev offset' secondbit >>= fun buf' ->
+  B.read dev offset firstbit >>= fun buf ->
+  B.read dev offset' secondbit >>= fun buf' ->
   let result = Cstruct.create (firstbit + secondbit) in
   Cstruct.blit buf 0 result 0 firstbit;
   Cstruct.blit buf' 0 result firstbit secondbit;
@@ -199,8 +202,8 @@ let write device mdah md =
 
   let absnewpos = Int64.add mrl_offset mdah.mdah_start in
   let open IO in
-  DISK.put S.MD1 device absnewpos firstbitbuf >>= fun () ->
-  DISK.put S.MD2 device (Int64.add mdah.mdah_start 512L) secondbitbuf >>= fun () ->
+  B.write device absnewpos firstbitbuf >>= fun () ->
+  B.write device (Int64.add mdah.mdah_start 512L) secondbitbuf >>= fun () ->
 
   (* Now we have to update the crc and pointer to the metadata *)
     

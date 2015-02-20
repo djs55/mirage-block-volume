@@ -28,14 +28,10 @@ let (>>*=) m f = match m with
   | `Error e -> fail (Failure e)
   | `Ok x -> f x
 
-module Disk_mirage_unix = Disk_mirage.Make(Block)(Io_page)
-
 let apply common =
   if common.Common.debug
   then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s);
-  if common.Common.dummy
-  then (module Disk_dummy: S.DISK)
-  else (module Disk_mirage_unix: S.DISK)
+  (module Block: S.BLOCK)
 
 let add_prefix x xs = List.map (function
   | [] -> []
@@ -82,7 +78,7 @@ let table_of_vg vg =
 ]
 
 let read common filename =
-  let module Disk = (val apply common: S.DISK) in
+  let module Disk = (val apply common: S.BLOCK) in
   let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
@@ -97,7 +93,7 @@ let read common filename =
       `Error(true, x)
 
 let format common filename vgname pvname journalled =
-  let module Disk = (val apply common: S.DISK) in
+  let module Disk = (val apply common: S.BLOCK) in
   let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
@@ -111,7 +107,7 @@ let format common filename vgname pvname journalled =
       `Error(true, x)
 
 let map common filename lvname =
-  let module Disk = (val apply common: S.DISK) in
+  let module Disk = (val apply common: S.BLOCK) in
   let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in
@@ -134,7 +130,7 @@ let map common filename lvname =
 
 
 let update_vg common filename f =
-  let module Disk = (val apply common: S.DISK) in
+  let module Disk = (val apply common: S.BLOCK) in
   let module Vg_IO = Vg.Make(Disk) in
   try
     let filename = require "filename" filename in

@@ -17,9 +17,7 @@ open Lvm
 open Vg
 open Lwt
 
-module Disk_mirage_unix = Disk_mirage.Make(Block)(Io_page)
-module Vg_IO_mirage = Vg.Make(Disk_mirage_unix)
-module Vg_IO_dummy = Vg.Make(Disk_dummy)
+module Vg_IO = Vg.Make(Block)
 
 let (>>|=) m f = m >>= function
   | `Error e -> fail (Failure e)
@@ -48,12 +46,12 @@ let expect_failure f x =
   | `Error _ -> `Ok ()
 
 let mirage_lv_name_clash () =
-  let open Vg_IO_mirage in
+  let open Vg_IO in
   let size = Int64.(mul (mul 1024L 1024L) 4L) in
   with_dummy (fun filename ->
       let t = 
-        Vg_IO_mirage.format "vg" [ filename, "pv" ] >>|= fun () ->
-        Vg_IO_mirage.read [ filename ] >>|= fun vg ->
+        Vg_IO.format "vg" [ filename, "pv" ] >>|= fun () ->
+        Vg_IO.read [ filename ] >>|= fun vg ->
         Vg.create vg "name" size >>*= fun (vg,_) ->
         expect_failure (Vg.create vg "name") size >>*= 
         Lwt.return

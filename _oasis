@@ -14,24 +14,10 @@ Flag mapper
 
 Library lvm
   Path: lib
-  Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic
+  Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic, UnalignedBlock
   Findlibname: lvm
   Pack: true
-  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt
-
-Library lvm_mirage
-  Path: mirage
-  Modules: Disk_mirage
-  Findlibname: mirage
-  Findlibparent: lvm
-  BuildDepends: lvm, mirage-types.lwt
-
-Library lvm_dummy
-  Path: dummy
-  Modules: Disk_dummy
-  Findlibname: dummy
-  Findlibparent: lvm
-  BuildDepends: lvm, mirage-block-unix
+  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page
 
 Library lvm_mapper
   Build$: flag(mapper)
@@ -48,7 +34,7 @@ Executable mlvm
   MainIs:             main.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, lvm.mirage, lvm.dummy, cmdliner, io-page.unix, io-page, mirage-block-unix
+  BuildDepends:       lvm, cmdliner, io-page.unix, io-page, mirage-block-unix, io-page.unix
 
 Executable tag_test
   CompiledObject:     best
@@ -56,7 +42,7 @@ Executable tag_test
   MainIs:             tag_test.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, oUnit
+  BuildDepends:       lvm, oUnit, io-page.unix
 
 Test tag_test
   Command:            ./tag_test.native
@@ -68,7 +54,7 @@ Executable vg_test
   MainIs:             vg_test.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, lvm.mirage, lvm.dummy, oUnit, io-page.unix, io-page, mirage-block-unix
+  BuildDepends:       lvm, oUnit, io-page.unix, io-page, mirage-block-unix, io-page.unix
 
 Test vg_test
   Command:            ./vg_test.native
@@ -80,7 +66,7 @@ Executable allocator_test
   MainIs:             allocator_test.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, kaputt
+  BuildDepends:       lvm, kaputt, io-page.unix
 
 Test allocator_test
   Command:            ./allocator_test.native

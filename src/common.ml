@@ -15,11 +15,10 @@
 type t = {
   debug: bool;
   verb: bool;
-  dummy: bool;
 }
 
-let make debug verb dummy =
-  { debug; verb; dummy }
+let make debug verb =
+  { debug; verb }
 
 let ( |> ) a b = b a
 

@@ -50,7 +50,7 @@ include S.VOLUME
   and type size := int64
   and type op := Redo.Op.t
 
-module Make : functor(DISK: S.DISK) -> sig
+module Make : functor(Block: S.BLOCK) -> sig
 
   val format: string -> ?magic:Magic.t -> (string * string) list -> unit S.io
   (** [format name names_and_devices] initialises a new volume group
