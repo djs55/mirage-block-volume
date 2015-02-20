@@ -26,6 +26,21 @@ let rec mkdir_p x =
     if not(Sys.file_exists parent) then mkdir_p parent;
     Unix.mkdir x 0o0755
 
+type devices = (Uuid.t * string) list
+
+let read devices =
+  let open Lwt in
+  let module Label_IO = Label.Make(Block) in
+  IO.FromResult.all (Lwt_list.map_p (fun device ->
+    let open IO in
+    Label_IO.read device
+    >>= fun label ->
+    return (label.Label.pv_header.Label.Pv_header.id, device)
+  ) devices)
+  >>= function
+  | `Error x -> fail (Failure x)
+  | `Ok x -> return x
+
 let to_targets id_to_device vg lv =
   let segments = Lv.Segment.sort lv.Lv.segments in
 
