@@ -30,13 +30,13 @@ module Header: sig
 
   module Make : functor(Block: S.BLOCK) -> sig
 
-    val write: t -> string -> unit S.io
+    val write: t -> Block.t -> unit S.io
     (** [write t device] writes [t] to the [device] *)
 
-    val read: string -> Label.Location.t -> t S.io
+    val read: Block.t -> Label.Location.t -> t S.io
     (** [read device location] reads [t] from the [device] *)
 
-    val read_all: string -> Label.Location.t list -> t list S.io
+    val read_all: Block.t -> Label.Location.t list -> t list S.io
     (** [read device locations] reads the [t]s found at [location]s,
         or an error if any single one can't be read. *)
   end
@@ -52,7 +52,7 @@ val default_size: int64
 (** Default length of the metadata area in bytes *)
 
 module Make : functor(Block: S.BLOCK) -> sig
-  val read: string -> Header.t -> int -> Cstruct.t S.io
+  val read: Block.t -> Header.t -> int -> Cstruct.t S.io
 
-  val write: string -> Header.t -> Cstruct.t -> Header.t S.io
+  val write: Block.t -> Header.t -> Cstruct.t -> Header.t S.io
 end

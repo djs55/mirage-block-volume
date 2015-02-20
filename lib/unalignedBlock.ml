@@ -28,17 +28,12 @@ end
 
 module Make(B: S.BLOCK) = struct
 
-  let get_size device =
-    let open IO in
-    B.connect device >>= fun t ->
+  let get_size t =
     let open Lwt in
     B.get_info t >>= fun info ->
-    B.disconnect t >>= fun () ->
     return (`Ok (Int64.(mul info.B.size_sectors (of_int info.B.sector_size))))
 
-  let read device offset length =
-    let open IO in
-    B.connect device >>= fun t ->
+  let read t offset length =
     let open Lwt in
     B.get_info t >>= fun info ->
     let start_sector = Int64.(div offset (of_int info.B.sector_size)) in
@@ -51,14 +46,9 @@ module Make(B: S.BLOCK) = struct
     let buf = Io_page.to_cstruct ba in
     let open IO in
     B.read t start_sector [ buf ] >>= fun () ->
-    let open Lwt in
-    B.disconnect t >>= fun () ->
-    let open IO in
     return (`Ok (Cstruct.sub buf start_offset length))
 
-  let write device offset buf =
-    let open IO in
-    B.connect device >>= fun t ->
+  let write t offset buf =
     let open Lwt in
     B.get_info t >>= fun info ->
     let start_sector = Int64.(div offset (of_int info.B.sector_size)) in
@@ -73,8 +63,5 @@ module Make(B: S.BLOCK) = struct
     B.read t start_sector [ aligned_buf ] >>= fun () ->
     Cstruct.blit buf 0 aligned_buf start_offset (Cstruct.len buf);
     B.write t start_sector [ aligned_buf ] >>= fun () ->
-    let open Lwt in
-    B.disconnect t >>= fun () ->
-    let open IO in
     return (`Ok ())
 end

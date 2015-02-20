@@ -45,16 +45,27 @@ let expect_failure f x =
   | `Ok _ -> `Error "Expected failure"
   | `Error _ -> `Ok ()
 
+let with_block filename f =
+  let open Lwt in
+  Block.connect filename
+  >>= function
+  | `Error _ -> fail (Failure (Printf.sprintf "Unable to read %s" filename))
+  | `Ok x ->
+    Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
+
 let mirage_lv_name_clash () =
   let open Vg_IO in
   let size = Int64.(mul (mul 1024L 1024L) 4L) in
   with_dummy (fun filename ->
       let t = 
-        Vg_IO.format "vg" [ filename, "pv" ] >>|= fun () ->
-        Vg_IO.read [ filename ] >>|= fun vg ->
-        Vg.create vg "name" size >>*= fun (vg,_) ->
-        expect_failure (Vg.create vg "name") size >>*= 
-        Lwt.return
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ block, "pv" ] >>|= fun () ->
+            Vg_IO.read [ block ] >>|= fun vg ->
+            Vg.create vg "name" size >>*= fun (vg,_) ->
+            expect_failure (Vg.create vg "name") size >>*= 
+            Lwt.return
+          )
       in
       Lwt_main.run t)
 

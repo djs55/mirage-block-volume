@@ -78,7 +78,7 @@ let well_known_label () =
   let sector = Cstruct.create 512 in
   Utils.zero sector;
   let uuid = Result.ok_or_failwith (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
-  let expected = create "foo" uuid 1234L 100L 200L in
+  let expected = create uuid 1234L 100L 200L in
   let _ = marshal expected sector in
   let label' = Cstruct.(to_string (sub sector 0 (String.length label))) in
   assert_equal label label'

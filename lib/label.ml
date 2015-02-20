@@ -157,14 +157,12 @@ module Pv_header = struct
 end
 
 type t = {
-  device : string;
   label_header : Label_header.t;
   pv_header : Pv_header.t;
 } with sexp
 
 let equals a b =
-  a.device = b.device
-  && (Label_header.equals a.label_header b.label_header)
+     (Label_header.equals a.label_header b.label_header)
   && (Pv_header.equals a.pv_header b.pv_header)
 
 let sizeof = Constants.sector_size
@@ -194,7 +192,7 @@ let unmarshal buf =
   let buf = Cstruct.shift buf (Int32.to_int label.Label_header.offset) in
   let open Pv_header in
   unmarshal buf >>= fun (pvh, buf) ->
-  return ({ device = "";
+  return ({
     label_header = label;
     pv_header = pvh; }, buf)
 
@@ -206,14 +204,10 @@ let get_metadata_locations label =
 let get_pv_id label =
   label.pv_header.Pv_header.id
 
-let get_device label = 
-  label.device
-
-let create device ?(magic = `Lvm) id size mda_start mda_size =
+let create ?(magic = `Lvm) id size mda_start mda_size =
   let label = Label_header.create magic in
   let pvh = Pv_header.create id size mda_start mda_size in
-  { device = device;
-    label_header = label;
+  { label_header = label;
     pv_header = pvh }
 
 let to_string label = Sexplib.Sexp.to_string_hum (sexp_of_t label)
@@ -227,13 +221,13 @@ let read device =
   let open IO.FromResult in
   unmarshal buf >>= fun (t, _) ->
   let open IO in
-  return { t with device }
+  return t
       
-let write t =
+let write device t =
   let buf = Cstruct.create 512 in
   Utils.zero buf;
   let _ = marshal t buf in
   
   let pos = Int64.mul t.label_header.Label_header.sector (Int64.of_int Constants.sector_size) in
-  B.write t.device pos buf
+  B.write device pos buf
 end

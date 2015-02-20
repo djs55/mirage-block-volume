@@ -113,9 +113,9 @@ let format device ?(magic=`Lvm) name =
   let pe_count = Int64.(div (sub size pe_start_byte) Constants.extent_size) in
   let mda_len = Int64.sub pe_start_byte mda_pos in
   let id=Uuid.create () in
-  let label = Label.create device ~magic id size mda_pos mda_len in
+  let label = Label.create ~magic id size mda_pos mda_len in
   let mda_header = Metadata.Header.create magic in
-  Label_IO.write label >>= fun () ->
+  Label_IO.write device label >>= fun () ->
   Header_IO.write mda_header device >>= fun () ->
   return { name; id; status=[Status.Allocatable];
            size_in_sectors; pe_start; pe_count; label; headers = [mda_header]; }

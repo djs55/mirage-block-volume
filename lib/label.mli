@@ -51,12 +51,11 @@ module Pv_header : sig
 end
 
 type t = {
-  device : string;
   label_header : Label_header.t;
   pv_header : Pv_header.t;
 }
 
-val create: string -> ?magic:Magic.t -> Uuid.t -> int64 -> int64 -> int64 -> t
+val create: ?magic:Magic.t -> Uuid.t -> int64 -> int64 -> int64 -> t
 
 include S.EQUALS with type t := t
 include S.PRINT with type t := t
@@ -69,10 +68,8 @@ val get_metadata_locations: t -> Location.t list
 
 val get_pv_id: t -> Uuid.t
 
-val get_device: t -> string
-
 module Make : functor(Block: S.BLOCK) -> sig
-  val read: string -> t S.io
+  val read: Block.t -> t S.io
 
-  val write: t -> unit S.io
+  val write: Block.t -> t -> unit S.io
 end
