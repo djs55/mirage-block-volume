@@ -38,13 +38,13 @@ end
 module Stripe = struct
   type t = {
     size_in_sectors : int64;
-    stripes : (string * int64) list;
+    stripes : (Pv.Name.t * int64) list;
   } with sexp
 end
 
 module Linear = struct
   type t = {
-    name : string;
+    name : Pv.Name.t;
     start_extent : int64;
   } with sexp
 end
@@ -76,12 +76,14 @@ module Segment = struct
       | [ _ ] -> fail "Unexpected attribute found when parsing stripes"
       | name::offset::rest ->
         expect_string "name" name >>= fun name ->
+        Pv.Name.of_string name >>= fun name ->
         expect_int "offset" offset >>= fun offset ->
         handle_stripes ((name, offset) :: acc) rest in
     ( match stripes with
       | [ name; offset ] ->
         expect_string "name" name >>= fun name ->
         expect_int "offset" offset >>= fun start_extent ->
+        Pv.Name.of_string name >>= fun name ->
         return (Linear { Linear.name; start_extent })
       | _ ->
         expect_mapped_int "stripe_size" config >>= fun size_in_sectors ->
@@ -158,12 +160,12 @@ let marshal lv b =
        match s.cls with
 	 | Linear l ->
 	     bprintf "type = \"striped\"\nstripe_count = 1\t#linear\n\n";
-	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" l.Linear.name l.Linear.start_extent
+	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" (Pv.Name.to_string l.Linear.name) l.Linear.start_extent
 	 | Striped st ->
 	     let stripes = List.length st.Stripe.stripes in
 	     bprintf "type = \"striped\"\nstripe_count = %d\nstripe_size = %Ld\n\nstripes = [\n"
 	       stripes st.Stripe.size_in_sectors;
-	     List.iter (fun (pv,offset) -> bprintf "%s, %Ld\n" (quote pv) offset) st.Stripe.stripes;
+	     List.iter (fun (pv,offset) -> bprintf "%s, %Ld\n" (quote (Pv.Name.to_string pv)) offset) st.Stripe.stripes;
 	     bprintf "]\n}\n") lv.segments;
   bprintf "}\n";
   Cstruct.shift b !ofs

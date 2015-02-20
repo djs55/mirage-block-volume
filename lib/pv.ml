@@ -35,6 +35,17 @@ module Status = struct
     | x -> fail (Printf.sprintf "Bad PV status string: %s" x)
 end
 
+module Name = struct
+
+  type t = string with sexp
+
+  let compare (a: t) (b: t) = compare a b
+
+  let to_string x = x
+
+  let of_string x = `Ok x
+end
+
 type t = {
   name : string;
   id : Uuid.t;
@@ -121,8 +132,4 @@ let format device ?(magic=`Lvm) name =
            size_in_sectors; pe_start; pe_count; label; headers = [mda_header]; }
 end
 
-module Allocator = Allocator.Make(struct
-  type t = string with sexp
-  let compare (a: t) (b: t) = compare a b
-  let to_string x = x
-end)
+module Allocator = Allocator.Make(Name)

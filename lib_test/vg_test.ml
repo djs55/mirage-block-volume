@@ -56,11 +56,14 @@ let with_block filename f =
 let mirage_lv_name_clash () =
   let open Vg_IO in
   let size = Int64.(mul (mul 1024L 1024L) 4L) in
+  let pv = match Pv.Name.of_string "pv" with
+  | `Ok x -> x
+  | `Error x -> failwith x in
   with_dummy (fun filename ->
       let t = 
         with_block filename
           (fun block ->
-            Vg_IO.format "vg" [ block, "pv" ] >>|= fun () ->
+            Vg_IO.format "vg" [ block, pv ] >>|= fun () ->
             Vg_IO.read [ block ] >>|= fun vg ->
             Vg.create vg "name" size >>*= fun (vg,_) ->
             expect_failure (Vg.create vg "name") size >>*= 

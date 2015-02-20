@@ -60,14 +60,6 @@ Test vg_test
   Command:            ./vg_test.native
   Run:                true
 
-Executable allocator_test
-  CompiledObject:     best
-  Path:               lib_test
-  MainIs:             allocator_test.ml
-  Custom:             true
-  Install:            false
-  BuildDepends:       lvm, kaputt, io-page.unix
-
 Test allocator_test
   Command:            ./allocator_test.native
   Run:                true

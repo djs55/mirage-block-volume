@@ -20,9 +20,17 @@ module Status : sig
 
   val of_string: string -> (t, string) Result.result
 end
-	
+
+module Name : sig
+  type t with sexp
+
+  val to_string: t -> string
+
+  val of_string: string -> (t, string) Result.result
+end
+
 type t = {
-  name : string;                        (** name given by the user *)
+  name : Name.t;                        (** unique name within a volume group *)
   id : Uuid.t;                          (** arbitrary unique id *)
   status : Status.t list;               (** status flags *)
   size_in_sectors : int64;              (** size of the device in 512 byte sectors *)
@@ -38,7 +46,7 @@ include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 
 module Make : functor(Block: S.BLOCK) -> sig
-  val format: Block.t -> ?magic: Magic.t -> string -> t S.io
+  val format: Block.t -> ?magic: Magic.t -> Name.t -> t S.io
   (** [format device ?kind name] initialises a physical volume on [device]
       with [name]. One metadata area will be created, 10 MiB in size,
       at a fixed location. Any existing metadata on this device will
@@ -54,4 +62,4 @@ module Make : functor(Block: S.BLOCK) -> sig
 end
 
 module Allocator: S.ALLOCATOR
-  with type name = string
+  with type name = Name.t
