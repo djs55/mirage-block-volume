@@ -51,7 +51,7 @@ let take n list =
 let make_area pv_name start size = (pv_name, (start,size))
 let make_area_by_end name start endAr = make_area name start (Int64.sub endAr start)
 let unpack_area (pv_name, (start,size)) = (pv_name, (start,size))
-let to_string1 (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" p s l
+let to_string1 (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" (Pv.Name.to_string p) s l
 (* Is a contained in a2? *)
 let contained : area -> area -> bool =
   fun a a2 ->
@@ -63,7 +63,11 @@ let contained : area -> area -> bool =
 
 (* let bind f p ga = Gen.map2 ((++) f) p +++ Gen.zip2 *)
 
-let pv_name_gen = (Gen.string (Gen.make_int 0 32) (Gen.alphanum))
+let pv_name_gen =
+  let f x = match Pv.Name.of_string x with
+  | `Ok x -> x
+  | `Error x -> failwith x in
+  Gen.map1 f (Gen.string (Gen.make_int 0 32) (Gen.alphanum))
 let pv_pos_size = Gen.zip2 (Gen.make_int64 0L 121212131L) (Gen.make_int64 0L 121212131L)
 
 let gen_area = (Gen.map3 make_area to_string1 (pv_name_gen, (Gen.make_int64 0L 121212131L), (Gen.make_int64 0L 121212131L)))
