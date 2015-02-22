@@ -51,26 +51,27 @@ include S.VOLUME
 
 module Make : functor(Block: S.BLOCK) -> sig
 
-  type t
+  type vg
   (** A volume group spread over a set of block devices *)
 
-  type devices
-  (** The set of local physical devices containing the PVs *)
-
-  val metadata_of: t -> metadata
+  val metadata_of: vg -> metadata
   (** Extract a snapshot of the volume group metadata *)
-
-  val devices_of: t -> devices
-  (** Extract the block devices containing the PVs *)
 
   val format: string -> ?magic:Magic.t -> (Pv.Name.t * Block.t) list -> unit S.io
   (** [format name devices_and_names] initialises a new volume group
       with name [name], using physical volumes [devices] *)
 
-  val read: Block.t list -> t S.io
+  val read: Block.t list -> vg S.io
   (** [read devices] reads the volume group information from
       the set of physical volumes [devices] *)
 
-  val update: t -> Redo.Op.t -> t S.io
+  val update: vg -> Redo.Op.t -> vg S.io
   (** [update t update] replaces the metadata within [t] with [update] *)
+
+  module Volume : sig
+    include V1_LWT.BLOCK
+
+    val connect: vg -> string -> [ `Ok of t | `Error of error ] Lwt.t
+
+  end
 end

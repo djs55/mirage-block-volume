@@ -81,6 +81,9 @@ val to_allocation: t -> (Pv.Name.t * (int64 * int64)) list
 
 val size_in_extents: t -> int64
 
+val find_extent: t -> int64 -> Segment.t option
+(** [find_extent t x] returns the segment containing [x] *)
+
 val reduce_size_to: t -> int64 -> (t, string) Result.result
 (** [reduce_size_to lv new_size] reduces the size of [lv] to [new_size],
     or fails if the [new_size] is less than the current size. *)
