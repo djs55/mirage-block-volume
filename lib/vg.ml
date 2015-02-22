@@ -340,7 +340,18 @@ let read devices =
     debug "Allocations for lv %s: %s" lv.Lv.name (Pv.Allocator.to_string lv_allocations);
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
-  return vg
+  (* Segments reference PVs by name, not uuid, so we need to build up
+     the name to device mapping. *)
+  let id_to_name = List.map (fun pv -> pv.Pv.id, pv.Pv.name) pvs in
+  let name_to_devices =
+    id_to_devices
+  |> List.map (fun (id, device) ->
+      if List.mem_assoc id id_to_name
+      then Some (List.assoc id id_to_name, device)
+      else None (* passed in devices list was a proper superset of pvs in metadata *)
+     )
+  |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
+  return (vg, name_to_devices)
 end
 (*
 let set_dummy_mode base_dir mapper_name full_provision =
