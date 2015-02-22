@@ -215,11 +215,6 @@ type t = metadata * devices
 
 let metadata_of = fst
 let devices_of = snd
-let update (metadata, devices) op =
-  let open Result in
-  do_op metadata op
-  >>= fun (metadata', _) ->
-  return (metadata', devices)
 
 let id_to_devices devices =
   (* We need the uuid contained within the Pv_header to figure out
@@ -265,6 +260,12 @@ let write (vg, name_to_devices) =
   write_vg [] vg.pvs >>= fun pvs ->
   let vg = { vg with pvs } in
   return (vg, name_to_devices)
+
+let update (metadata, devices) op =
+  let open IO.FromResult in
+  do_op metadata op
+  >>= fun (metadata', _) ->
+  write (metadata', devices)
 
 let format name ?(magic = `Lvm) devices =
   let open IO in
