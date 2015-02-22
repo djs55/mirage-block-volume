@@ -65,8 +65,9 @@ module Make : functor(Block: S.BLOCK) -> sig
   (** [read devices] reads the volume group information from
       the set of physical volumes [devices] *)
 
-  val update: vg -> Redo.Op.t -> vg S.io
-  (** [update t update] replaces the metadata within [t] with [update] *)
+  val update: vg -> Redo.Op.t list -> vg S.io
+  (** [update t updates] performs the operations [updates] and
+      writes the new metadata back. *)
 
   module Volume : sig
     include V1_LWT.BLOCK

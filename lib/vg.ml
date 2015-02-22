@@ -261,11 +261,18 @@ let write (vg, name_to_devices) =
   let vg = { vg with pvs } in
   return (vg, name_to_devices)
 
-let update (metadata, devices) op =
+let update (metadata, devices) ops =
+  let open Result in
+  let rec loop metadata = function
+    | [] -> return metadata
+    | x :: xs ->
+      do_op metadata x
+      >>= fun (metadata, _) ->
+      loop metadata xs in
   let open IO.FromResult in
-  do_op metadata op
-  >>= fun (metadata', _) ->
-  write (metadata', devices)
+  loop metadata ops
+  >>= fun metadata ->
+  write (metadata, devices)
 
 let format name ?(magic = `Lvm) devices =
   let open IO in
