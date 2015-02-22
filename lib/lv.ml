@@ -197,7 +197,17 @@ let to_allocation lv =
 let size_in_extents lv =
   List.fold_left (Int64.add) 0L
     (List.map (fun seg -> seg.Segment.extent_count) lv.segments)
-	    
+
+let find_extent lv e =
+  (* XXX: we need a more efficient structure than a list *)
+  List.fold_left (fun acc x -> match acc, x with
+    | Some x, _ -> Some x
+    | None, { Segment.start_extent = s; extent_count = l } ->
+      if s <= e && e <= (Int64.add s l)
+      then Some x
+      else None
+    ) None lv.segments
+ 
 let reduce_size_to lv new_seg_count =
   let cur_size = size_in_extents lv in
   debug "Beginning reduce_size_to:";

@@ -39,7 +39,7 @@ module Status = struct
     | x -> fail (Printf.sprintf "Bad VG status string: %s" x)
 end
 
-type t = {
+type metadata = {
   name : string;
   id : Uuid.t;
   seqno : int;
@@ -86,7 +86,7 @@ let marshal vg b =
 
 type op = Redo.Op.t
 
-let do_op vg op : (t * op, string) Result.result =
+let do_op vg op : (metadata * op, string) Result.result =
   let open Redo.Op in
   let change_lv lv_name fn =
     let lv,others = List.partition (fun lv -> lv.Lv.name=lv_name) vg.lvs in
@@ -209,6 +209,13 @@ module Metadata_IO = Metadata.Make(Block)
 
 open IO
 
+type devices = (Pv.Name.t * Block.t) list
+
+type vg = metadata * devices
+
+let metadata_of = fst
+let devices_of = snd
+
 let id_to_devices devices =
   (* We need the uuid contained within the Pv_header to figure out
      the mapping between PV and real device. Note we don't use the
@@ -219,10 +226,10 @@ let id_to_devices devices =
     return (label.Label.pv_header.Label.Pv_header.id, device)
   ) devices)
 
-let write devices vg =
+let write (vg, name_to_devices) =
+  let devices = List.map snd name_to_devices in
   id_to_devices devices
-  >>= function
-  | id_to_devices ->
+  >>= fun id_to_devices ->
 
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal vg buf in
@@ -252,22 +259,35 @@ let write devices vg =
   let open IO in
   write_vg [] vg.pvs >>= fun pvs ->
   let vg = { vg with pvs } in
-  return vg
+  return (vg, name_to_devices)
 
-let format name ?(magic = `Lvm) devices_and_names =
+let update (metadata, devices) ops =
+  let open Result in
+  let rec loop metadata = function
+    | [] -> return metadata
+    | x :: xs ->
+      do_op metadata x
+      >>= fun (metadata, _) ->
+      loop metadata xs in
+  let open IO.FromResult in
+  loop metadata ops
+  >>= fun metadata ->
+  write (metadata, devices)
+
+let format name ?(magic = `Lvm) devices =
   let open IO in
   let rec write_pv acc = function
     | [] -> return (List.rev acc)
-    | (dev, name) :: pvs ->
+    | (name, dev) :: pvs ->
       Pv_IO.format dev ~magic name >>= fun pv ->
       write_pv (pv :: acc) pvs in
-  write_pv [] devices_and_names >>= fun pvs ->
+  write_pv [] devices >>= fun pvs ->
   debug "PVs created";
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; } in
-  write (List.map fst devices_and_names) vg >>= fun _ ->
+  write (vg, devices) >>= fun _ ->
   debug "VG created";
   return ()
 
@@ -338,7 +358,123 @@ let read devices =
     debug "Allocations for lv %s: %s" lv.Lv.name (Pv.Allocator.to_string lv_allocations);
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
-  return vg
+  (* Segments reference PVs by name, not uuid, so we need to build up
+     the name to device mapping. *)
+  let id_to_name = List.map (fun pv -> pv.Pv.id, pv.Pv.name) pvs in
+  let name_to_devices =
+    id_to_devices
+  |> List.map (fun (id, device) ->
+      if List.mem_assoc id id_to_name
+      then Some (List.assoc id id_to_name, device)
+      else None (* passed in devices list was a proper superset of pvs in metadata *)
+     )
+  |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
+  return (vg, name_to_devices)
+
+module Volume = struct
+  type id = {
+    vg_name: string;
+    lv_name: string;
+  }
+  type t = {
+    id: id;
+    devices: devices;
+    sector_size: int;
+    extent_size: int64;
+    lv: Lv.t;
+    mutable disconnected: bool;
+  }
+
+  let id t = t.id
+
+  type error = [
+    | `Unknown of string
+    | `Unimplemented
+    | `Is_read_only
+    | `Disconnected
+  ]
+
+  type info = {
+    read_write: bool;
+    sector_size: int;
+    size_sectors: int64;
+  }
+
+  type 'a io = 'a Lwt.t
+
+  type page_aligned_buffer = Cstruct.t
+
+  open Lwt
+
+  let connect (metadata, devices) name =
+    match try Some (List.find (fun x -> x.Lv.name = name) metadata.lvs) with Not_found -> None with
+    | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" name)))
+    | Some lv ->
+      (* We require all the devices to have identical sector sizes *)
+      Lwt_list.map_p
+        (fun (_, device) ->
+          Block.get_info device
+          >>= fun info ->
+          return info.Block.sector_size
+        ) devices
+      >>= fun sizes ->
+      let biggest = List.fold_left max min_int sizes in
+      let smallest = List.fold_left min max_int sizes in
+      if biggest <> smallest
+      then return (`Error (`Unknown (Printf.sprintf "The underlying block devices have mixed sector sizes: %d <> %d" smallest biggest)))
+      else
+        let id = { vg_name = metadata.name; lv_name = name } in
+        return (`Ok {
+          id; devices; sector_size = biggest; extent_size = metadata.extent_size;
+          disconnected = false; lv
+        })
+
+  let get_info t =
+    let read_write = List.mem Lv.Status.Write t.lv.Lv.status in
+    let segments = List.fold_left (fun acc s -> Int64.add acc s.Lv.Segment.extent_count) 0L t.lv.Lv.segments in
+    let size_sectors = Int64.mul segments t.extent_size in
+    return { read_write; sector_size = t.sector_size; size_sectors }
+
+  let (>>|=) m f = m >>= function
+  | `Error e -> return (`Error e)
+  | `Ok x -> f x
+  
+  let io op t sector_start buffers =
+    if t.disconnected
+    then return (`Error `Disconnected)
+    else begin
+      let rec loop sector_start = function
+      | [] -> return (`Ok ())
+      | b :: bs ->
+        let start_le = Int64.div sector_start t.extent_size in
+        let start_offset = Int64.rem sector_start t.extent_size in
+        match Lv.find_extent t.lv start_le with
+        | Some { Lv.Segment.cls = Lv.Segment.Linear l; start_extent; extent_count } ->
+          let start_pe = Int64.(add l.Lv.Linear.start_extent (sub start_le start_extent)) in
+          let phys_offset = Int64.(add (mul start_pe t.extent_size) start_offset) in
+          let will_read = min (Cstruct.len b / t.sector_size) (Int64.to_int t.extent_size) in
+          if List.mem_assoc l.Lv.Linear.name t.devices then begin
+            let device = List.assoc l.Lv.Linear.name t.devices in
+            op device phys_offset [ Cstruct.sub b 0 (will_read * t.sector_size) ]
+            >>|= fun () ->
+            let b = Cstruct.shift b (will_read * t.sector_size) in
+            let bs = if Cstruct.len b > 0 then b :: bs else bs in
+            let sector_start = Int64.(add sector_start (of_int will_read)) in
+            loop sector_start bs
+          end else return (`Error (`Unknown (Printf.sprintf "Unknown physical volume %s" (Pv.Name.to_string l.Lv.Linear.name))))
+        | Some _ -> return (`Error (`Unknown "I only understand linear mapping"))
+        | None -> return (`Error (`Unknown (Printf.sprintf "Logical extent %Ld has no segment" start_le))) in
+      loop sector_start buffers
+    end
+
+  let read = io Block.read
+  let write = io Block.write
+
+  let disconnect t =
+    t.disconnected <- true;
+    return ()
+end
+
 end
 (*
 let set_dummy_mode base_dir mapper_name full_provision =
