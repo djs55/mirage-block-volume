@@ -13,7 +13,7 @@
  *)
 open Lvm
 
-val name_of: Vg.t -> Lv.t -> string
+val name_of: Vg.metadata -> Lv.t -> string
 (** [name_of vg lv] returns the conventional name used for a device mapper
     device corresponding to [lv]. Device mapper devices are arbitrary but this
     is the naming convention that LVM uses. *)
@@ -28,7 +28,7 @@ type devices
 val read: string list -> devices Lwt.t
 (** Read the LVM headers on a set of local physical devices *)
 
-val to_targets: devices -> Vg.t -> Lv.t -> Devmapper.Target.t list
+val to_targets: devices -> Vg.metadata -> Lv.t -> Devmapper.Target.t list
 (** [to_targets devices vg lv] returns the device mapper targets needed to access
     the data stored within [lv], where [devices] are the local physical
     disks containing the PVs. *)

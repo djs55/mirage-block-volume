@@ -39,7 +39,7 @@ module Status = struct
     | x -> fail (Printf.sprintf "Bad VG status string: %s" x)
 end
 
-type t = {
+type metadata = {
   name : string;
   id : Uuid.t;
   seqno : int;
@@ -86,7 +86,7 @@ let marshal vg b =
 
 type op = Redo.Op.t
 
-let do_op vg op : (t * op, string) Result.result =
+let do_op vg op : (metadata * op, string) Result.result =
   let open Redo.Op in
   let change_lv lv_name fn =
     let lv,others = List.partition (fun lv -> lv.Lv.name=lv_name) vg.lvs in
@@ -209,6 +209,14 @@ module Metadata_IO = Metadata.Make(Block)
 
 open IO
 
+type devices = (Pv.Name.t * Block.t) list
+
+type t = metadata * devices
+
+let metadata_of = fst
+let devices_of = snd
+let update (_, devices) metadata = metadata, devices
+
 let id_to_devices devices =
   (* We need the uuid contained within the Pv_header to figure out
      the mapping between PV and real device. Note we don't use the
@@ -252,9 +260,7 @@ let write (vg, name_to_devices) =
   let open IO in
   write_vg [] vg.pvs >>= fun pvs ->
   let vg = { vg with pvs } in
-  return vg
-
-type devices = (Pv.Name.t * Block.t) list
+  return (vg, name_to_devices)
 
 let format name ?(magic = `Lvm) devices =
   let open IO in

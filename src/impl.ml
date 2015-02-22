@@ -93,8 +93,8 @@ let read common filename =
           Vg_IO.read [ x ] >>|= fun vg ->
           return vg 
         )in
-    let vg, _devices = Lwt_main.run t in
-    Common.print_table [ "key"; "value" ] (table_of_vg vg);
+    let vg = Lwt_main.run t in
+    Common.print_table [ "key"; "value" ] (table_of_vg (Vg_IO.metadata_of vg));
     `Ok ()
   with
     | Failure x ->
@@ -129,8 +129,8 @@ let map common filename lvname =
     let t =
       with_block filename
         (fun x ->
-          Vg_IO.read [ x ] >>|= fun (vg, _devices) ->
-          let lv = List.find (fun lv -> lv.Lv.name = lvname) vg.Vg.lvs in
+          Vg_IO.read [ x ] >>|= fun vg ->
+          let lv = List.find (fun lv -> lv.Lv.name = lvname) (Vg_IO.metadata_of vg).Vg.lvs in
           List.iter (fun seg ->
             Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
               (match seg.Lv.Segment.cls with
@@ -156,9 +156,9 @@ let update_vg common filename f =
       with_block filename
         (fun x ->
           let devices = [ x ] in
-          Vg_IO.read devices >>|= fun (vg, devices) ->
-          f vg >>*= fun (vg,_) ->
-          Vg_IO.write (vg, devices) >>|= fun _ ->
+          Vg_IO.read devices >>|= fun vg ->
+          f (Vg_IO.metadata_of vg) >>*= fun (md,_) ->
+          Vg_IO.write (Vg_IO.update vg md) >>|= fun _ ->
           return ()
         ) in
     Lwt_main.run t;

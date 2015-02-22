@@ -24,7 +24,7 @@ module Status : sig
   val of_string: string -> (t, string) Result.result
 end
 
-type t = {
+type metadata = {
   name : string;                (** name given by the user *)
   id : Uuid.t;                  (** arbitrary unique id *)
   seqno : int;                  (** sequence number of the next operation *)
@@ -35,16 +35,15 @@ type t = {
   pvs : Pv.t list;              (** physical volumes *)
   lvs : Lv.t list;              (** logical volumes *)
   free_space : Pv.Allocator.t;  (** free space in physical volumes, which can be used for logical volumes *)
-}
+} with sexp
 (** A volume group *)
 
-val do_op: t -> Redo.Op.t -> (t * Redo.Op.t, string) Result.result
+val do_op: metadata -> Redo.Op.t -> (metadata * Redo.Op.t, string) Result.result
 (** [do_op t op] performs [op], returning the modified volume group [t] *)
 
-include S.SEXPABLE with type t := t
-include S.MARSHAL with type t := t
+include S.MARSHAL with type t := metadata
 include S.VOLUME
-  with type t := t
+  with type t := metadata
   and type name := string
   and type tag := Tag.t
   and type size := int64
@@ -52,18 +51,30 @@ include S.VOLUME
 
 module Make : functor(Block: S.BLOCK) -> sig
 
+  type t
+  (** A volume group spread over a set of block devices *)
+
   type devices
   (** The set of local physical devices containing the PVs *)
+
+  val metadata_of: t -> metadata
+  (** Extract a snapshot of the volume group metadata *)
+
+  val devices_of: t -> devices
+  (** Extract the block devices containing the PVs *)
 
   val format: string -> ?magic:Magic.t -> (Pv.Name.t * Block.t) list -> unit S.io
   (** [format name devices_and_names] initialises a new volume group
       with name [name], using physical volumes [devices] *)
 
-  val read: Block.t list -> (t * devices) S.io
+  val read: Block.t list -> t S.io
   (** [read devices] reads the volume group information from
       the set of physical volumes [devices] *)
 
-  val write: (t * devices) -> t S.io
+  val update: t -> metadata -> t
+  (** [update t metadata] replaces the metadata within [t] with [metadata] *)
+
+  val write: t -> t S.io
   (** [write devices t] flushes the metadata of [t] to the physical volumes *)
 
 end
