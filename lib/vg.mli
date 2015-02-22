@@ -52,10 +52,12 @@ include S.VOLUME
 
 module Make : functor(Block: S.BLOCK) -> sig
 
-  val format: string -> ?magic:Magic.t -> (Block.t * Pv.Name.t) list -> unit S.io
+  type devices = (Pv.Name.t * Block.t) list
+  (** The set of local physical devices containing the PVs *)
+
+  val format: string -> ?magic:Magic.t -> devices -> unit S.io
   (** [format name devices_and_names] initialises a new volume group
-      with name [name], using physical volumes
-      [device_and_names = [ device1, name1; ...]] *)
+      with name [name], using physical volumes [devices] *)
 
   val read: Block.t list -> t S.io
   (** [read devices] reads the volume group information from

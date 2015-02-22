@@ -254,20 +254,22 @@ let write devices vg =
   let vg = { vg with pvs } in
   return vg
 
-let format name ?(magic = `Lvm) devices_and_names =
+type devices = (Pv.Name.t * Block.t) list
+
+let format name ?(magic = `Lvm) devices =
   let open IO in
   let rec write_pv acc = function
     | [] -> return (List.rev acc)
-    | (dev, name) :: pvs ->
+    | (name, dev) :: pvs ->
       Pv_IO.format dev ~magic name >>= fun pv ->
       write_pv (pv :: acc) pvs in
-  write_pv [] devices_and_names >>= fun pvs ->
+  write_pv [] devices >>= fun pvs ->
   debug "PVs created";
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; } in
-  write (List.map fst devices_and_names) vg >>= fun _ ->
+  write (List.map snd devices) vg >>= fun _ ->
   debug "VG created";
   return ()
 

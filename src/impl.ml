@@ -111,7 +111,7 @@ let format common filename vgname pvname journalled =
       let t =
         with_block filename
           (fun x ->
-            Vg_IO.format vgname ~magic:(if journalled then `Journalled else `Lvm) [ x, pvname ] >>|= fun () ->
+            Vg_IO.format vgname ~magic:(if journalled then `Journalled else `Lvm) [ pvname, x ] >>|= fun () ->
             return ()
           ) in
       Lwt_main.run t;
