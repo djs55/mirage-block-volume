@@ -70,9 +70,14 @@ module Make : functor(Block: S.BLOCK) -> sig
       writes the new metadata back. *)
 
   module Volume : sig
+    type id = {
+      vg: vg;
+      name: string;
+    }
+
     include V1_LWT.BLOCK
+      with type id := id
 
-    val connect: vg -> string -> [ `Ok of t | `Error of error ] Lwt.t
-
+    val connect: id -> [ `Ok of t | `Error of error ] Lwt.t
   end
 end

@@ -373,8 +373,8 @@ let read devices =
 
 module Volume = struct
   type id = {
-    vg_name: string;
-    lv_name: string;
+    vg: vg;
+    name: string;
   }
   type t = {
     id: id;
@@ -406,9 +406,11 @@ module Volume = struct
 
   open Lwt
 
-  let connect (metadata, devices) name =
-    match try Some (List.find (fun x -> x.Lv.name = name) metadata.lvs) with Not_found -> None with
-    | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" name)))
+  let connect id =
+    let metadata = fst id.vg in
+    let devices = snd id.vg in
+    match try Some (List.find (fun x -> x.Lv.name = id.name) (fst id.vg).lvs) with Not_found -> None with
+    | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" id.name)))
     | Some lv ->
       (* We require all the devices to have identical sector sizes *)
       Lwt_list.map_p
@@ -423,7 +425,6 @@ module Volume = struct
       if biggest <> smallest
       then return (`Error (`Unknown (Printf.sprintf "The underlying block devices have mixed sector sizes: %d <> %d" smallest biggest)))
       else
-        let id = { vg_name = metadata.name; lv_name = name } in
         return (`Ok {
           id; devices; sector_size = biggest; extent_size = metadata.extent_size;
           disconnected = false; lv
