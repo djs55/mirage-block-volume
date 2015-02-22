@@ -156,9 +156,9 @@ let update_vg common filename f =
       with_block filename
         (fun x ->
           let devices = [ x ] in
-          Vg_IO.read devices >>|= fun (vg, _devices) ->
+          Vg_IO.read devices >>|= fun (vg, devices) ->
           f vg >>*= fun (vg,_) ->
-          Vg_IO.write devices vg >>|= fun _ ->
+          Vg_IO.write (vg, devices) >>|= fun _ ->
           return ()
         ) in
     Lwt_main.run t;

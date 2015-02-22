@@ -219,10 +219,10 @@ let id_to_devices devices =
     return (label.Label.pv_header.Label.Pv_header.id, device)
   ) devices)
 
-let write devices vg =
+let write (vg, name_to_devices) =
+  let devices = List.map snd name_to_devices in
   id_to_devices devices
-  >>= function
-  | id_to_devices ->
+  >>= fun id_to_devices ->
 
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
   let buf' = marshal vg buf in
@@ -269,7 +269,7 @@ let format name ?(magic = `Lvm) devices =
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; } in
-  write (List.map snd devices) vg >>= fun _ ->
+  write (vg, devices) >>= fun _ ->
   debug "VG created";
   return ()
 
