@@ -157,8 +157,9 @@ let update_vg common filename f =
         (fun x ->
           let devices = [ x ] in
           Vg_IO.read devices >>|= fun vg ->
-          f (Vg_IO.metadata_of vg) >>*= fun (md,_) ->
-          Vg_IO.write (Vg_IO.update vg md) >>|= fun _ ->
+          f (Vg_IO.metadata_of vg) >>*= fun (_,op) ->
+          Vg_IO.update vg op >>*= fun vg ->
+          Vg_IO.write vg >>|= fun _ ->
           return ()
         ) in
     Lwt_main.run t;

@@ -215,7 +215,11 @@ type t = metadata * devices
 
 let metadata_of = fst
 let devices_of = snd
-let update (_, devices) metadata = metadata, devices
+let update (metadata, devices) op =
+  let open Result in
+  do_op metadata op
+  >>= fun (metadata', _) ->
+  return (metadata', devices)
 
 let id_to_devices devices =
   (* We need the uuid contained within the Pv_header to figure out

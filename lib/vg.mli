@@ -71,8 +71,8 @@ module Make : functor(Block: S.BLOCK) -> sig
   (** [read devices] reads the volume group information from
       the set of physical volumes [devices] *)
 
-  val update: t -> metadata -> t
-  (** [update t metadata] replaces the metadata within [t] with [metadata] *)
+  val update: t -> Redo.Op.t -> (t, string) Result.result
+  (** [update t update] replaces the metadata within [t] with [update] *)
 
   val write: t -> t S.io
   (** [write devices t] flushes the metadata of [t] to the physical volumes *)
