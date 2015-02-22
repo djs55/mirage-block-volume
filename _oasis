@@ -59,7 +59,3 @@ Executable vg_test
 Test vg_test
   Command:            ./vg_test.native
   Run:                true
-
-Test allocator_test
-  Command:            ./allocator_test.native
-  Run:                true
