@@ -379,6 +379,7 @@ module Volume = struct
   type t = {
     id: id;
     devices: devices;
+    name_to_pe_starts: (Pv.Name.t * int64) list;
     sector_size: int;
     extent_size: int64;
     lv: Lv.t;
@@ -409,9 +410,14 @@ module Volume = struct
   let connect id =
     let metadata = fst id.vg in
     let devices = snd id.vg in
-    match try Some (List.find (fun x -> x.Lv.name = id.name) (fst id.vg).lvs) with Not_found -> None with
+    match try Some (List.find (fun x -> x.Lv.name = id.name) metadata.lvs) with Not_found -> None with
     | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" id.name)))
     | Some lv ->
+      (* We need the to add the pe_start later *)
+      let name_to_pe_starts = List.map (fun (name, _) ->
+        let pv = List.find (fun x -> x.Pv.name = name) metadata.pvs in
+        name, pv.Pv.pe_start
+      ) devices in
       (* We require all the devices to have identical sector sizes *)
       Lwt_list.map_p
         (fun (_, device) ->
@@ -427,7 +433,7 @@ module Volume = struct
       else
         return (`Ok {
           id; devices; sector_size = biggest; extent_size = metadata.extent_size;
-          disconnected = false; lv
+          disconnected = false; lv; name_to_pe_starts;
         })
 
   let get_info t =
@@ -456,7 +462,8 @@ module Volume = struct
           let will_read = min (Cstruct.len b / t.sector_size) (Int64.to_int t.extent_size) in
           if List.mem_assoc l.Lv.Linear.name t.devices then begin
             let device = List.assoc l.Lv.Linear.name t.devices in
-            op device phys_offset [ Cstruct.sub b 0 (will_read * t.sector_size) ]
+            let pe_start = List.assoc l.Lv.Linear.name t.name_to_pe_starts in
+            op device (Int64.add pe_start phys_offset) [ Cstruct.sub b 0 (will_read * t.sector_size) ]
             >>|= fun () ->
             let b = Cstruct.shift b (will_read * t.sector_size) in
             let bs = if Cstruct.len b > 0 then b :: bs else bs in
