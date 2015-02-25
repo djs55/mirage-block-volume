@@ -47,9 +47,12 @@ let expect_failure f x =
 
 let with_block filename f =
   let open Lwt in
-  Block.connect filename
+  Block.connect (Printf.sprintf "buffered:%s" filename)
   >>= function
-  | `Error _ -> fail (Failure (Printf.sprintf "Unable to read %s" filename))
+  | `Error (`Unknown s) ->
+    fail (Failure (Printf.sprintf "Unable to read %s (Unknown: %s)" filename s))
+  | `Error x ->
+    fail (Failure (Printf.sprintf "Unable to read %s (other)" filename))
   | `Ok x ->
     Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
 
