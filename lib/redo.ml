@@ -16,11 +16,7 @@ open Sexplib.Std
 open Logging
 
 module Op = struct 
-  type lvcreate_t = {
-    lvc_lv : Lv.t
-  }
-
-  and lvrename_t = {
+  type lvrename_t = {
     lvmv_new_name : string;
   }
 
