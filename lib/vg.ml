@@ -39,6 +39,8 @@ module Status = struct
     | x -> fail (Printf.sprintf "Bad VG status string: %s" x)
 end
 
+type lv_status = Lv.Status.t
+  
 type metadata = {
   name : string;
   id : Uuid.t;
@@ -94,11 +96,9 @@ let do_op vg op : (metadata * op, string) Result.result =
     | [lv] -> fn lv others
     | _ -> fail (Printf.sprintf "VG: unknown LV %s" lv_name) in
   match op with
-  | LvCreate (name,l) ->
-    let new_free_space = Pv.Allocator.sub vg.free_space l.lvc_segments in
-    let segments = Lv.Segment.sort (Lv.Segment.linear 0L l.lvc_segments) in
-    let lv = Lv.({ name; id = l.lvc_id; tags = []; status = [Status.Read; Status.Write; Status.Visible]; segments }) in
-    return ({vg with lvs = lv::vg.lvs; free_space = new_free_space},op)
+  | LvCreate lv ->
+    (*    let new_free_space = Pv.Allocator.sub vg.free_space lv.segments in*)
+    return ({vg with lvs = lv::vg.lvs; (* free_space = new_free_space *)},op)
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
       (* Compute the new physical extents, remove from free space *)
@@ -161,13 +161,16 @@ let bytes_to_extents bytes vg =
   let extents_in_bytes = mul extents_in_sectors 512L in
   div (add bytes (sub extents_in_bytes 1L)) extents_in_bytes
 
-let create vg name size = 
+
+let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size = 
   if List.exists (fun lv -> lv.Lv.name = name) vg.lvs
   then `Error "Duplicate name detected"
   else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
-    let lvc_id = Uuid.create () in
-    do_op vg Redo.Op.(LvCreate (name,{lvc_id; lvc_segments}))
+    let segments = Lv.Segment.sort (Lv.Segment.linear 0L lvc_segments) in
+    let id = Uuid.create () in
+    let lv = Lv.({ name; id; tags; status; segments }) in
+    do_op vg Redo.Op.(LvCreate lv)
   | `Error free ->
     `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" size free)
 

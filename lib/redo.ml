@@ -16,12 +16,7 @@ open Sexplib.Std
 open Logging
 
 module Op = struct 
-  type lvcreate_t = {
-    lvc_id : Uuid.t;
-    lvc_segments : Pv.Allocator.t
-  }
-
-  and lvrename_t = {
+  type lvrename_t = {
     lvmv_new_name : string;
   }
 
@@ -39,7 +34,7 @@ module Op = struct
 
   (** First string corresponds to the name of the LV. *)
   type t =
-    | LvCreate of string * lvcreate_t
+    | LvCreate of Lv.t
     | LvReduce of string * lvreduce_t
     | LvCrop   of string * lvcrop_t
     | LvExpand of string * lvexpand_t

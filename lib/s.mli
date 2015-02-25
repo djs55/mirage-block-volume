@@ -59,7 +59,11 @@ module type VOLUME = sig
   type op
   (** The type of an atomic operation *)
 
-  val create: t -> name -> int64 -> (t * op, string) Result.result
+  type lv_status
+  (** The status of an individual LV *)
+  
+  val create: t -> name -> ?tags:tag list -> ?status:lv_status list -> int64 ->
+    (t * op, string) Result.result
   (** [create t name size] extends the volume group [t] with a new
       volume named [name] with size at least [size] bytes. The actual
       size of the volume may be rounded up. *)
