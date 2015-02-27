@@ -1,7 +1,5 @@
 include config.mk
 
-MAPPER ?= $(shell if ocamlfind query devmapper >/dev/null 2>&1; then echo --enable-mapper; fi)
-
 SETUP = ocaml setup.ml
 
 build: setup.data
@@ -13,7 +11,7 @@ doc: setup.data build
 test: setup.data build
 	$(SETUP) -test $(TESTFLAGS)
 
-all:
+all: setup.data
 	$(SETUP) -all $(ALLFLAGS)
 
 install: setup.data
@@ -33,10 +31,10 @@ distclean:
 	$(SETUP) -distclean $(DISTCLEANFLAGS)
 
 setup.data:
-	$(SETUP) -configure $(MAPPER)
+	$(SETUP) -configure $(CONFIGUREFLAGS)
 
 configure:
-	$(SETUP) -configure $(MAPPER)
+	$(SETUP) -configure $(CONFIGUREFLAGS)
 
 .PHONY: build doc test all install uninstall reinstall clean distclean configure
 
