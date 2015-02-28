@@ -67,7 +67,7 @@ let mirage_lv_name_clash () =
         with_block filename
           (fun block ->
             Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.read [ block ] >>|= fun vg ->
+            Vg_IO.connect [ block ] >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" size >>*= fun (md,_) ->
             expect_failure (Vg.create md "name") size >>*= 
             Lwt.return

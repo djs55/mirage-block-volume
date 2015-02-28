@@ -374,6 +374,10 @@ let read devices =
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
   return (vg, name_to_devices)
 
+let connect devices = Lwt.return (`Error "unimplemented")
+
+let flush vg = Lwt.return (`Error "unimplemented")
+
 module Volume = struct
   type id = {
     vg: vg;

@@ -61,13 +61,17 @@ module Make : functor(Block: S.BLOCK) -> sig
   (** [format name devices_and_names] initialises a new volume group
       with name [name], using physical volumes [devices] *)
 
-  val read: Block.t list -> vg S.io
-  (** [read devices] reads the volume group information from
-      the set of physical volumes [devices] *)
+  val connect: Block.t list -> vg S.io
+  (** [connect devices] opens a volume group contained on [devices]
+      for reading and writing *)
 
   val update: vg -> Redo.Op.t list -> vg S.io
   (** [update t updates] performs the operations [updates] and
       writes the new metadata back. *)
+
+  val flush: vg -> unit S.io
+  (** [flushes t] flushes all pending writes and drops any caches
+      associated with [t] *)
 
   module Volume : sig
     type id = {

@@ -90,7 +90,7 @@ let read common filename =
     let t =
       with_block filename
         (fun x ->
-          Vg_IO.read [ x ] >>|= fun vg ->
+          Vg_IO.connect [ x ] >>|= fun vg ->
           return vg 
         )in
     let vg = Lwt_main.run t in
@@ -129,7 +129,7 @@ let map common filename lvname =
     let t =
       with_block filename
         (fun x ->
-          Vg_IO.read [ x ] >>|= fun vg ->
+          Vg_IO.connect [ x ] >>|= fun vg ->
           let lv = List.find (fun lv -> lv.Lv.name = lvname) (Vg_IO.metadata_of vg).Vg.lvs in
           List.iter (fun seg ->
             Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
@@ -156,9 +156,10 @@ let update_vg common filename f =
       with_block filename
         (fun x ->
           let devices = [ x ] in
-          Vg_IO.read devices >>|= fun vg ->
+          Vg_IO.connect devices >>|= fun vg ->
           f (Vg_IO.metadata_of vg) >>*= fun (_,op) ->
-          Vg_IO.update vg [ op ] >>|= fun _ ->
+          Vg_IO.update vg [ op ] >>|= fun vg ->
+          Vg_IO.flush vg >>|= fun () ->
           return ()
         ) in
     Lwt_main.run t;
