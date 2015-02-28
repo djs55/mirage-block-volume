@@ -277,6 +277,9 @@ let update (metadata, devices) ops =
   >>= fun metadata ->
   write (metadata, devices)
 
+let _redo_log_name = "mirage_block_volume_redo_log"
+let _redo_log_size = Int64.(mul 4L (mul 1024L 1024L))
+
 let format name ?(magic = `Lvm) devices =
   let open IO in
   let rec write_pv acc = function
@@ -290,6 +293,14 @@ let format name ?(magic = `Lvm) devices =
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; } in
+  ( match magic with
+    | `Lvm -> return vg
+    | `Journalled ->
+      ( match create vg _redo_log_name _redo_log_size with
+        | `Ok (vg, _) -> Lwt.return (`Ok vg)
+        | `Error x -> Lwt.return (`Error x)
+      )
+  ) >>= fun vg ->
   write (vg, devices) >>= fun _ ->
   debug "VG created";
   return ()
