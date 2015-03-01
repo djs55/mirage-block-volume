@@ -214,10 +214,12 @@ open IO
 
 type devices = (Pv.Name.t * Block.t) list
 
-type vg = metadata * devices
+type vg = {
+  metadata: metadata;
+  devices: devices;
+}
 
-let metadata_of = fst
-let devices_of = snd
+let metadata_of vg = vg.metadata
 
 let id_to_devices devices =
   (* We need the uuid contained within the Pv_header to figure out
@@ -229,13 +231,13 @@ let id_to_devices devices =
     return (label.Label.pv_header.Label.Pv_header.id, device)
   ) devices)
 
-let write (vg, name_to_devices) =
-  let devices = List.map snd name_to_devices in
+let write ({ metadata; devices } as t ) =
+  let devices = List.map snd devices in
   id_to_devices devices
   >>= fun id_to_devices ->
 
   let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
-  let buf' = marshal vg buf in
+  let buf' = marshal metadata buf in
   let md = Cstruct.sub buf 0 buf'.Cstruct.off in
   let open IO.FromResult in
   let rec write_pv pv acc = function
@@ -260,11 +262,11 @@ let write (vg, name_to_devices) =
         write_vg ({ pv with Pv.headers = headers } :: acc) pvs
       end in
   let open IO in
-  write_vg [] vg.pvs >>= fun pvs ->
-  let vg = { vg with pvs } in
-  return (vg, name_to_devices)
+  write_vg [] metadata.pvs >>= fun pvs ->
+  let metadata = { metadata with pvs } in
+  return { t with metadata }
 
-let update (metadata, devices) ops =
+let update ({ metadata; devices } as t) ops =
   let open Result in
   let rec loop metadata = function
     | [] -> return metadata
@@ -275,7 +277,7 @@ let update (metadata, devices) ops =
   let open IO.FromResult in
   loop metadata ops
   >>= fun metadata ->
-  write (metadata, devices)
+  write { t with metadata }
 
 let _redo_log_name = "mirage_block_volume_redo_log"
 let _redo_log_size = Int64.(mul 4L (mul 1024L 1024L))
@@ -300,8 +302,8 @@ let format name ?(magic = `Lvm) devices =
         | `Ok (vg, _) -> Lwt.return (`Ok vg)
         | `Error x -> Lwt.return (`Error x)
       )
-  ) >>= fun vg ->
-  write (vg, devices) >>= fun _ ->
+  ) >>= fun metadata ->
+  write { metadata; devices } >>= fun _ ->
   debug "VG created";
   return ()
 
@@ -383,7 +385,7 @@ let read devices =
       else None (* passed in devices list was a proper superset of pvs in metadata *)
      )
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
-  return (vg, name_to_devices)
+  return { metadata = vg; devices = name_to_devices }
 
 let connect devices = Lwt.return (`Error "unimplemented")
 
@@ -426,8 +428,7 @@ module Volume = struct
   open Lwt
 
   let connect id =
-    let metadata = fst id.vg in
-    let devices = snd id.vg in
+    let { metadata; devices } = id.vg in
     match try Some (List.find (fun x -> x.Lv.name = id.name) metadata.lvs) with Not_found -> None with
     | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" id.name)))
     | Some lv ->
