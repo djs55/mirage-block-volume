@@ -82,9 +82,15 @@ let with_block filename f =
   | `Ok x ->
     Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
 
+module Log = struct
+  let debug fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+  let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+  let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+end
+
 let read common filename =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     let t =
@@ -102,7 +108,7 @@ let read common filename =
 
 let format common filename vgname pvname journalled =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     begin match Pv.Name.of_string pvname with
@@ -123,7 +129,7 @@ let format common filename vgname pvname journalled =
 
 let map common filename lvname =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     let t =
@@ -149,7 +155,7 @@ let map common filename lvname =
 
 let update_vg common filename f =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     let t =

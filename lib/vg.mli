@@ -49,7 +49,7 @@ include S.VOLUME
   and type size := int64
   and type op := Redo.Op.t
 
-module Make : functor(Block: S.BLOCK) -> sig
+module Make(Log: S.LOG)(Block: S.BLOCK) : sig
 
   type vg
   (** A volume group spread over a set of block devices *)

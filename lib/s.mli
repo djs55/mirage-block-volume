@@ -38,6 +38,12 @@ module type SEXPABLE = sig
   val sexp_of_t: t -> Sexplib.Sexp.t
 end
 
+module type LOG = sig
+  val debug : ('a, unit, string, unit) format4 -> 'a
+  val info  : ('a, unit, string, unit) format4 -> 'a
+  val error : ('a, unit, string, unit) format4 -> 'a
+end
+
 type 'a io = ('a, string) Result.result Lwt.t
 
 module type BLOCK = V1_LWT.BLOCK

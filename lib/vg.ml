@@ -204,7 +204,7 @@ let add_tag vg name tag =
 let remove_tag vg name tag =
   do_op vg Redo.Op.(LvRemoveTag (name, tag))
 
-module Make(Block: S.BLOCK) = struct
+module Make(Log: S.LOG)(Block: S.BLOCK) = struct
 
 module Pv_IO = Pv.Make(Block)
 module Label_IO = Label.Make(Block)

@@ -17,7 +17,13 @@ open Lvm
 open Vg
 open Lwt
 
-module Vg_IO = Vg.Make(Block)
+module Log = struct
+  let debug fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+  let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+  let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+end
+
+module Vg_IO = Vg.Make(Log)(Block)
 
 let (>>|=) m f = m >>= function
   | `Error e -> fail (Failure e)
