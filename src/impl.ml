@@ -58,7 +58,7 @@ let table_of_lv lv = add_prefix lv.Lv.name [
   [ "id"; Uuid.to_string lv.Lv.id; ];
   [ "tags"; String.concat ", " (List.map Tag.to_string lv.Lv.tags) ];
   [ "status"; String.concat ", " (List.map Lv.Status.to_string lv.Lv.status) ];
-  [ "segments"; string_of_int (List.length lv.Lv.segments) ];
+  [ "segments"; Sexplib.Sexp.to_string (Lv.Segment.sexp_of_ts lv.Lv.segments) ];
 ]
 
 let table_of_vg vg =
