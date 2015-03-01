@@ -43,6 +43,9 @@ module Header: sig
 
   val create: Magic.t -> t
   (** [create magic] returns an instance of [t] *)
+
+  val magic: t -> Magic.t
+  (** [magic t] returns the magic contained within [t] *)
 end
 
 val default_start: int64

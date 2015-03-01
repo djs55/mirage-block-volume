@@ -49,7 +49,7 @@ include S.VOLUME
   and type size := int64
   and type op := Redo.Op.t
 
-module Make : functor(Block: S.BLOCK) -> sig
+module Make(Log: S.LOG)(Block: S.BLOCK) : sig
 
   type vg
   (** A volume group spread over a set of block devices *)
@@ -61,23 +61,28 @@ module Make : functor(Block: S.BLOCK) -> sig
   (** [format name devices_and_names] initialises a new volume group
       with name [name], using physical volumes [devices] *)
 
-  val read: Block.t list -> vg S.io
-  (** [read devices] reads the volume group information from
-      the set of physical volumes [devices] *)
+  val connect: Block.t list -> vg S.io
+  (** [connect devices] opens a volume group contained on [devices]
+      for reading and writing *)
 
-  val update: vg -> Redo.Op.t list -> vg S.io
-  (** [update t updates] performs the operations [updates] and
-      writes the new metadata back. *)
+  val update: vg -> Redo.Op.t list -> unit S.io
+  (** [update t updates] performs the operations [updates] and ensures
+      the changes are persisted. *)
+
+  val sync: vg -> unit S.io
+  (** [sync t] flushes all pending writes associated with [t] to the
+      main metadata area. This is only needed if you plan to switch off
+      the redo-log. *)
 
   module Volume : sig
-    type id = {
-      vg: vg;
-      name: string;
-    }
-
     include V1_LWT.BLOCK
-      with type id := id
 
     val connect: id -> [ `Ok of t | `Error of error ] Lwt.t
+
+    val metadata_of: id -> Lv.t
+    (** return the metadata associated with a volume *)
   end
+
+  val find: vg -> string -> Volume.id option
+  (** [find vg name] finds the volume with name [name] *)
 end

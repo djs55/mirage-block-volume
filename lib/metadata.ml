@@ -44,6 +44,8 @@ module Header = struct
     mdah_raw_locns : mda_raw_locn list;
   } with sexp
 
+  let magic t = t.mdah_magic
+
   include Result
 
   let equals a b =

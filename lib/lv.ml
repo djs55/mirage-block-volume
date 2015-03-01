@@ -61,6 +61,8 @@ module Segment = struct
   }
   with sexp
 
+  type ts = t list with sexp
+
   let sort s =
     List.sort (fun s1 s2 -> compare s1.start_extent s2.start_extent) s
 

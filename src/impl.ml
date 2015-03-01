@@ -58,7 +58,7 @@ let table_of_lv lv = add_prefix lv.Lv.name [
   [ "id"; Uuid.to_string lv.Lv.id; ];
   [ "tags"; String.concat ", " (List.map Tag.to_string lv.Lv.tags) ];
   [ "status"; String.concat ", " (List.map Lv.Status.to_string lv.Lv.status) ];
-  [ "segments"; string_of_int (List.length lv.Lv.segments) ];
+  [ "segments"; Sexplib.Sexp.to_string (Lv.Segment.sexp_of_ts lv.Lv.segments) ];
 ]
 
 let table_of_vg vg =
@@ -82,15 +82,21 @@ let with_block filename f =
   | `Ok x ->
     Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
 
+module Log = struct
+  let debug fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+  let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+  let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+end
+
 let read common filename =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     let t =
       with_block filename
         (fun x ->
-          Vg_IO.read [ x ] >>|= fun vg ->
+          Vg_IO.connect [ x ] >>|= fun vg ->
           return vg 
         )in
     let vg = Lwt_main.run t in
@@ -102,7 +108,7 @@ let read common filename =
 
 let format common filename vgname pvname journalled =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     begin match Pv.Name.of_string pvname with
@@ -123,13 +129,13 @@ let format common filename vgname pvname journalled =
 
 let map common filename lvname =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     let t =
       with_block filename
         (fun x ->
-          Vg_IO.read [ x ] >>|= fun vg ->
+          Vg_IO.connect [ x ] >>|= fun vg ->
           let lv = List.find (fun lv -> lv.Lv.name = lvname) (Vg_IO.metadata_of vg).Vg.lvs in
           List.iter (fun seg ->
             Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
@@ -149,16 +155,17 @@ let map common filename lvname =
 
 let update_vg common filename f =
   apply common;
-  let module Vg_IO = Vg.Make(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block) in
   try
     let filename = require "filename" filename in
     let t =
       with_block filename
         (fun x ->
           let devices = [ x ] in
-          Vg_IO.read devices >>|= fun vg ->
+          Vg_IO.connect devices >>|= fun vg ->
           f (Vg_IO.metadata_of vg) >>*= fun (_,op) ->
-          Vg_IO.update vg [ op ] >>|= fun _ ->
+          Vg_IO.update vg [ op ] >>|= fun () ->
+          Vg_IO.sync vg >>|= fun () ->
           return ()
         ) in
     Lwt_main.run t;
