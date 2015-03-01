@@ -164,7 +164,7 @@ let update_vg common filename f =
           let devices = [ x ] in
           Vg_IO.connect devices >>|= fun vg ->
           f (Vg_IO.metadata_of vg) >>*= fun (_,op) ->
-          Vg_IO.update vg [ op ] >>|= fun vg ->
+          Vg_IO.update vg [ op ] >>|= fun () ->
           Vg_IO.sync vg >>|= fun () ->
           return ()
         ) in

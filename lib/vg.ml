@@ -331,7 +331,7 @@ end
 module Redo_log = Shared_block.Journal.Make(Log)(Volume)(Redo.Op)
 
 type vg = {
-  metadata: metadata;
+  mutable metadata: metadata;
   devices: devices;
   redo_log: Redo_log.t option;
   mutable wait_for_flush_t: unit -> unit Lwt.t;
@@ -356,7 +356,7 @@ let id_to_devices devices =
     return (label.Label.pv_header.Label.Pv_header.id, device)
   ) devices)
 
-let write ({ metadata; devices } as t ) =
+let write metadata devices =
   let devices = List.map snd devices in
   id_to_devices devices
   >>= fun id_to_devices ->
@@ -387,11 +387,10 @@ let write ({ metadata; devices } as t ) =
         write_vg ({ pv with Pv.headers = headers } :: acc) pvs
       end in
   let open IO in
-  write_vg [] metadata.pvs >>= fun pvs ->
-  let metadata = { metadata with pvs } in
-  return { t with metadata }
+  write_vg [] metadata.pvs >>= fun _pvs ->
+  return ()
 
-let run ({ metadata; devices } as t) ops =
+let run metadata ops : metadata S.io =
   let open Result in
   let rec loop metadata = function
     | [] -> return metadata
@@ -399,10 +398,7 @@ let run ({ metadata; devices } as t) ops =
       do_op metadata x
       >>= fun (metadata, _) ->
       loop metadata xs in
-  let open IO.FromResult in
-  loop metadata ops
-  >>= fun metadata ->
-  return { t with metadata }
+  Lwt.return (loop metadata ops)
 
 let _redo_log_name = "mirage_block_volume_redo_log"
 let _redo_log_size = Int64.(mul 4L (mul 1024L 1024L))
@@ -428,9 +424,7 @@ let format name ?(magic = `Lvm) devices =
         | `Error x -> Lwt.return (`Error x)
       )
   ) >>= fun metadata ->
-  let redo_log = None in
-  let wait_for_flush_t () = Lwt.return () in
-  write { metadata; devices; redo_log; wait_for_flush_t } >>= fun _ ->
+  write metadata devices >>= fun () ->
   debug "VG created";
   return ()
 
@@ -512,9 +506,6 @@ let read devices =
       else None (* passed in devices list was a proper superset of pvs in metadata *)
      )
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
-  let redo_log = None in
-  let wait_for_flush_t () = Lwt.return () in
-  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t } in
 
   let ok_or_fail x =
     let open Lwt in
@@ -522,15 +513,19 @@ let read devices =
     | `Ok x -> return x
     | `Error x -> fail (Failure x) in
 
-  let on_disk_state = ref t in
+  let on_disk_metadata = ref vg in
   let perform ops =
     let open Lwt in
-    ok_or_fail (run !on_disk_state ops)
-    >>= fun vg ->
-    ok_or_fail (write vg)
-    >>= fun vg ->
-    on_disk_state := vg;
+    ok_or_fail (run !on_disk_metadata ops)
+    >>= fun metadata ->
+    ok_or_fail (write metadata name_to_devices)
+    >>= fun () ->
+    on_disk_metadata := metadata;
     return () in
+
+  let redo_log = None in
+  let wait_for_flush_t () = Lwt.return () in
+  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t } in
 
   (* Assuming the PV headers all have the same magic *)
   match pvs with
@@ -565,21 +560,26 @@ let read devices =
 
 let connect devices = read devices
 
-let update vg ops = match vg.redo_log with
-| None ->
-  run vg ops
-  >>= fun vg ->
-  write vg
-| Some r ->
-  let open Lwt in
-  Lwt_list.iter_s (fun op ->
-    Redo_log.push r op
-    >>= fun waiter ->
-    vg.wait_for_flush_t <- waiter;
-    return ()
-  ) ops
-  >>= fun () ->
-  run vg ops
+let update vg ops =
+  run vg.metadata ops
+  >>= fun metadata ->
+  (* Write either to the metadata area or the redo-log *)
+  ( match vg.redo_log with
+    | None ->
+      write metadata vg.devices
+    | Some r ->
+      let open Lwt in
+      Lwt_list.iter_s (fun op ->
+        Redo_log.push r op
+        >>= fun waiter ->
+        vg.wait_for_flush_t <- waiter;
+        return ()
+      ) ops
+      >>= fun () ->
+      return (`Ok ()) ) >>= fun () ->
+  (* Update our cache of the metadata *)
+  vg.metadata <- metadata;
+  return ()
 
 let sync vg =
   let open Lwt in

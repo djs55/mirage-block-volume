@@ -65,12 +65,14 @@ module Make(Log: S.LOG)(Block: S.BLOCK) : sig
   (** [connect devices] opens a volume group contained on [devices]
       for reading and writing *)
 
-  val update: vg -> Redo.Op.t list -> vg S.io
-  (** [update t updates] performs the operations [updates] and
-      writes the new metadata back. *)
+  val update: vg -> Redo.Op.t list -> unit S.io
+  (** [update t updates] performs the operations [updates] and ensures
+      the changes are persisted. *)
 
   val sync: vg -> unit S.io
-  (** [sync t] flushes all pending writes associated with [t] *)
+  (** [sync t] flushes all pending writes associated with [t] to the
+      main metadata area. This is only needed if you plan to switch off
+      the redo-log. *)
 
   module Volume : sig
     include V1_LWT.BLOCK
