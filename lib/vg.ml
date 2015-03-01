@@ -97,8 +97,8 @@ let do_op vg op : (metadata * op, string) Result.result =
     | _ -> fail (Printf.sprintf "VG: unknown LV %s" lv_name) in
   match op with
   | LvCreate lv ->
-    (*    let new_free_space = Pv.Allocator.sub vg.free_space lv.segments in*)
-    return ({vg with lvs = lv::vg.lvs; (* free_space = new_free_space *)},op)
+    let new_free_space = Pv.Allocator.sub vg.free_space (Lv.to_allocation lv) in
+    return ({vg with lvs = lv::vg.lvs; free_space = new_free_space},op)
   | LvExpand (name,l) ->
     change_lv name (fun lv others ->
       (* Compute the new physical extents, remove from free space *)
