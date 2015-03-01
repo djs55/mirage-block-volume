@@ -216,10 +216,11 @@ type devices = (Pv.Name.t * Block.t) list
 
 module Volume = struct
   type id = {
-    metadata: metadata;
+    metadata: metadata; (* need pe_start *)
     devices: devices;
-    name: string;
+    lv: Lv.t;
   }
+
   type t = {
     id: id;
     devices: devices;
@@ -251,32 +252,32 @@ module Volume = struct
 
   open Lwt
 
-  let connect ({ metadata; devices; name } as id) =
-    match try Some (List.find (fun x -> x.Lv.name = name) metadata.lvs) with Not_found -> None with
-    | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" name)))
-    | Some lv ->
-      (* We need the to add the pe_start later *)
-      let name_to_pe_starts = List.map (fun (name, _) ->
-        let pv = List.find (fun x -> x.Pv.name = name) metadata.pvs in
-        name, pv.Pv.pe_start
-      ) devices in
-      (* We require all the devices to have identical sector sizes *)
-      Lwt_list.map_p
-        (fun (_, device) ->
-          Block.get_info device
-          >>= fun info ->
-          return info.Block.sector_size
-        ) devices
-      >>= fun sizes ->
-      let biggest = List.fold_left max min_int sizes in
-      let smallest = List.fold_left min max_int sizes in
-      if biggest <> smallest
-      then return (`Error (`Unknown (Printf.sprintf "The underlying block devices have mixed sector sizes: %d <> %d" smallest biggest)))
-      else
-        return (`Ok {
-          id; devices; sector_size = biggest; extent_size = metadata.extent_size;
-          disconnected = false; lv; name_to_pe_starts;
-        })
+  let connect ({ metadata; devices; lv } as id) =
+    (* We need the to add the pe_start later *)
+    let name_to_pe_starts = List.map (fun (name, _) ->
+      let pv = List.find (fun x -> x.Pv.name = name) metadata.pvs in
+      name, pv.Pv.pe_start
+    ) devices in
+    (* We require all the devices to have identical sector sizes *)
+    Lwt_list.map_p
+      (fun (_, device) ->
+        Block.get_info device
+        >>= fun info ->
+        return info.Block.sector_size
+      ) devices
+    >>= fun sizes ->
+    let biggest = List.fold_left max min_int sizes in
+    let smallest = List.fold_left min max_int sizes in
+    if biggest <> smallest
+    then return (`Error (`Unknown (Printf.sprintf "The underlying block devices have mixed sector sizes: %d <> %d" smallest biggest)))
+    else
+      (* We don't need to hang onto the VG metadata as the `type id` is abstract
+         and therefore no-one can interpret the values! *)
+      let id = { id with metadata = { id.metadata with lvs = [] } } in
+      return (`Ok {
+        id; devices; sector_size = biggest; extent_size = metadata.extent_size;
+        disconnected = false; lv; name_to_pe_starts;
+      })
 
   let get_info t =
     let read_write = List.mem Lv.Status.Write t.lv.Lv.status in
@@ -334,8 +335,8 @@ let metadata_of vg = vg.metadata
 
 let find { metadata; devices } name =
   try
-     ignore(List.find (fun x -> x.Lv.name = name) metadata.lvs);
-     Some { Volume.metadata; devices; name }
+     let lv = List.find (fun x -> x.Lv.name = name) metadata.lvs in
+     Some { Volume.metadata; devices; lv }
   with Not_found ->
      None
 
