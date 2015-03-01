@@ -335,6 +335,7 @@ type vg = {
   devices: devices;
   redo_log: Redo_log.t option;
   mutable wait_for_flush_t: unit -> unit Lwt.t;
+  m: Lwt_mutex.t;
 }
 
 let metadata_of vg = vg.metadata
@@ -525,7 +526,8 @@ let read devices =
 
   let redo_log = None in
   let wait_for_flush_t () = Lwt.return () in
-  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t } in
+  let m = Lwt_mutex.create () in
+  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t; m } in
 
   (* Assuming the PV headers all have the same magic *)
   match pvs with
@@ -561,25 +563,28 @@ let read devices =
 let connect devices = read devices
 
 let update vg ops =
-  run vg.metadata ops
-  >>= fun metadata ->
-  (* Write either to the metadata area or the redo-log *)
-  ( match vg.redo_log with
-    | None ->
-      write metadata vg.devices
-    | Some r ->
-      let open Lwt in
-      Lwt_list.iter_s (fun op ->
-        Redo_log.push r op
-        >>= fun waiter ->
-        vg.wait_for_flush_t <- waiter;
-        return ()
-      ) ops
-      >>= fun () ->
-      return (`Ok ()) ) >>= fun () ->
-  (* Update our cache of the metadata *)
-  vg.metadata <- metadata;
-  return ()
+  Lwt_mutex.with_lock vg.m
+    (fun () ->
+      run vg.metadata ops
+      >>= fun metadata ->
+      (* Write either to the metadata area or the redo-log *)
+      ( match vg.redo_log with
+        | None ->
+          write metadata vg.devices
+        | Some r ->
+          let open Lwt in
+          Lwt_list.iter_s (fun op ->
+            Redo_log.push r op
+            >>= fun waiter ->
+            vg.wait_for_flush_t <- waiter;
+            return ()
+          ) ops
+          >>= fun () ->
+          return (`Ok ()) ) >>= fun () ->
+      (* Update our cache of the metadata *)
+      vg.metadata <- metadata;
+      return ()
+    )
 
 let sync vg =
   let open Lwt in
