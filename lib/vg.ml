@@ -328,9 +328,12 @@ module Volume = struct
     return ()
 end
 
+module Redo_log = Shared_block.Journal.Make(Log)(Volume)(Redo.Op)
+
 type vg = {
   metadata: metadata;
   devices: devices;
+  redo_log: Redo_log.t option;
 }
 
 let metadata_of vg = vg.metadata
@@ -424,7 +427,7 @@ let format name ?(magic = `Lvm) devices =
         | `Error x -> Lwt.return (`Error x)
       )
   ) >>= fun metadata ->
-  write { metadata; devices } >>= fun _ ->
+  write { metadata; devices; redo_log = None } >>= fun _ ->
   debug "VG created";
   return ()
 
@@ -506,7 +509,8 @@ let read devices =
       else None (* passed in devices list was a proper superset of pvs in metadata *)
      )
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
-  return { metadata = vg; devices = name_to_devices }
+  let redo_log = None in
+  return { metadata = vg; devices = name_to_devices; redo_log }
 
 let connect devices = read devices
 

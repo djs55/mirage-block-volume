@@ -17,7 +17,7 @@ Library lvm
   Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic, UnalignedBlock
   Findlibname: lvm
   Pack: true
-  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page
+  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring
 
 Library lvm_mapper
   Build$: flag(mapper)

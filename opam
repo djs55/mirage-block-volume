@@ -22,4 +22,5 @@ depends: [
   "io-page" {> "1.2.0"}
   "mirage-block-unix"
   "cmdliner"
+  "shared-block-ring"
 ]
