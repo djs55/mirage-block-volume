@@ -214,12 +214,130 @@ open IO
 
 type devices = (Pv.Name.t * Block.t) list
 
+module Volume = struct
+  type id = {
+    metadata: metadata;
+    devices: devices;
+    name: string;
+  }
+  type t = {
+    id: id;
+    devices: devices;
+    name_to_pe_starts: (Pv.Name.t * int64) list;
+    sector_size: int;
+    extent_size: int64;
+    lv: Lv.t;
+    mutable disconnected: bool;
+  }
+
+  let id t = t.id
+
+  type error = [
+    | `Unknown of string
+    | `Unimplemented
+    | `Is_read_only
+    | `Disconnected
+  ]
+
+  type info = {
+    read_write: bool;
+    sector_size: int;
+    size_sectors: int64;
+  }
+
+  type 'a io = 'a Lwt.t
+
+  type page_aligned_buffer = Cstruct.t
+
+  open Lwt
+
+  let connect ({ metadata; devices; name } as id) =
+    match try Some (List.find (fun x -> x.Lv.name = name) metadata.lvs) with Not_found -> None with
+    | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" name)))
+    | Some lv ->
+      (* We need the to add the pe_start later *)
+      let name_to_pe_starts = List.map (fun (name, _) ->
+        let pv = List.find (fun x -> x.Pv.name = name) metadata.pvs in
+        name, pv.Pv.pe_start
+      ) devices in
+      (* We require all the devices to have identical sector sizes *)
+      Lwt_list.map_p
+        (fun (_, device) ->
+          Block.get_info device
+          >>= fun info ->
+          return info.Block.sector_size
+        ) devices
+      >>= fun sizes ->
+      let biggest = List.fold_left max min_int sizes in
+      let smallest = List.fold_left min max_int sizes in
+      if biggest <> smallest
+      then return (`Error (`Unknown (Printf.sprintf "The underlying block devices have mixed sector sizes: %d <> %d" smallest biggest)))
+      else
+        return (`Ok {
+          id; devices; sector_size = biggest; extent_size = metadata.extent_size;
+          disconnected = false; lv; name_to_pe_starts;
+        })
+
+  let get_info t =
+    let read_write = List.mem Lv.Status.Write t.lv.Lv.status in
+    let segments = List.fold_left (fun acc s -> Int64.add acc s.Lv.Segment.extent_count) 0L t.lv.Lv.segments in
+    let size_sectors = Int64.mul segments t.extent_size in
+    return { read_write; sector_size = t.sector_size; size_sectors }
+
+  let (>>|=) m f = m >>= function
+  | `Error e -> return (`Error e)
+  | `Ok x -> f x
+  
+  let io op t sector_start buffers =
+    if t.disconnected
+    then return (`Error `Disconnected)
+    else begin
+      let rec loop sector_start = function
+      | [] -> return (`Ok ())
+      | b :: bs ->
+        let start_le = Int64.div sector_start t.extent_size in
+        let start_offset = Int64.rem sector_start t.extent_size in
+        match Lv.find_extent t.lv start_le with
+        | Some { Lv.Segment.cls = Lv.Segment.Linear l; start_extent; extent_count } ->
+          let start_pe = Int64.(add l.Lv.Linear.start_extent (sub start_le start_extent)) in
+          let phys_offset = Int64.(add (mul start_pe t.extent_size) start_offset) in
+          let will_read = min (Cstruct.len b / t.sector_size) (Int64.to_int t.extent_size) in
+          if List.mem_assoc l.Lv.Linear.name t.devices then begin
+            let device = List.assoc l.Lv.Linear.name t.devices in
+            let pe_start = List.assoc l.Lv.Linear.name t.name_to_pe_starts in
+            op device (Int64.add pe_start phys_offset) [ Cstruct.sub b 0 (will_read * t.sector_size) ]
+            >>|= fun () ->
+            let b = Cstruct.shift b (will_read * t.sector_size) in
+            let bs = if Cstruct.len b > 0 then b :: bs else bs in
+            let sector_start = Int64.(add sector_start (of_int will_read)) in
+            loop sector_start bs
+          end else return (`Error (`Unknown (Printf.sprintf "Unknown physical volume %s" (Pv.Name.to_string l.Lv.Linear.name))))
+        | Some _ -> return (`Error (`Unknown "I only understand linear mapping"))
+        | None -> return (`Error (`Unknown (Printf.sprintf "Logical extent %Ld has no segment" start_le))) in
+      loop sector_start buffers
+    end
+
+  let read = io Block.read
+  let write = io Block.write
+
+  let disconnect t =
+    t.disconnected <- true;
+    return ()
+end
+
 type vg = {
   metadata: metadata;
   devices: devices;
 }
 
 let metadata_of vg = vg.metadata
+
+let find { metadata; devices } name =
+  try
+     ignore(List.find (fun x -> x.Lv.name = name) metadata.lvs);
+     Some { Volume.metadata; devices; name }
+  with Not_found ->
+     None
 
 let id_to_devices devices =
   (* We need the uuid contained within the Pv_header to figure out
@@ -391,116 +509,6 @@ let connect devices = read devices
 
 let flush vg = return ()
 
-module Volume = struct
-  type id = {
-    vg: vg;
-    name: string;
-  }
-  type t = {
-    id: id;
-    devices: devices;
-    name_to_pe_starts: (Pv.Name.t * int64) list;
-    sector_size: int;
-    extent_size: int64;
-    lv: Lv.t;
-    mutable disconnected: bool;
-  }
-
-  let id t = t.id
-
-  type error = [
-    | `Unknown of string
-    | `Unimplemented
-    | `Is_read_only
-    | `Disconnected
-  ]
-
-  type info = {
-    read_write: bool;
-    sector_size: int;
-    size_sectors: int64;
-  }
-
-  type 'a io = 'a Lwt.t
-
-  type page_aligned_buffer = Cstruct.t
-
-  open Lwt
-
-  let connect id =
-    let { metadata; devices } = id.vg in
-    match try Some (List.find (fun x -> x.Lv.name = id.name) metadata.lvs) with Not_found -> None with
-    | None -> return (`Error (`Unknown (Printf.sprintf "There is no volume named '%s'" id.name)))
-    | Some lv ->
-      (* We need the to add the pe_start later *)
-      let name_to_pe_starts = List.map (fun (name, _) ->
-        let pv = List.find (fun x -> x.Pv.name = name) metadata.pvs in
-        name, pv.Pv.pe_start
-      ) devices in
-      (* We require all the devices to have identical sector sizes *)
-      Lwt_list.map_p
-        (fun (_, device) ->
-          Block.get_info device
-          >>= fun info ->
-          return info.Block.sector_size
-        ) devices
-      >>= fun sizes ->
-      let biggest = List.fold_left max min_int sizes in
-      let smallest = List.fold_left min max_int sizes in
-      if biggest <> smallest
-      then return (`Error (`Unknown (Printf.sprintf "The underlying block devices have mixed sector sizes: %d <> %d" smallest biggest)))
-      else
-        return (`Ok {
-          id; devices; sector_size = biggest; extent_size = metadata.extent_size;
-          disconnected = false; lv; name_to_pe_starts;
-        })
-
-  let get_info t =
-    let read_write = List.mem Lv.Status.Write t.lv.Lv.status in
-    let segments = List.fold_left (fun acc s -> Int64.add acc s.Lv.Segment.extent_count) 0L t.lv.Lv.segments in
-    let size_sectors = Int64.mul segments t.extent_size in
-    return { read_write; sector_size = t.sector_size; size_sectors }
-
-  let (>>|=) m f = m >>= function
-  | `Error e -> return (`Error e)
-  | `Ok x -> f x
-  
-  let io op t sector_start buffers =
-    if t.disconnected
-    then return (`Error `Disconnected)
-    else begin
-      let rec loop sector_start = function
-      | [] -> return (`Ok ())
-      | b :: bs ->
-        let start_le = Int64.div sector_start t.extent_size in
-        let start_offset = Int64.rem sector_start t.extent_size in
-        match Lv.find_extent t.lv start_le with
-        | Some { Lv.Segment.cls = Lv.Segment.Linear l; start_extent; extent_count } ->
-          let start_pe = Int64.(add l.Lv.Linear.start_extent (sub start_le start_extent)) in
-          let phys_offset = Int64.(add (mul start_pe t.extent_size) start_offset) in
-          let will_read = min (Cstruct.len b / t.sector_size) (Int64.to_int t.extent_size) in
-          if List.mem_assoc l.Lv.Linear.name t.devices then begin
-            let device = List.assoc l.Lv.Linear.name t.devices in
-            let pe_start = List.assoc l.Lv.Linear.name t.name_to_pe_starts in
-            op device (Int64.add pe_start phys_offset) [ Cstruct.sub b 0 (will_read * t.sector_size) ]
-            >>|= fun () ->
-            let b = Cstruct.shift b (will_read * t.sector_size) in
-            let bs = if Cstruct.len b > 0 then b :: bs else bs in
-            let sector_start = Int64.(add sector_start (of_int will_read)) in
-            loop sector_start bs
-          end else return (`Error (`Unknown (Printf.sprintf "Unknown physical volume %s" (Pv.Name.to_string l.Lv.Linear.name))))
-        | Some _ -> return (`Error (`Unknown "I only understand linear mapping"))
-        | None -> return (`Error (`Unknown (Printf.sprintf "Logical extent %Ld has no segment" start_le))) in
-      loop sector_start buffers
-    end
-
-  let read = io Block.read
-  let write = io Block.write
-
-  let disconnect t =
-    t.disconnected <- true;
-    return ()
-end
 
 end
 (*

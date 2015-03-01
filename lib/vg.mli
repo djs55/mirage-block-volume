@@ -74,14 +74,11 @@ module Make : functor(Block: S.BLOCK) -> sig
       associated with [t] *)
 
   module Volume : sig
-    type id = {
-      vg: vg;
-      name: string;
-    }
-
     include V1_LWT.BLOCK
-      with type id := id
 
     val connect: id -> [ `Ok of t | `Error of error ] Lwt.t
   end
+
+  val find: vg -> string -> Volume.id option
+  (** [find vg name] finds the volume with name [name] *)
 end
