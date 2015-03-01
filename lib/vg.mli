@@ -77,6 +77,9 @@ module Make : functor(Block: S.BLOCK) -> sig
     include V1_LWT.BLOCK
 
     val connect: id -> [ `Ok of t | `Error of error ] Lwt.t
+
+    val metadata_of: id -> Lv.t
+    (** return the metadata associated with a volume *)
   end
 
   val find: vg -> string -> Volume.id option

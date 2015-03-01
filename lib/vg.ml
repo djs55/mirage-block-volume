@@ -221,6 +221,8 @@ module Volume = struct
     lv: Lv.t;
   }
 
+  let metadata_of { lv } = lv
+
   type t = {
     id: id;
     devices: devices;
