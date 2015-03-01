@@ -334,6 +334,7 @@ type vg = {
   metadata: metadata;
   devices: devices;
   redo_log: Redo_log.t option;
+  mutable wait_for_flush_t: unit -> unit Lwt.t;
 }
 
 let metadata_of vg = vg.metadata
@@ -390,7 +391,7 @@ let write ({ metadata; devices } as t ) =
   let metadata = { metadata with pvs } in
   return { t with metadata }
 
-let update ({ metadata; devices } as t) ops =
+let run ({ metadata; devices } as t) ops =
   let open Result in
   let rec loop metadata = function
     | [] -> return metadata
@@ -401,7 +402,7 @@ let update ({ metadata; devices } as t) ops =
   let open IO.FromResult in
   loop metadata ops
   >>= fun metadata ->
-  write { t with metadata }
+  return { t with metadata }
 
 let _redo_log_name = "mirage_block_volume_redo_log"
 let _redo_log_size = Int64.(mul 4L (mul 1024L 1024L))
@@ -427,7 +428,9 @@ let format name ?(magic = `Lvm) devices =
         | `Error x -> Lwt.return (`Error x)
       )
   ) >>= fun metadata ->
-  write { metadata; devices; redo_log = None } >>= fun _ ->
+  let redo_log = None in
+  let wait_for_flush_t () = Lwt.return () in
+  write { metadata; devices; redo_log; wait_for_flush_t } >>= fun _ ->
   debug "VG created";
   return ()
 
@@ -510,12 +513,80 @@ let read devices =
      )
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
   let redo_log = None in
-  return { metadata = vg; devices = name_to_devices; redo_log }
+  let wait_for_flush_t () = Lwt.return () in
+  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t } in
+
+  let ok_or_fail x =
+    let open Lwt in
+    x >>= function
+    | `Ok x -> return x
+    | `Error x -> fail (Failure x) in
+
+  let on_disk_state = ref t in
+  let perform ops =
+    let open Lwt in
+    ok_or_fail (run !on_disk_state ops)
+    >>= fun vg ->
+    ok_or_fail (write vg)
+    >>= fun vg ->
+    on_disk_state := vg;
+    return () in
+
+  (* Assuming the PV headers all have the same magic *)
+  match pvs with
+  | { Pv.headers = h :: _ } :: _ ->
+    begin match Metadata.Header.magic h with
+    | `Lvm -> return t
+    | `Journalled ->
+      begin match find t _redo_log_name with
+      | None ->
+        Log.error "VG is set to Journalled mode but there is no %s" _redo_log_name;
+        return t
+      | Some lv ->
+        begin let open Lwt in
+        Volume.connect lv
+        >>= function
+        | `Ok disk ->
+          Log.info "Enabling redo-log on volume group";
+          Redo_log.start disk perform
+          >>= fun r ->
+          let open IO in
+          return { t with redo_log = Some r }
+        | `Error _ ->
+          let open IO in
+          Log.error "Failed to connect to the redo log volume";
+          return t
+        end
+      end
+    end
+  | _ ->
+    Log.error "Failed to read headers to discover whether we're in Journalled mode";
+    return t
 
 let connect devices = read devices
 
-let flush vg = return ()
+let update vg ops = match vg.redo_log with
+| None ->
+  run vg ops
+  >>= fun vg ->
+  write vg
+| Some r ->
+  let open Lwt in
+  Lwt_list.iter_s (fun op ->
+    Redo_log.push r op
+    >>= fun waiter ->
+    vg.wait_for_flush_t <- waiter;
+    return ()
+  ) ops
+  >>= fun () ->
+  run vg ops
 
+let sync vg =
+  let open Lwt in
+  vg.wait_for_flush_t ()
+  >>= fun () ->
+  let open IO in
+  return ()
 
 end
 (*

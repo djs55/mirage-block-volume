@@ -165,7 +165,7 @@ let update_vg common filename f =
           Vg_IO.connect devices >>|= fun vg ->
           f (Vg_IO.metadata_of vg) >>*= fun (_,op) ->
           Vg_IO.update vg [ op ] >>|= fun vg ->
-          Vg_IO.flush vg >>|= fun () ->
+          Vg_IO.sync vg >>|= fun () ->
           return ()
         ) in
     Lwt_main.run t;

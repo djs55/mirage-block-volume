@@ -69,9 +69,8 @@ module Make(Log: S.LOG)(Block: S.BLOCK) : sig
   (** [update t updates] performs the operations [updates] and
       writes the new metadata back. *)
 
-  val flush: vg -> unit S.io
-  (** [flushes t] flushes all pending writes and drops any caches
-      associated with [t] *)
+  val sync: vg -> unit S.io
+  (** [sync t] flushes all pending writes associated with [t] *)
 
   module Volume : sig
     include V1_LWT.BLOCK
