@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 52930d4d679fa12e8a4dc561fc0e0563)
+# DO NOT EDIT (digest: bf148db238b831df270c815fbe6f8d9b)
 version = "0.1"
 description = "Pure OCaml volume manager, compatible with Linux LVM"
 requires =
-"sexplib.syntax sexplib uuidm re.str cstruct mirage-types lwt io-page"
+"sexplib.syntax sexplib uuidm re.str cstruct mirage-types lwt io-page shared-block-ring"
 archive(byte) = "lvm.cma"
 archive(byte, plugin) = "lvm.cma"
 archive(native) = "lvm.cmxa"
