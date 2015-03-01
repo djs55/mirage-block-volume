@@ -548,7 +548,8 @@ let read devices =
           Redo_log.start disk perform
           >>= fun r ->
           let open IO in
-          return { t with redo_log = Some r }
+          (* NB the metadata we read in is already out of date! *)
+          return { t with metadata = !on_disk_metadata; redo_log = Some r }
         | `Error _ ->
           let open IO in
           Log.error "Failed to connect to the redo log volume";
