@@ -61,9 +61,11 @@ module Make(Log: S.LOG)(Block: S.BLOCK) : sig
   (** [format name devices_and_names] initialises a new volume group
       with name [name], using physical volumes [devices] *)
 
-  val connect: Block.t list -> vg S.io
-  (** [connect devices] opens a volume group contained on [devices]
-      for reading and writing *)
+  val connect: Block.t list -> [ `RO | `RW ] -> vg S.io
+  (** [connect disks flag] opens a volume group contained on [devices].
+      If `RO is provided then no updates will be persisted to disk,
+      this is particularly useful if the volume group is opened for writing
+      somewhere else. *)
 
   val update: vg -> Redo.Op.t list -> unit S.io
   (** [update t updates] performs the operations [updates] and ensures
