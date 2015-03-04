@@ -278,7 +278,7 @@ module Volume = struct
       let id = { id with metadata = { id.metadata with lvs = [] } } in
       return (`Ok {
         id; devices; sector_size = biggest; extent_size = metadata.extent_size;
-        disconnected = false; lv; name_to_pe_starts;
+        disconnected = false; lv; name_to_pe_starts
       })
 
   let get_info t =
@@ -336,6 +336,7 @@ type vg = {
   redo_log: Redo_log.t option;
   mutable wait_for_flush_t: unit -> unit Lwt.t;
   m: Lwt_mutex.t;
+  flag: [ `RO | `RW ];
 }
 
 let metadata_of vg = vg.metadata
@@ -429,7 +430,7 @@ let format name ?(magic = `Lvm) devices =
   debug "VG created";
   return ()
 
-let read devices =
+let read devices flag =
   id_to_devices devices
   >>= fun id_to_devices ->
 
@@ -527,10 +528,12 @@ let read devices =
   let redo_log = None in
   let wait_for_flush_t () = Lwt.return () in
   let m = Lwt_mutex.create () in
-  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t; m } in
+  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t; m; flag } in
 
   (* Assuming the PV headers all have the same magic *)
-  match pvs with
+  if flag = `RO
+  then return t
+  else match pvs with
   | { Pv.headers = h :: _ } :: _ ->
     begin match Metadata.Header.magic h with
     | `Lvm -> return t
@@ -561,10 +564,12 @@ let read devices =
     Log.error "Failed to read headers to discover whether we're in Journalled mode";
     return t
 
-let connect devices = read devices
+let connect devices flag = read devices flag
 
 let update vg ops =
-  Lwt_mutex.with_lock vg.m
+  if vg.flag = `RO
+  then Lwt.return (`Error "Volume group is read-only")
+  else Lwt_mutex.with_lock vg.m
     (fun () ->
       run vg.metadata ops
       >>= fun metadata ->
