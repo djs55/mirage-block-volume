@@ -17,9 +17,11 @@ type ('a, 'b) result = [
 | `Error of 'b
 ]
 
-let ( >>= ) m f = match m with
-| `Ok x -> f x
-| `Error y -> `Error y
+let bind v f = match v with `Ok v -> f v | `Error _ as e -> e
+let map v f = match v with `Ok v -> `Ok (f v) | `Error _ as e -> e
+let join r = match r with `Ok v -> v | `Error _ as e -> e
+let ( >>= ) = bind
+let ( >>| ) = map
 
 let return x = `Ok x
 let ok = return

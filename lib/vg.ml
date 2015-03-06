@@ -172,6 +172,7 @@ let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size 
   | `Ok lvc_segments ->
     let segments = Lv.Segment.sort (Lv.Segment.linear 0L lvc_segments) in
     let id = Uuid.create () in
+    all @@ List.map Name.Tag.of_string tags >>= fun tags ->
     let lv = Lv.({ name; id; tags; status; segments }) in
     do_op vg Redo.Op.(LvCreate lv)
   | `Error free ->
@@ -202,9 +203,11 @@ let remove vg name =
   do_op vg Redo.Op.(LvRemove name)
 
 let add_tag vg name tag =
+  Name.Tag.of_string tag >>= fun tag ->
   do_op vg Redo.Op.(LvAddTag (name, tag))
 
 let remove_tag vg name tag =
+  Name.Tag.of_string tag >>= fun tag ->
   do_op vg Redo.Op.(LvRemoveTag (name, tag))
 
 module Make(Log: S.LOG)(Block: S.BLOCK) = struct

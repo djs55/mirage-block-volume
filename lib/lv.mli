@@ -59,7 +59,7 @@ end
 type t = {
   name : string;             (** name given by the user *)
   id : Uuid.t;               (** arbitrary unique id *)
-  tags : Tag.t list;         (** tags given by the user *)
+  tags : Name.Tag.t list;    (** tags given by the user *)
   status : Status.t list;    (** status flags *)
   (* TODO: this must be written in ascending order of start_extent.
      Should we convert this into a Map? *)

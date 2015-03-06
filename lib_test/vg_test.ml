@@ -211,6 +211,20 @@ let uuid_suite = "Uuid" >::: [
   "of_string ok" >:: uuid_of_string_ok;
 ]
 
+let test_tag_string (should_be_valid, s) =
+  Printf.sprintf "Checking if tag '%s' is %svalid" s (if should_be_valid then "" else "in") >:: (fun () ->
+    let is_valid = match Name.Tag.of_string s with `Ok _ -> true | _ -> false in
+    assert_equal ~printer:string_of_bool should_be_valid is_valid
+  )
+
+let test_strings = [
+  false, "";
+  true, "abc";
+  true, "_0m_3+3-3.X"
+]
+
+let tag_suite = "tags" >::: (List.map test_tag_string test_strings)
+
 module Vg_IO = Vg.Make(Log)(Block)
 
 let (>>|=) m f = m >>= function
@@ -274,7 +288,7 @@ let lv_name_clash () =
       in
       Lwt_main.run t)
 
-let tag = Tag.of_string "tag"
+let tag = "tag"
 
 let lv_create magic () =
   let open Vg_IO in
@@ -464,8 +478,7 @@ let lv_tags () =
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            let printer xs = String.concat "," (List.map Tag.to_string xs) in
-            assert_equal ~printer [] v_md.Lv.tags;
+            assert_equal [] v_md.Lv.tags;
             (* first one that doesn't exist *)
             expect_error (Vg.add_tag (Vg_IO.metadata_of vg) "doesntexist" tag);
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
@@ -473,20 +486,20 @@ let lv_tags () =
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer [tag] v_md.Lv.tags;
+            assert_equal [tag] (List.map Name.Tag.to_string v_md.Lv.tags);
             (* add it again for no change *)
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer [tag] v_md.Lv.tags;
+            assert_equal [tag] (List.map Name.Tag.to_string v_md.Lv.tags);
             Vg.remove_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer [] v_md.Lv.tags;
+            assert_equal [] (List.map Name.Tag.to_string v_md.Lv.tags);
             Lwt.return ()
           )
       in
@@ -560,6 +573,7 @@ let _ =
     label_suite;
     pv_header_suite;
     uuid_suite;
+    tag_suite;
     vg_suite;
     allocator_suite;
   ]
