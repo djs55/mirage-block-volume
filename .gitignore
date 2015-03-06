@@ -3,3 +3,9 @@ setup.data
 _build
 *.native
 config.mk
+setup.ml
+myocamlbuild.ml
+_tags
+*.mllib
+*.mldylib
+*.mlpack
