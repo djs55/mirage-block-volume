@@ -51,6 +51,7 @@ release:
 	sed -i -r s'/\*.mllib//g' .gitignore
 	sed -i -r s'/\*.mldylib//g' .gitignore
 	sed -i -r s'/\*.mlpack//g' .gitignore
+	sed -i -r s'/META//g' .gitignore
 	oasis setup
 
 .PHONY: build doc test all install uninstall reinstall clean distclean configure
