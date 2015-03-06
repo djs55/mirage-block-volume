@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 33c5dfa7ba5490fc525c2d00c6cbb432)
+# DO NOT EDIT (digest: 2289ecabd2dead96b0b3773158d99e5c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -104,6 +104,7 @@ true: annot, bin_annot
 <lib_test/tag_test.{native,byte}>: use_lvm
 <lib_test/tag_test.{native,byte}>: custom
 # Executable vg_test
+<lib_test/vg_test.{native,byte}>: pkg_bisect
 <lib_test/vg_test.{native,byte}>: pkg_cstruct
 <lib_test/vg_test.{native,byte}>: pkg_io-page
 <lib_test/vg_test.{native,byte}>: pkg_io-page.unix
@@ -117,6 +118,7 @@ true: annot, bin_annot
 <lib_test/vg_test.{native,byte}>: pkg_shared-block-ring
 <lib_test/vg_test.{native,byte}>: pkg_uuidm
 <lib_test/vg_test.{native,byte}>: use_lvm
+<lib_test/*.ml{,i,y}>: pkg_bisect
 <lib_test/*.ml{,i,y}>: pkg_cstruct
 <lib_test/*.ml{,i,y}>: pkg_io-page
 <lib_test/*.ml{,i,y}>: pkg_io-page.unix
