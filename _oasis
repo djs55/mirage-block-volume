@@ -17,7 +17,7 @@ Library lvm
   Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic, UnalignedBlock
   Findlibname: lvm
   Pack: true
-  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring
+  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring, bisect
 
 Library lvm_mapper
   Build$: flag(mapper)
@@ -26,7 +26,7 @@ Library lvm_mapper
   Modules: Mapper
   Findlibname: mapper
   Findlibparent: lvm
-  BuildDepends: lvm, devmapper, mirage-block-unix
+  BuildDepends: lvm, devmapper, mirage-block-unix, bisect
 
 Executable mlvm
   CompiledObject:     best
