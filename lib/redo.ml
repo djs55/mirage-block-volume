@@ -38,8 +38,8 @@ module Op = struct
     | LvExpand of string * lvexpand_t
     | LvRename of string * lvrename_t
     | LvRemove of string
-    | LvAddTag of string * Tag.t
-    | LvRemoveTag of string * Tag.t
+    | LvAddTag of string * Name.Tag.t
+    | LvRemoveTag of string * Name.Tag.t
   with sexp
 
   let of_cstruct x =
