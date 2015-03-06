@@ -1,12 +1,18 @@
 A Linux-LVM compatible logical volume manager for mirage
 ========================================================
 
+[![Build Status](https://travis-ci.org/mirage/mirage-block-volume.png?branch=master)](https://travis-ci.org/mirage/mirage-block-volume) [![Coverage Status](https://coveralls.io/repos/mirage/mirage-block-volume/badge.png?branch=master)](https://coveralls.io/r/mirage/mirage-block-volume?branch=master)
+
+
 A logical volume manager allows you to group together multiple physical
 disks (volumes) and treat them as a pool of disk blocks, from which you
 can allocate multiple logical disks (volumes).
 
 This implementation attempts to use the same on-disk format as Linux
-LVM.
+LVM with the following features
+
+- constant-time volume manipulation
+- linear-mapped logical volumes
 
 Quickstart guide
 ----------------
