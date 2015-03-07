@@ -14,7 +14,6 @@
 open Sexplib.Std
 
 open Absty
-open Logging
 
 (** Start with the meta-metadata - this is how we actually locate the 
     metadata on disk. It's a bit backwards, because a PV is part of a 
@@ -119,8 +118,6 @@ module Header = struct
     loop [] locations
 
   let write mdah device  =
-    debug "Writing MDA header";
-    debug "Writing: %s" (to_string mdah);
     let sector = Cstruct.create sizeof in
     Utils.zero sector;
     let _ = marshal mdah sector in
@@ -171,9 +168,9 @@ let read dev mdah n =
   Cstruct.blit buf 0 result 0 firstbit;
   Cstruct.blit buf' 0 result firstbit secondbit;
   let checksum = Crc.crc result in
-    if checksum <> locn.mrl_checksum then
-    warn "Ignoring invalid checksum in metadata: Found %lx, expecting %lx" checksum locn.mrl_checksum;
-  return result
+  if checksum <> locn.mrl_checksum
+  then Lwt.return (`Error (Printf.sprintf "Ignoring invalid checksum in metadata: Found %lx, expecting %lx" checksum locn.mrl_checksum))
+  else return result
       
 let write device mdah md =
   (* Find the current raw location of the metadata, assuming there's only one copy *)

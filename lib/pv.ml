@@ -18,7 +18,6 @@ open Sexplib.Std
     the volume group. *)
 
 open Absty
-open Logging
 
 open Result
 
@@ -100,7 +99,6 @@ let read device name config =
 let read_metadata device =
   let open IO in
   Label_IO.read device >>= fun label ->
-  debug "Label found: \"%s\"" (String.escaped (Label.to_string label));
   let mda_locs = Label.get_metadata_locations label in
   Header_IO.read_all device mda_locs >>= fun mdahs ->
   Metadata_IO.read device (List.hd mdahs) 0 >>= fun mdt ->

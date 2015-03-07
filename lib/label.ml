@@ -16,7 +16,6 @@ open Sexplib.Std
 (** Physical Volume module *)
 
 open Absty
-open Logging
 open IO
 
 let crc_pos = 8 + 8

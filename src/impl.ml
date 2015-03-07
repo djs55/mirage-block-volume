@@ -29,8 +29,7 @@ let (>>*=) m f = match m with
   | `Ok x -> f x
 
 let apply common =
-  if common.Common.debug
-  then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s)
+  ()
 
 let add_prefix x xs = List.map (function
   | [] -> []
@@ -141,8 +140,7 @@ let map common filename lvname =
             Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
               (match seg.Lv.Segment.cls with
                | Lv.Segment.Linear x ->
-                 Printf.sprintf "from %s starting at %Ld" (Pv.Name.to_string x.Lv.Linear.name) x.Lv.Linear.start_extent
-               | Lv.Segment.Striped _ -> "striped")
+                 Printf.sprintf "from %s starting at %Ld" (Pv.Name.to_string x.Lv.Linear.name) x.Lv.Linear.start_extent)
           ) lv.Lv.segments;
           return ()
         ) in

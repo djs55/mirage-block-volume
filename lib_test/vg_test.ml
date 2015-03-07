@@ -21,7 +21,16 @@ module Log = struct
   let debug fmt = Printf.ksprintf (fun s -> print_endline s) fmt
   let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
   let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+
+  let _ =
+    debug "This is the debug output";
+    info "This is the info output";
+    error "This is the error output"
 end
+
+let ok_or_fail = function
+  | None -> raise (Invalid_argument "None")
+  | Some x -> x
 
 module Vg_IO = Vg.Make(Log)(Block)
 
@@ -94,13 +103,13 @@ let lv_create magic () =
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> x) "name" v_md.Lv.name;
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             (* Re-read the metadata and check it matches *)
             Vg_IO.connect [ block ] `RO >>|= fun vg' ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md' = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
             Lwt.return ()
@@ -108,6 +117,26 @@ let lv_create magic () =
       in
       Lwt_main.run t)
 
+let lv_rename () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            Vg.rename (Vg_IO.metadata_of vg) "name" "name2" >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            ( match Vg_IO.find vg "name2" with None -> failwith "rename name2" | Some x -> () );
+            ( match Vg_IO.find vg "name" with Some _ -> failwith "rename name2, name still exists" | None -> () );
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
 let bigger = Int64.mul small 2L
 let bigger_extents = Int64.mul small_extents 2L
 
@@ -122,21 +151,61 @@ let lv_resize () =
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Vg.resize (Vg_IO.metadata_of vg) "name" small >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Vg.resize (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            (* Use up all the space in the VG *)
+            let vg_md = Vg_IO.metadata_of vg in
+            let free_space = Int64.(mul (mul 512L vg_md.Vg.extent_size) (Pv.Allocator.size vg_md.Vg.free_space)) in
+            let max_size = Int64.add bigger free_space in
+            Vg.resize vg_md "name" max_size >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            Lwt.catch (fun () ->
+              Vg.resize (Vg_IO.metadata_of vg) "name" (Int64.succ max_size) >>*= fun _ ->
+              Lwt.return ()
+            ) (fun _ ->
+              Lwt.return ()
+            )
+          )
+      in
+      Lwt_main.run t)
+
+let lv_crop () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            let space = Lv.to_allocation v_md in
+            let name, (start, length) = List.hd space in
+            (* remove the first segment *)
+            let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Lwt.return ()
           )
       in
@@ -173,20 +242,27 @@ let lv_tags () =
             Vg.create (Vg_IO.metadata_of vg) "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             let printer xs = String.concat "," (List.map Tag.to_string xs) in
             assert_equal ~printer [] v_md.Lv.tags;
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer [tag] v_md.Lv.tags;
+            (* add it again for no change *)
+            Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [tag] v_md.Lv.tags;
             Vg.remove_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [] v_md.Lv.tags;
             Lwt.return ()
@@ -198,7 +274,9 @@ let vg_suite = "Vg" >::: [
     "LV name clash" >:: lv_name_clash;
     "LV create without redo" >:: lv_create `Lvm;
     "LV create with redo" >:: lv_create `Journalled;
+    "LV rename" >:: lv_rename;
     "LV resize" >:: lv_resize;
+    "LV crop" >:: lv_crop;
     "LV remove" >:: lv_remove;
     "LV tags" >:: lv_tags;
   ]

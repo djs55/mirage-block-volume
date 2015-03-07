@@ -14,7 +14,7 @@ Flag mapper
 
 Library lvm
   Path: lib
-  Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Logging, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic, UnalignedBlock
+  Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic, UnalignedBlock
   Findlibname: lvm
   Pack: true
   BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring, bisect
