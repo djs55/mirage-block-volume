@@ -110,7 +110,11 @@ let contained : area -> area -> bool =
 let normalize areas =
     (* Merge adjacent extents by folding over them in order *)
     let normalise pairs =
-      match List.sort (fun a b -> compare (fst a) (fst b)) pairs with
+      let pairs =
+        pairs
+        |> List.filter (fun (_, len) -> len <> 0L)
+        |> List.sort (fun a b -> compare (fst a) (fst b)) in
+      match pairs with
       | [] -> []
       | p :: ps ->
         let last, pairs =
@@ -176,6 +180,8 @@ let find (free_list : t) (newsize : int64) =
 
 (* Probably de-allocation won't be used much. *)
 let merge to_free free_list = normalize (combine to_free free_list)
+
+let compare: t -> t -> int = compare
 end
 
 module StringAllocator = Make(struct

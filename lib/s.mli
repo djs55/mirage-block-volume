@@ -142,4 +142,6 @@ module type ALLOCATOR = sig
 
   (** [size t] returns the total size of [t] *)
   val size : t -> int64
+
+  val compare : t -> t -> int
 end
