@@ -231,6 +231,13 @@ let lv_tags () =
             let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [tag] v_md.Lv.tags;
+            (* add it again for no change *)
+            Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer [tag] v_md.Lv.tags;
             Vg.remove_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
