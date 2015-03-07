@@ -87,8 +87,6 @@ let to_targets id_to_device vg lv =
                         offset = extent_to_phys_sector pv l.Lv.Linear.start_extent }
                     else
                       failwith (Printf.sprintf "Unable to find a device containing PV with id %s" (Uuid.to_string pv.Pv.id))
-                | Lv.Segment.Striped st ->
-                    failwith "Not implemented"
           }::construct_dm_map ss
       | _ -> []
   in

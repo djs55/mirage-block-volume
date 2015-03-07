@@ -25,13 +25,6 @@ module Status : sig
   val of_string: string -> (t, string) Result.result
 end
 
-module Stripe : sig
-  type t = {
-    size_in_sectors : int64;
-    stripes : (Pv.Name.t * int64) list; (** Pv.name * start extent *)
-  } with sexp
-end
-
 module Linear : sig
   type t = {
     name : Pv.Name.t;
@@ -42,7 +35,6 @@ end
 module Segment : sig
   type cls = 
     | Linear of Linear.t
-    | Striped of Stripe.t
   with sexp
 
   type t = {

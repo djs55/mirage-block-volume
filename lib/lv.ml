@@ -34,13 +34,6 @@ module Status = struct
     | x -> fail (Printf.sprintf "Bad LV status string: %s" x)
 end
 
-module Stripe = struct
-  type t = {
-    size_in_sectors : int64;
-    stripes : (Pv.Name.t * int64) list;
-  } with sexp
-end
-
 module Linear = struct
   type t = {
     name : Pv.Name.t;
@@ -51,7 +44,6 @@ end
 module Segment = struct
   type cls = 
   | Linear of Linear.t 
-  | Striped of Stripe.t
 
   and t = {
     start_extent : int64; 
@@ -87,31 +79,12 @@ module Segment = struct
         Pv.Name.of_string name >>= fun name ->
         return (Linear { Linear.name; start_extent })
       | _ ->
-        expect_mapped_int "stripe_size" config >>= fun size_in_sectors ->
-        handle_stripes [] stripes >>= fun stripes ->
-        return (Striped { Stripe.size_in_sectors; stripes }) ) >>= fun cls ->
+        fail "Striping not supported" ) >>= fun cls ->
     return { start_extent; extent_count; cls }
 
   let to_allocation s = match s.cls with
     | Linear l ->
 	[(l.Linear.name, (l.Linear.start_extent, s.extent_count))]
-    | Striped st ->
-(* LVM appears to always round up the number of extents allocated such
-   that it's divisible by the number of stripes, so we always fully allocate
-   each extent in each PV. Let's be tolerant to broken metadata when this
-   isn't the case by rounding up rather than down, so partially allocated
-   extents are included in the allocation *)
-	let extent_count = s.extent_count in
-	let nstripes = Int64.of_int (List.length st.Stripe.stripes) in
-	List.map (fun (name,start) ->
-		    let allocated_extents = 
-		      Int64.div 
-			(Int64.sub 
-			   (Int64.add 
-			      extent_count nstripes) 1L) nstripes
-		    in
-		    (name,(start,allocated_extents)))
-	  (st.Stripe.stripes)
 
   let linear s_start_extent ss =
     let rec loop acc ss s_start_extent = match ss with
@@ -161,13 +134,8 @@ let marshal lv b =
        match s.cls with
 	 | Linear l ->
 	     bprintf "type = \"striped\"\nstripe_count = 1\t#linear\n\n";
-	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" (Pv.Name.to_string l.Linear.name) l.Linear.start_extent
-	 | Striped st ->
-	     let stripes = List.length st.Stripe.stripes in
-	     bprintf "type = \"striped\"\nstripe_count = %d\nstripe_size = %Ld\n\nstripes = [\n"
-	       stripes st.Stripe.size_in_sectors;
-	     List.iter (fun (pv,offset) -> bprintf "%s, %Ld\n" (quote (Pv.Name.to_string pv)) offset) st.Stripe.stripes;
-	     bprintf "]\n}\n") lv.segments;
+	     bprintf "stripes = [\n\"%s\", %Ld\n]\n}\n" (Pv.Name.to_string l.Linear.name) l.Linear.start_extent;
+     ) lv.segments;
   bprintf "}\n";
   Cstruct.shift b !ofs
 
