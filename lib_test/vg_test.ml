@@ -142,11 +142,33 @@ let lv_resize () =
       in
       Lwt_main.run t)
 
+let lv_remove () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            Vg.remove (Vg_IO.metadata_of vg) "name" >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            ( match Vg_IO.find vg "name" with None -> () | Some _ -> failwith "remove didn't work" );
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+
 let vg_suite = "Vg" >::: [
     "LV name clash" >:: lv_name_clash;
     "LV create without redo" >:: lv_create `Lvm;
     "LV create with redo" >:: lv_create `Journalled;
     "LV resize" >:: lv_resize;
+    "LV remove" >:: lv_remove;
   ]
 
 open Pv.Allocator
