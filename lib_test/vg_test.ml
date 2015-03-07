@@ -35,7 +35,7 @@ let (>>*=) m f = match m with
 let with_dummy fn =
   let filename = "/tmp/vg" in
   let f = Unix.openfile filename [Unix.O_CREAT; Unix.O_RDWR] 0o644 in
-  let s = Unix.lseek f (1024*1024*100 - 1) Unix.SEEK_SET in
+  let _ = Unix.lseek f (1024*1024*100 - 1) Unix.SEEK_SET in
   ignore(Unix.write f "\000" 0 1);
   Unix.close f;
   try 
