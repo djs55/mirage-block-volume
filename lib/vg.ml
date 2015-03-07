@@ -14,7 +14,6 @@
 open Sexplib.Std
 open Absty
 open Redo
-open Logging
 open Result
 
 module Status = struct
@@ -409,7 +408,6 @@ let format name ?(magic = `Lvm) devices =
       Pv_IO.format dev ~magic name >>= fun pv ->
       write_pv (pv :: acc) pvs in
   write_pv [] devices >>= fun pvs ->
-  debug "PVs created";
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
   let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
@@ -423,7 +421,6 @@ let format name ?(magic = `Lvm) devices =
       )
   ) >>= fun metadata ->
   write metadata devices >>= fun () ->
-  debug "VG created";
   return ()
 
 let read devices flag =
@@ -490,7 +487,6 @@ let read devices flag =
 
   let free_space = List.fold_left (fun free_space lv -> 
     let lv_allocations = Lv.to_allocation lv in
-    debug "Allocations for lv %s: %s" lv.Lv.name (Pv.Allocator.to_string lv_allocations);
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
   (* Segments reference PVs by name, not uuid, so we need to build up

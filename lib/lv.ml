@@ -13,7 +13,6 @@
  *)
 open Sexplib.Std
 open Absty
-open Logging
 open Result
 
 module Status = struct
@@ -212,15 +211,12 @@ let find_extent lv e =
  
 let reduce_size_to lv new_seg_count =
   let cur_size = size_in_extents lv in
-  debug "Beginning reduce_size_to:";
   ( if cur_size < new_seg_count
     then fail (Printf.sprintf "LV: cannot reduce size: current size (%Ld) is less than requested size (%Ld)" cur_size new_seg_count)
     else return () ) >>= fun () ->
   let rec doit segs left acc =
     match segs with 
       | s::ss ->
-	  debug "Lv.reduce_size_to: s.start_extent=%Ld s.extent_count=%Ld left=%Ld" 
-			  s.Segment.start_extent s.Segment.extent_count left;
 	  if left > s.Segment.extent_count then
 	    doit ss (Int64.sub left s.Segment.extent_count) (s::acc)
 	  else

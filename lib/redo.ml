@@ -13,8 +13,6 @@
  *)
 open Sexplib.Std
 
-open Logging
-
 module Op = struct 
   type lvrename_t = {
     lvmv_new_name : string;

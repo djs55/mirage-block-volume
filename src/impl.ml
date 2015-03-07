@@ -29,8 +29,7 @@ let (>>*=) m f = match m with
   | `Ok x -> f x
 
 let apply common =
-  if common.Common.debug
-  then Logging.destination := (fun s -> Printf.fprintf stderr "%s\n" s)
+  ()
 
 let add_prefix x xs = List.map (function
   | [] -> []
