@@ -34,7 +34,7 @@ let (>>*=) m f = match m with
 
 let with_dummy fn =
   let filename = "/tmp/vg" in
-  let f = Unix.openfile filename [Unix.O_CREAT; Unix.O_RDWR] 0o644 in
+  let f = Unix.openfile filename [Unix.O_CREAT; Unix.O_RDWR; Unix.O_TRUNC] 0o644 in
   let _ = Unix.lseek f (1024*1024*100 - 1) Unix.SEEK_SET in
   ignore(Unix.write f "\000" 0 1);
   Unix.close f;
@@ -110,6 +110,7 @@ let lv_create magic () =
 let vg_suite = "Vg" >::: [
     "LV name clash" >:: lv_name_clash;
     "LV create without redo" >:: lv_create `Lvm;
+    "LV create with redo" >:: lv_create `Journalled;
   ]
 
 open Pv.Allocator
