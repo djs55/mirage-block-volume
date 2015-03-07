@@ -176,6 +176,8 @@ let find (free_list : t) (newsize : int64) =
 
 (* Probably de-allocation won't be used much. *)
 let merge to_free free_list = normalize (combine to_free free_list)
+
+let compare: t -> t -> int = compare
 end
 
 module StringAllocator = Make(struct
