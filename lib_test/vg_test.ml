@@ -21,7 +21,16 @@ module Log = struct
   let debug fmt = Printf.ksprintf (fun s -> print_endline s) fmt
   let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
   let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+
+  let _ =
+    debug "This is the debug output";
+    info "This is the info output";
+    error "This is the error output"
 end
+
+let ok_or_fail = function
+  | None -> raise (Invalid_argument "None")
+  | Some x -> x
 
 module Vg_IO = Vg.Make(Log)(Block)
 
@@ -94,13 +103,13 @@ let lv_create magic () =
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> x) "name" v_md.Lv.name;
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             (* Re-read the metadata and check it matches *)
             Vg_IO.connect [ block ] `RO >>|= fun vg' ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md' = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
             Lwt.return ()
@@ -142,19 +151,19 @@ let lv_resize () =
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Vg.resize (Vg_IO.metadata_of vg) "name" small >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Vg.resize (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             (* Use up all the space in the VG *)
@@ -164,9 +173,12 @@ let lv_resize () =
             Vg.resize vg_md "name" max_size >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            match Vg.resize (Vg_IO.metadata_of vg) "name" (Int64.succ max_size) with
-            | `Ok _ -> failwith "LV is bigger than the VG"
-            | `Error _ -> Lwt.return ()
+            Lwt.catch (fun () ->
+              Vg.resize (Vg_IO.metadata_of vg) "name" (Int64.succ max_size) >>*= fun _ ->
+              Lwt.return ()
+            ) (fun _ ->
+              Lwt.return ()
+            )
           )
       in
       Lwt_main.run t)
@@ -182,7 +194,7 @@ let lv_crop () =
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             let space = Lv.to_allocation v_md in
@@ -191,7 +203,7 @@ let lv_crop () =
             let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Lwt.return ()
@@ -230,27 +242,27 @@ let lv_tags () =
             Vg.create (Vg_IO.metadata_of vg) "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             let printer xs = String.concat "," (List.map Tag.to_string xs) in
             assert_equal ~printer [] v_md.Lv.tags;
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [tag] v_md.Lv.tags;
             (* add it again for no change *)
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [tag] v_md.Lv.tags;
             Vg.remove_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [] v_md.Lv.tags;
             Lwt.return ()
