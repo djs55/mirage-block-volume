@@ -81,6 +81,8 @@ let lv_name_clash () =
       in
       Lwt_main.run t)
 
+let tag = Tag.of_string "tag"
+
 let lv_create magic () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -89,7 +91,7 @@ let lv_create magic () =
           (fun block ->
             Vg_IO.format ~magic "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
-            Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (_,op) ->
+            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
