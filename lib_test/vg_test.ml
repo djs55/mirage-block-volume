@@ -157,7 +157,16 @@ let lv_resize () =
             let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
-            Lwt.return ()
+            (* Use up all the space in the VG *)
+            let vg_md = Vg_IO.metadata_of vg in
+            let free_space = Int64.(mul (mul 512L vg_md.Vg.extent_size) (Pv.Allocator.size vg_md.Vg.free_space)) in
+            let max_size = Int64.add bigger free_space in
+            Vg.resize vg_md "name" max_size >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            match Vg.resize (Vg_IO.metadata_of vg) "name" (Int64.succ max_size) with
+            | `Ok _ -> failwith "LV is bigger than the VG"
+            | `Error _ -> Lwt.return ()
           )
       in
       Lwt_main.run t)
