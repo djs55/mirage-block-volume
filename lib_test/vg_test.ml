@@ -108,6 +108,26 @@ let lv_create magic () =
       in
       Lwt_main.run t)
 
+let lv_rename () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            Vg.rename (Vg_IO.metadata_of vg) "name" "name2" >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            ( match Vg_IO.find vg "name2" with None -> failwith "rename name2" | Some x -> () );
+            ( match Vg_IO.find vg "name" with Some _ -> failwith "rename name2, name still exists" | None -> () );
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
 let bigger = Int64.mul small 2L
 let bigger_extents = Int64.mul small_extents 2L
 
@@ -198,6 +218,7 @@ let vg_suite = "Vg" >::: [
     "LV name clash" >:: lv_name_clash;
     "LV create without redo" >:: lv_create `Lvm;
     "LV create with redo" >:: lv_create `Journalled;
+    "LV rename" >:: lv_rename;
     "LV resize" >:: lv_resize;
     "LV remove" >:: lv_remove;
     "LV tags" >:: lv_tags;
