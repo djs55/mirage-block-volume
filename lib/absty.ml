@@ -22,13 +22,6 @@ type absty = | AInt of int64
 	     | AStruct of (string * absty) list
 	     | AArr of absty list
 		 
-let rec fieldstr f =
-  match f with 
-    | AInt x -> Printf.sprintf "%Ld" x
-    | AStr x -> Printf.sprintf "'%s'" x
-    | AStruct x -> "{\n" ^ (String.concat "," (List.map (fun (x,y) -> Printf.sprintf "%s: %s\n" x (fieldstr y)) x)) ^ "}\n"
-    | AArr x -> "[" ^ (String.concat "," (List.map fieldstr x)) ^ "]"
-
 open Result
 
 let expect_string name field =
