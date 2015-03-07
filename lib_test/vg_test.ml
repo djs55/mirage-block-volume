@@ -162,6 +162,33 @@ let lv_resize () =
       in
       Lwt_main.run t)
 
+let lv_crop () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            let space = Lv.to_allocation v_md in
+            (* remove the first segment *)
+            let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ List.hd space ] })) in
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+
 let lv_remove () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -220,6 +247,7 @@ let vg_suite = "Vg" >::: [
     "LV create with redo" >:: lv_create `Journalled;
     "LV rename" >:: lv_rename;
     "LV resize" >:: lv_resize;
+    "LV crop" >:: lv_crop;
     "LV remove" >:: lv_remove;
     "LV tags" >:: lv_tags;
   ]
