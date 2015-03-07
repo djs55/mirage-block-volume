@@ -30,27 +30,7 @@ let to_string t =
 let (++) f g x = f (g x)
 let ($) f a = f a
 let uncurry f (a,b) = f a b
-let cons a b = a :: b
-let const a b = a
 let on op f x y = op (f x) (f y)
-
-module Mapext = struct
-  module Make(Ord: Map.OrderedType) = struct
-    include Map.Make (Ord)
-        
-    let fromHash h = Hashtbl.fold add h empty
-    let filter pred m = fold (fun k v acc -> (if pred v then add k v else fun x -> x) acc) m empty
-        (* values: gives the list of values of the map. *)
-    let values m = fold (const cons) m []
-
-    let fromListWith op list = List.fold_left (fun map (k,v) ->
-                                                 add k (if mem k map
-                                                        then op v (find k map)
-                                                        else v) map)
-        empty list
-    let adjust op k m = try add k (op (find k m)) m with Not_found -> m 
-  end
-end
 
 let create name size = [(name,(0L,size))]
 let empty = []
@@ -99,13 +79,6 @@ let minus : area -> area -> t = (* does not guarantee normalization *)
         if name = name2
 	then List.filter ((<) Int64.zero ++ get_size) ++ List.fold_left combine [] ++ List.map (intersect a ++ uncurry (make_area_by_end name2)) $ ((start, start2) :: (enda2, enda)::[])
 	else a :: []
-
-(* Is a contained in a2? *)
-let contained : area -> area -> bool =
-    fun a a2 ->
-	let (name, (start, size)) = unpack_area a in
-	let (name2, (start2, size2)) = unpack_area a2 in
-	name=name2 && start >= start2 && Int64.add start size <= Int64.add start2 size2
 
 let normalize areas =
     (* Merge adjacent extents by folding over them in order *)

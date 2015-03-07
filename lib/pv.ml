@@ -70,12 +70,7 @@ let marshal pv b =
     pv.size_in_sectors pv.pe_start pv.pe_count;
   Cstruct.shift b !ofs
 
-let to_string pv =
-  let buf = Cstruct.create (Int64.to_int Constants.max_metadata_size) in
-  let buf' = marshal pv buf in
-  let mdah_ascii = String.concat "\n" (List.map Metadata.Header.to_string pv.headers) in
-  Printf.sprintf "Label:\n%s\nMDA Headers:\n%s\n%s\n" 
-    (Label.to_string pv.label) mdah_ascii (Cstruct.(to_string (sub buf 0 buf'.Cstruct.off)))
+let to_string x = Sexplib.Sexp.to_string_hum (sexp_of_t x)
 
 module Make(Block: S.BLOCK) = struct
 
