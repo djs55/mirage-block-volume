@@ -110,7 +110,11 @@ let contained : area -> area -> bool =
 let normalize areas =
     (* Merge adjacent extents by folding over them in order *)
     let normalise pairs =
-      match List.sort (fun a b -> compare (fst a) (fst b)) pairs with
+      let pairs =
+        pairs
+        |> List.filter (fun (_, len) -> len <> 0L)
+        |> List.sort (fun a b -> compare (fst a) (fst b)) in
+      match pairs with
       | [] -> []
       | p :: ps ->
         let last, pairs =
