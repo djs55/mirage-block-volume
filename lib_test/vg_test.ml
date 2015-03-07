@@ -62,7 +62,7 @@ let with_block filename f =
   | `Ok x ->
     Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
 
-let mirage_lv_name_clash () =
+let lv_name_clash () =
   let open Vg_IO in
   let size = Int64.(mul (mul 1024L 1024L) 4L) in
   let pv = match Pv.Name.of_string "pv" with
@@ -81,8 +81,8 @@ let mirage_lv_name_clash () =
       in
       Lwt_main.run t)
 
-let vg_mirage_suite = "Vg" >::: [
-    "LV name clash" >:: mirage_lv_name_clash;
+let vg_suite = "Vg" >::: [
+    "LV name clash" >:: lv_name_clash;
   ]
 
 open Pv.Allocator
@@ -143,6 +143,6 @@ let _ =
     "VG test suite";
 
   List.iter (fun suite -> ignore (run_test_tt ~verbose:!verbose suite)) [
-    vg_mirage_suite;
+    vg_suite;
     allocator_suite;
   ]
