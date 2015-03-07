@@ -62,27 +62,54 @@ let with_block filename f =
   | `Ok x ->
     Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
 
+let pv = match Pv.Name.of_string "pv0" with `Ok x -> x | `Error _ -> assert false
+let small = Int64.(mul (mul 1024L 1024L) 4L)
+let small_extents = 1L
+
 let lv_name_clash () =
   let open Vg_IO in
-  let size = Int64.(mul (mul 1024L 1024L) 4L) in
-  let pv = match Pv.Name.of_string "pv" with
-  | `Ok x -> x
-  | `Error x -> failwith x in
   with_dummy (fun filename ->
       let t = 
         with_block filename
           (fun block ->
             Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
-            Vg.create (Vg_IO.metadata_of vg) "name" size >>*= fun (md,_) ->
-            expect_failure (Vg.create md "name") size >>*= 
+            Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (md,_) ->
+            expect_failure (Vg.create md "name") small >>*= 
             Lwt.return
           )
       in
       Lwt_main.run t)
 
+let lv_create magic () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format ~magic "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:(fun x -> x) "name" v_md.Lv.name;
+            assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            (* Re-read the metadata and check it matches *)
+            Vg_IO.connect [ block ] `RO >>|= fun vg' ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md' = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+
+
 let vg_suite = "Vg" >::: [
     "LV name clash" >:: lv_name_clash;
+    "LV create without redo" >:: lv_create `Lvm;
   ]
 
 open Pv.Allocator
