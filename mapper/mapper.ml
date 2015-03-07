@@ -12,7 +12,6 @@
  * GNU Lesser General Public License for more details.
  *)
 open Lvm
-open Logging
 open Vg
 
 let dummy_mode = ref false
