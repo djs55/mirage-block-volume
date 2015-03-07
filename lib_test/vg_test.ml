@@ -177,8 +177,9 @@ let lv_crop () =
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             let space = Lv.to_allocation v_md in
+            let name, (start, length) = List.hd space in
             (* remove the first segment *)
-            let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ List.hd space ] })) in
+            let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
