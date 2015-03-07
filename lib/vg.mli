@@ -46,6 +46,7 @@ include S.VOLUME
   with type t := metadata
   and type name := string
   and type tag := Tag.t
+  and type lv_status := Lv.Status.t
   and type size := int64
   and type op := Redo.Op.t
 

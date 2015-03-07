@@ -81,6 +81,8 @@ let lv_name_clash () =
       in
       Lwt_main.run t)
 
+let tag = Tag.of_string "tag"
+
 let lv_create magic () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -89,7 +91,7 @@ let lv_create magic () =
           (fun block ->
             Vg_IO.format ~magic "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
-            Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (_,op) ->
+            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
@@ -106,11 +108,99 @@ let lv_create magic () =
       in
       Lwt_main.run t)
 
+let bigger = Int64.mul small 2L
+let bigger_extents = Int64.mul small_extents 2L
+
+let lv_resize () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            Vg.resize (Vg_IO.metadata_of vg) "name" small >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            Vg.resize (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+
+let lv_remove () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            Vg.remove (Vg_IO.metadata_of vg) "name" >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            ( match Vg_IO.find vg "name" with None -> () | Some _ -> failwith "remove didn't work" );
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+
+let lv_tags () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            let printer xs = String.concat "," (List.map Tag.to_string xs) in
+            assert_equal ~printer [] v_md.Lv.tags;
+            Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer [tag] v_md.Lv.tags;
+            Vg.remove_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = match Vg_IO.find vg "name" with None -> assert false | Some x -> x in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal ~printer [] v_md.Lv.tags;
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
 
 let vg_suite = "Vg" >::: [
     "LV name clash" >:: lv_name_clash;
     "LV create without redo" >:: lv_create `Lvm;
     "LV create with redo" >:: lv_create `Journalled;
+    "LV resize" >:: lv_resize;
+    "LV remove" >:: lv_remove;
+    "LV tags" >:: lv_tags;
   ]
 
 open Pv.Allocator
