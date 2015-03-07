@@ -121,8 +121,12 @@ let do_op vg op : (metadata * op, string) Result.result =
       return ({vg with lvs = lv::others; free_space=free_space},op))
   | LvCrop (name, l) ->
     change_lv name (fun lv others ->
+      let current = Lv.to_allocation lv in
       let to_free = List.fold_left Pv.Allocator.merge [] (List.map Lv.Segment.to_allocation l.lvc_segments) in
+      let reduced = Pv.Allocator.sub current to_free in
       let free_space = Pv.Allocator.merge vg.free_space to_free in
+      let segments = Lv.Segment.linear 0L reduced in
+      let lv = { lv with Lv.segments } in
       return ({vg with lvs = lv::others; free_space},op))
   | LvReduce (name,l) ->
     change_lv name (fun lv others ->
