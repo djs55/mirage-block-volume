@@ -18,6 +18,7 @@ open Sexplib.Std
     the volume group. *)
 
 open Absty
+open Expect
 
 open Result
 

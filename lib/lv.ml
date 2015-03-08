@@ -13,6 +13,7 @@
  *)
 open Sexplib.Std
 open Absty
+open Expect
 open Result
 
 module Status = struct
