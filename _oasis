@@ -36,18 +36,6 @@ Executable mlvm
   Install:            false
   BuildDepends:       lvm, cmdliner, io-page.unix, io-page, mirage-block-unix, io-page.unix
 
-Executable tag_test
-  CompiledObject:     best
-  Path:               lib_test
-  MainIs:             tag_test.ml
-  Custom:             true
-  Install:            false
-  BuildDepends:       lvm, oUnit, io-page.unix, bisect
-
-Test tag_test
-  Command:            ./tag_test.native
-  Run:                true
-
 Executable vg_test
   CompiledObject:     best
   Path:               lib_test
