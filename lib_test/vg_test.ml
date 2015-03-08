@@ -87,7 +87,10 @@ let label_header_equals () =
   let a' = create `Lvm in
   let b = create `Journalled in
   assert_equal ~cmp:equals a a';
-  assert_equal false (equals a b)
+  assert_equal false (equals a b);
+  let txt = to_string a in
+  let a'' = t_of_sexp (Sexplib.Sexp.of_string txt) in
+  assert_equal ~cmp:equals a a''
 
 let label = "LABELONE\001\000\000\000\000\000\000\000<\131@\179 \000\000\000LVM2 001Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\000,\001\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000d\000\000\000\000\000\000\000\200\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 

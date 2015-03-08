@@ -16,10 +16,11 @@
 (** Physical Volume module *)
 
 module Label_header : sig
-  type t
+  type t with sexp
 
   val create: Magic.t -> t
 
+  include S.PRINT with type t := t
   include S.EQUALS with type t := t
   include S.MARSHAL with type t := t
   include S.UNMARSHAL with type t := t
