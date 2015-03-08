@@ -170,10 +170,6 @@ let find_extent lv e =
     ) None lv.segments
  
 let reduce_size_to lv new_seg_count =
-  let cur_size = size_in_extents lv in
-  ( if cur_size < new_seg_count
-    then fail (Printf.sprintf "LV: cannot reduce size: current size (%Ld) is less than requested size (%Ld)" cur_size new_seg_count)
-    else return () ) >>= fun () ->
   let rec doit segs left acc =
     match segs with 
       | s::ss ->
