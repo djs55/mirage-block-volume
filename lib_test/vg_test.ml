@@ -269,6 +269,9 @@ let lv_create magic () =
           (fun block ->
             Vg_IO.format ~magic "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            let free_extents = Pv.Allocator.size (Vg_IO.metadata_of vg).Vg.free_space in
+            let free_bytes = Int64.(mul 512L (mul (Vg_IO.metadata_of vg).Vg.extent_size free_extents)) in
+            expect_error (Vg.create (Vg_IO.metadata_of vg) "toobig" (Int64.succ free_bytes));
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (md, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
