@@ -28,6 +28,10 @@ module Log = struct
     error "This is the error output"
 end
 
+let expect_error = function
+  | `Error _ -> ()
+  | `Ok _ -> failwith "expected error, got Ok"
+
 let expect_some = function
   | None -> raise (Invalid_argument "None")
   | Some x -> x
@@ -37,6 +41,15 @@ let expect_none = function
   | None -> ()
 
 let mda = "\186\233\186\158 LVM2 x[5A%r0N*>\001\000\000\000\000\016\000\000\000\000\000\000\000\000\160\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
+
+let unmarshal_mdaheader () =
+  let open Metadata.Header in
+  let empty = create `Lvm in
+  let data = Cstruct.create sizeof in
+  Utils.zero data;
+  let _ = marshal empty data in
+  Cstruct.set_char data 0 '0'; (* corrupt *)
+  expect_error (unmarshal data)
 
 let well_known_mdaheader () =
   let open Metadata.Header in
@@ -71,6 +84,7 @@ let mdaheader_prettyprint () =
 
 let mda_suite = "Metadata" >::: [
   "well known MDA header" >:: well_known_mdaheader;
+  "unmarshalling MDA headers" >:: unmarshal_mdaheader;
   "unmarshal(marshal(Metadata.Header.create()))" >:: unmarshal_marshal_mdaheader;
   "mdaheader prettyprint" >:: mdaheader_prettyprint;
 ]
@@ -148,9 +162,7 @@ let pv_header_suite = "PV header" >::: [
 
 let uuid_unmarshal_error () =
   let open Uuid in
-  match unmarshal (Cstruct.create 0) with
-  | `Error _ -> ()
-  | `Ok _ -> failwith "uuid_unmarshal_error succeeded but should have failed"
+  expect_error (unmarshal (Cstruct.create 0))
 
 let uuid_marshalled = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw"
 let uuid_unmarshalled = "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw"
@@ -164,9 +176,7 @@ let well_known_uuid () =
 
 let uuid_of_string_error () =
   let open Uuid in
-  match of_string "" with
-  | `Error _ -> ()
-  | `Ok _ -> failwith "uuid_of_string_error should have failed"
+  expect_error (of_string "")
 
 let uuid_of_string_ok () =
   let open Uuid in
@@ -200,11 +210,6 @@ let with_dummy fn =
   result
   (* NB we leak the file on error, but this is quite useful *)
 
-let expect_failure f x =
-  match f x with 
-  | `Ok _ -> `Error "Expected failure"
-  | `Error _ -> `Ok ()
-
 let with_block filename f =
   let open Lwt in
   Block.connect (Printf.sprintf "buffered:%s" filename)
@@ -227,8 +232,8 @@ let lv_name_clash () =
             Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (md,_) ->
-            expect_failure (Vg.create md "name") small >>*=
-            Lwt.return
+            expect_error (Vg.create md "name" small);
+            Lwt.return ()
           )
       in
       Lwt_main.run t)
