@@ -70,8 +70,6 @@ let marshal pv b =
     pv.size_in_sectors pv.pe_start pv.pe_count;
   Cstruct.shift b !ofs
 
-let to_string x = Sexplib.Sexp.to_string_hum (sexp_of_t x)
-
 module Make(Block: S.BLOCK) = struct
 
 module Label_IO = Label.Make(Block)

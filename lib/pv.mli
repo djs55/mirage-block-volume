@@ -41,7 +41,6 @@ type t = {
 } with sexp_of
 (** a Physical Volume (a disk), which is associated with a Volume Group *)
 
-include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 
 module Make : functor(Block: S.BLOCK) -> sig
