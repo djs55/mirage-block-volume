@@ -184,6 +184,3 @@ let reduce_size_to lv new_seg_count =
       | _ -> acc
   in
   return {lv with segments = Segment.sort (doit lv.segments new_seg_count [])}
-
-let increase_allocation lv new_segs =
-  {lv with segments = Segment.sort (lv.segments @ new_segs)}
