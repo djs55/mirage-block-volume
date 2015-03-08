@@ -598,10 +598,3 @@ let sync vg =
   return ()
 
 end
-(*
-let set_dummy_mode base_dir mapper_name full_provision =
-  Constants.dummy_mode := true;
-  Constants.dummy_base := base_dir;
-  Constants.mapper_name := mapper_name;
-  Constants.full_provision := full_provision
-*)
