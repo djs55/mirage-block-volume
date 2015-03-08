@@ -13,6 +13,7 @@ Flag mapper
   Default: false
 
 Library lvm_internal
+  Install: false
   Path: internal
   Modules: Lvmconfiglex, Lvmconfigparser, Absty
 
