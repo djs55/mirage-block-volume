@@ -69,6 +69,14 @@ let well_known_label_header () =
   let label_header' = Cstruct.(to_string (sub buf 0 (String.length label_header))) in
   assert_equal label_header label_header'
 
+let label_header_equals () =
+  let open Label.Label_header in
+  let a = create `Lvm in
+  let a' = create `Lvm in
+  let b = create `Journalled in
+  assert_equal ~cmp:equals a a';
+  assert_equal false (equals a b)
+
 let label = "LABELONE\001\000\000\000\000\000\000\000<\131@\179 \000\000\000LVM2 001Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\000,\001\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000d\000\000\000\000\000\000\000\200\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 
 let well_known_label () =
@@ -79,10 +87,14 @@ let well_known_label () =
   let expected = create uuid 1234L 100L 200L in
   let _ = marshal expected sector in
   let label' = Cstruct.(to_string (sub sector 0 (String.length label))) in
-  assert_equal label label'
+  assert_equal label label';
+  let txt = to_string expected in
+  let expected' = t_of_sexp (Sexplib.Sexp.of_string txt) in
+  assert_equal ~cmp:equals expected expected'
 
 let label_suite = "Label header" >::: [
   "well known label header" >:: well_known_label_header;
+  "label header equality" >:: label_header_equals;
   "well known label" >:: well_known_label;
 ]
 
