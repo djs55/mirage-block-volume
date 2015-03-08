@@ -415,7 +415,7 @@ let format name ?(magic = `Lvm) devices =
       write_pv (pv :: acc) pvs in
   write_pv [] devices >>= fun pvs ->
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
-  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
+  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write; Status.Resizeable];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; } in
   ( match magic with
