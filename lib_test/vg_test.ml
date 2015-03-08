@@ -28,9 +28,13 @@ module Log = struct
     error "This is the error output"
 end
 
-let ok_or_fail = function
+let expect_some = function
   | None -> raise (Invalid_argument "None")
   | Some x -> x
+
+let expect_none = function
+  | Some _ -> raise (Invalid_argument "Some")
+  | None -> ()
 
 let mda = "\186\233\186\158 LVM2 x[5A%r0N*>\001\000\000\000\000\016\000\000\000\000\000\000\000\000\160\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 
@@ -191,13 +195,10 @@ let with_dummy fn =
   let _ = Unix.lseek f (1024*1024*100 - 1) Unix.SEEK_SET in
   ignore(Unix.write f "\000" 0 1);
   Unix.close f;
-  try 
-    let result = fn filename in
-    Unix.unlink filename;
-    result
-  with e ->
-    Unix.unlink filename;
-    raise e
+  let result = fn filename in
+  Unix.unlink filename;
+  result
+  (* NB we leak the file on error, but this is quite useful *)
 
 let expect_failure f x =
   match f x with 
@@ -208,14 +209,12 @@ let with_block filename f =
   let open Lwt in
   Block.connect (Printf.sprintf "buffered:%s" filename)
   >>= function
-  | `Error (`Unknown s) ->
-    fail (Failure (Printf.sprintf "Unable to read %s (Unknown: %s)" filename s))
   | `Error x ->
-    fail (Failure (Printf.sprintf "Unable to read %s (other)" filename))
+    fail (Failure (Printf.sprintf "Unable to read %s" filename))
   | `Ok x ->
-    Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
+    f x (* no point catching errors here *)
 
-let pv = match Pv.Name.of_string "pv0" with `Ok x -> x | `Error _ -> assert false
+let pv = Result.ok_or_failwith (Pv.Name.of_string "pv0")
 let small = Int64.(mul (mul 1024L 1024L) 4L)
 let small_extents = 1L
 
@@ -249,13 +248,13 @@ let lv_create magic () =
             Vg_IO.sync vg >>|= fun () ->
             let md' = Vg_IO.metadata_of vg in
             assert_equal (Vg.to_string md) (Vg.to_string md');
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> x) "name" v_md.Lv.name;
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             (* Re-read the metadata and check it matches *)
             Vg_IO.connect [ block ] `RO >>|= fun vg' ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md' = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
             Lwt.return ()
@@ -277,8 +276,8 @@ let lv_rename () =
             Vg.rename (Vg_IO.metadata_of vg) "name" "name2" >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            ( match Vg_IO.find vg "name2" with None -> failwith "rename name2" | Some x -> () );
-            ( match Vg_IO.find vg "name" with Some _ -> failwith "rename name2, name still exists" | None -> () );
+            expect_some (Vg_IO.find vg "name2");
+            expect_none (Vg_IO.find vg "name");
             Lwt.return ()
           )
       in
@@ -297,19 +296,19 @@ let lv_resize () =
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Vg.resize (Vg_IO.metadata_of vg) "name" small >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Vg.resize (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             (* Use up all the space in the VG *)
@@ -340,7 +339,7 @@ let lv_crop () =
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             let space = Lv.to_allocation v_md in
@@ -349,7 +348,7 @@ let lv_crop () =
             let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             Lwt.return ()
@@ -371,8 +370,34 @@ let lv_remove () =
             Vg.remove (Vg_IO.metadata_of vg) "name" >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            ( match Vg_IO.find vg "name" with None -> () | Some _ -> failwith "remove didn't work" );
+            expect_none (Vg_IO.find vg "name");
             Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+
+(* test the metadata area circular buffer logic *)
+let lv_lots_of_ops () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format ~magic:`Lvm "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            let rec loop = function
+            | 0 -> return ()
+            | n ->
+              let name = Printf.sprintf "lv%d" n in
+              Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] name ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+              Vg_IO.update vg [ op ] >>|= fun () ->
+              Vg_IO.sync vg >>|= fun () ->
+              let (_: Vg_IO.Volume.id) = expect_some (Vg_IO.find vg name) in
+              Vg.remove (Vg_IO.metadata_of vg) name >>*= fun (_, op) ->
+              Vg_IO.update vg [ op ] >>|= fun () ->
+              Vg_IO.sync vg >>|= fun () ->
+              loop (n - 1) in
+            loop 1000 (* hopefully this fills up the 10M metadata area *)
           )
       in
       Lwt_main.run t)
@@ -388,27 +413,27 @@ let lv_tags () =
             Vg.create (Vg_IO.metadata_of vg) "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             let printer xs = String.concat "," (List.map Tag.to_string xs) in
             assert_equal ~printer [] v_md.Lv.tags;
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [tag] v_md.Lv.tags;
             (* add it again for no change *)
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [tag] v_md.Lv.tags;
             Vg.remove_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = ok_or_fail (Vg_IO.find vg "name") in
+            let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer [] v_md.Lv.tags;
             Lwt.return ()
@@ -425,6 +450,7 @@ let vg_suite = "Vg" >::: [
     "LV crop" >:: lv_crop;
     "LV remove" >:: lv_remove;
     "LV tags" >:: lv_tags;
+    "LV lots of ops" >:: lv_lots_of_ops;
   ]
 
 open Pv.Allocator
@@ -454,9 +480,7 @@ let rec allpairs xs = function
   | Cons (y, ys) ->
     append (map (fun x -> (x, y)) xs) (lazy(allpairs xs (Lazy.force ys)))
 
-let pv0 = match Pv.Name.of_string "pv0" with
-  | `Error x -> assert false
-  | `Ok x -> x
+let pv0 = Result.ok_or_failwith (Pv.Name.of_string "pv0")
 
 let vectors: Lvm.Pv.Allocator.t l =
   [ 0L; 1L; 2L; 4L; 10L ]
@@ -478,13 +502,7 @@ let allocator_suite = "Allocator" >::: [
 ]
 
 let _ =
-  let verbose = ref false in
-  Arg.parse [
-    "-verbose", Arg.Unit (fun _ -> verbose := true), "Run in verbose mode";
-  ] (fun x -> Printf.fprintf stderr "Ignoring argument: %s" x)
-    "VG test suite";
-
-  List.iter (fun suite -> ignore (run_test_tt ~verbose:!verbose suite)) [
+  List.iter (fun suite -> ignore (run_test_tt suite)) [
     mda_suite;
     label_suite;
     pv_header_suite;
