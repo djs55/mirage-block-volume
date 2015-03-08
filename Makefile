@@ -54,6 +54,11 @@ release:
 	sed -i -r s'/META//g' .gitignore
 	oasis setup
 
+coverage:
+	rm -f _build/*.out
+	BISECT_FILE=_build/coverage ./vg_test.native
+	(cd _build; bisect-report co*.out -summary-only -html /vagrant/report/)
+
 .PHONY: build doc test all install uninstall reinstall clean distclean configure
 
 config.mk:
