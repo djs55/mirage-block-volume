@@ -244,6 +244,21 @@ let pv = Result.ok_or_failwith (Pv.Name.of_string "pv0")
 let small = Int64.(mul (mul 1024L 1024L) 4L)
 let small_extents = 1L
 
+let lv_not_formatted () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.connect [] `RW >>= fun t ->
+            expect_error t;
+            Vg_IO.connect [ block ] `RW >>= fun t ->
+            expect_error t;
+            return ()
+          )
+      in
+      Lwt_main.run t)
+
 let lv_name_clash () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -286,6 +301,9 @@ let lv_create magic () =
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md' = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
+            (* While we're here, check we can't update a RO VG *)
+            Vg_IO.update vg' [] >>= fun t ->
+            expect_error t;
             Lwt.return ()
           )
       in
@@ -474,6 +492,7 @@ let lv_tags () =
       Lwt_main.run t)
 
 let vg_suite = "Vg" >::: [
+    "LV not formatted" >:: lv_not_formatted;
     "LV name clash" >:: lv_name_clash;
     "LV create without redo" >:: lv_create `Lvm;
     "LV create with redo" >:: lv_create `Journalled;
