@@ -194,9 +194,6 @@ include Result
 let get_metadata_locations label = 
   label.pv_header.Pv_header.metadata_areas
 
-let get_pv_id label =
-  label.pv_header.Pv_header.id
-
 let create ?(magic = `Lvm) id size mda_start mda_size =
   let label = Label_header.create magic in
   let pvh = Pv_header.create id size mda_start mda_size in

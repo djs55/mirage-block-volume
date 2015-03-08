@@ -66,8 +66,6 @@ include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
 val get_metadata_locations: t -> Location.t list
 
-val get_pv_id: t -> Uuid.t
-
 module Make : functor(Block: S.BLOCK) -> sig
   val read: Block.t -> t S.io
 
