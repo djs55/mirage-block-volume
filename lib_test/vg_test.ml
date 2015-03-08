@@ -54,9 +54,21 @@ let unmarshal_marshal_mdaheader () =
   let empty'', _ = Result.ok_or_failwith (unmarshal data) in
   assert_equal ~printer:to_string ~cmp:equals empty' empty''
 
+let mdaheader_prettyprint () =
+  let open Metadata.Header in
+  let a = create `Lvm in
+  let b = create `Lvm in
+  let c = create `Journalled in
+  let a' = t_of_sexp (sexp_of_t a) in
+  let b' = t_of_sexp (sexp_of_t b) in
+  let c' = t_of_sexp (sexp_of_t c) in
+  assert_equal ~printer:to_string a' b';
+  assert_equal false (equals b' c')
+
 let mda_suite = "Metadata" >::: [
   "well known MDA header" >:: well_known_mdaheader;
   "unmarshal(marshal(Metadata.Header.create()))" >:: unmarshal_marshal_mdaheader;
+  "mdaheader prettyprint" >:: mdaheader_prettyprint;
 ]
 
 let label_header = "LABELONE\001\000\000\000\000\000\000\000\000\000\000\000 \000\000\000LVM2 001"
