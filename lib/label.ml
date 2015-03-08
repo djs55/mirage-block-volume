@@ -144,14 +144,8 @@ module Pv_header = struct
     let buf = do_disk_locn buf t.metadata_areas in
     buf
 
-  let to_string t =
-    let disk_area_list_to_ascii l =
-      (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.Location.offset da.Location.size) l)) in  
-    Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
-      (Uuid.to_string t.id) t.device_size 
-      (disk_area_list_to_ascii t.extents)
-      (disk_area_list_to_ascii t.metadata_areas)
-
+  let to_string t = Sexplib.Sexp.to_string_hum (sexp_of_t t)
+ 
   include Result
 end
 
