@@ -314,7 +314,6 @@ module Volume = struct
             let sector_start = Int64.(add sector_start (of_int will_read)) in
             loop sector_start bs
           end else return (`Error (`Unknown (Printf.sprintf "Unknown physical volume %s" (Pv.Name.to_string l.Lv.Linear.name))))
-        | Some _ -> return (`Error (`Unknown "I only understand linear mapping"))
         | None -> return (`Error (`Unknown (Printf.sprintf "Logical extent %Ld has no segment" start_le))) in
       loop sector_start buffers
     end

@@ -64,14 +64,6 @@ module Segment = struct
     ( if ty = "striped" then return ty
       else fail (Printf.sprintf "Cannot handle LV segment type '%s'" ty) ) >>= fun ty ->
     expect_mapped_array "stripes" config >>= fun stripes ->
-    let rec handle_stripes acc = function
-      | [] -> return (List.rev acc)
-      | [ _ ] -> fail "Unexpected attribute found when parsing stripes"
-      | name::offset::rest ->
-        expect_string "name" name >>= fun name ->
-        Pv.Name.of_string name >>= fun name ->
-        expect_int "offset" offset >>= fun offset ->
-        handle_stripes ((name, offset) :: acc) rest in
     ( match stripes with
       | [ name; offset ] ->
         expect_string "name" name >>= fun name ->
