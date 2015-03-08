@@ -73,9 +73,7 @@ module Label_header = struct
     Cstruct.blit_from_string label.ty 0 buf 24 8;
     Cstruct.shift buf 32
 
-  let to_string t =
-    Printf.sprintf "id: %s\nsector: %Ld\ncrc: %ld\noffset: %ld\nty: %s\n"
-      t.id t.sector t.crc t.offset t.ty
+  let to_string t = Sexplib.Sexp.to_string_hum (sexp_of_t t)
 
   include Result
 end

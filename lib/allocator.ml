@@ -22,10 +22,7 @@ type name = Name.t with sexp
 type area = (name * (int64 * int64)) with sexp 
 type t = area list with sexp
 
-let string_of_area (p,(s,l)) = Printf.sprintf "(%s: [%Ld,%Ld])" (Name.to_string p) s l
-let to_string t =
-  String.concat ", "
-    (List.map string_of_area t)
+let to_string t = Sexplib.Sexp.to_string_hum (sexp_of_t t)
 
 let (++) f g x = f (g x)
 let ($) f a = f a
