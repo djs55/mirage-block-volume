@@ -443,6 +443,8 @@ let lv_tags () =
             let v_md = Vg_IO.Volume.metadata_of id in
             let printer xs = String.concat "," (List.map Tag.to_string xs) in
             assert_equal ~printer [] v_md.Lv.tags;
+            (* first one that doesn't exist *)
+            expect_error (Vg.add_tag (Vg_IO.metadata_of vg) "doesntexist" tag);
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
