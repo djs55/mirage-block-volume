@@ -213,7 +213,7 @@ let lv_name_clash () =
             Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (md,_) ->
-            expect_failure (Vg.create md "name") small >>*= 
+            expect_failure (Vg.create md "name") small >>*=
             Lwt.return
           )
       in
@@ -229,9 +229,11 @@ let lv_create magic () =
           (fun block ->
             Vg_IO.format ~magic "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
-            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+            Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (md, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
+            let md' = Vg_IO.metadata_of vg in
+            assert_equal (Vg.to_string md) (Vg.to_string md');
             let id = ok_or_fail (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> x) "name" v_md.Lv.name;

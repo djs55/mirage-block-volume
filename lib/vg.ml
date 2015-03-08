@@ -22,7 +22,7 @@ module Status = struct
     | Write
     | Resizeable
     | Clustered
-  with sexp
+  with sexp_of
 
   let to_string = function
     | Resizeable -> "RESIZEABLE"
@@ -52,7 +52,9 @@ type metadata = {
   lvs : Lv.t list;
   free_space : Pv.Allocator.t;
   (* XXX: hook in the redo log *)
-} with sexp
+} with sexp_of
+
+let to_string metadata = Sexplib.Sexp.to_string_hum (sexp_of_metadata metadata)
   
 let marshal vg b =
   let b = ref b in

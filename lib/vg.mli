@@ -35,13 +35,14 @@ type metadata = {
   pvs : Pv.t list;              (** physical volumes *)
   lvs : Lv.t list;              (** logical volumes *)
   free_space : Pv.Allocator.t;  (** free space in physical volumes, which can be used for logical volumes *)
-} with sexp
+}
 (** A volume group *)
 
 val do_op: metadata -> Redo.Op.t -> (metadata * Redo.Op.t, string) Result.result
 (** [do_op t op] performs [op], returning the modified volume group [t] *)
 
 include S.MARSHAL with type t := metadata
+include S.PRINT with type t := metadata
 include S.VOLUME
   with type t := metadata
   and type name := string
