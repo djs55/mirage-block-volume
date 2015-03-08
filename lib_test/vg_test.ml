@@ -252,7 +252,7 @@ let lv_rename () =
       let t = 
         with_block filename
           (fun block ->
-            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
@@ -275,7 +275,7 @@ let lv_resize () =
       let t = 
         with_block filename
           (fun block ->
-            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
@@ -318,7 +318,7 @@ let lv_crop () =
       let t = 
         with_block filename
           (fun block ->
-            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
@@ -346,7 +346,7 @@ let lv_remove () =
       let t = 
         with_block filename
           (fun block ->
-            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
@@ -366,7 +366,7 @@ let lv_tags () =
       let t = 
         with_block filename
           (fun block ->
-            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
