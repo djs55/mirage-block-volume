@@ -24,7 +24,7 @@ open Result
 module Status = struct  
   type t = 
     | Allocatable
-  with sexp
+  with sexp_of
 
   let to_string = function
     | Allocatable -> "ALLOCATABLE"
@@ -54,7 +54,7 @@ type t = {
   pe_count : int64;
   label : Label.t;  (* The one label for this PV *)
   headers : Metadata.Header.t list; 
-} with sexp
+} with sexp_of
 
 let marshal pv b =
   let ofs = ref 0 in

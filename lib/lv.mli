@@ -18,7 +18,7 @@ module Status : sig
     | Read
     | Write
     | Visible
-  with sexp
+  with sexp_of
 
   include S.PRINT with type t := t
 
@@ -43,7 +43,7 @@ module Segment : sig
     cls : cls;
   } with sexp
 
-  type ts = t list with sexp
+  type ts = t list with sexp_of
 
   val sort: t list -> t list
 

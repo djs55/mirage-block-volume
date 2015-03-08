@@ -38,10 +38,9 @@ type t = {
   pe_count : int64;                     (** total number of physical extents *)
   label : Label.t;
   headers : Metadata.Header.t list;     (** these describe the location(s) where VG metadata is stored *)
-}
+} with sexp_of
 (** a Physical Volume (a disk), which is associated with a Volume Group *)
 
-include S.SEXPABLE with type t := t
 include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 
