@@ -13,6 +13,7 @@
  *)
 open Sexplib.Std
 open Absty
+open Expect
 open Result
 
 module Status = struct
@@ -52,7 +53,7 @@ module Segment = struct
   }
   with sexp
 
-  type ts = t list with sexp
+  type ts = t list with sexp_of
 
   let sort s =
     List.sort (fun s1 s2 -> compare s1.start_extent s2.start_extent) s
@@ -64,14 +65,6 @@ module Segment = struct
     ( if ty = "striped" then return ty
       else fail (Printf.sprintf "Cannot handle LV segment type '%s'" ty) ) >>= fun ty ->
     expect_mapped_array "stripes" config >>= fun stripes ->
-    let rec handle_stripes acc = function
-      | [] -> return (List.rev acc)
-      | [ _ ] -> fail "Unexpected attribute found when parsing stripes"
-      | name::offset::rest ->
-        expect_string "name" name >>= fun name ->
-        Pv.Name.of_string name >>= fun name ->
-        expect_int "offset" offset >>= fun offset ->
-        handle_stripes ((name, offset) :: acc) rest in
     ( match stripes with
       | [ name; offset ] ->
         expect_string "name" name >>= fun name ->
@@ -178,10 +171,6 @@ let find_extent lv e =
     ) None lv.segments
  
 let reduce_size_to lv new_seg_count =
-  let cur_size = size_in_extents lv in
-  ( if cur_size < new_seg_count
-    then fail (Printf.sprintf "LV: cannot reduce size: current size (%Ld) is less than requested size (%Ld)" cur_size new_seg_count)
-    else return () ) >>= fun () ->
   let rec doit segs left acc =
     match segs with 
       | s::ss ->
@@ -192,6 +181,3 @@ let reduce_size_to lv new_seg_count =
       | _ -> acc
   in
   return {lv with segments = Segment.sort (doit lv.segments new_seg_count [])}
-
-let increase_allocation lv new_segs =
-  {lv with segments = Segment.sort (lv.segments @ new_segs)}

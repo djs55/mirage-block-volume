@@ -13,6 +13,7 @@
  *)
 open Sexplib.Std
 open Absty
+open Expect
 open Redo
 open Result
 
@@ -22,7 +23,7 @@ module Status = struct
     | Write
     | Resizeable
     | Clustered
-  with sexp
+  with sexp_of
 
   let to_string = function
     | Resizeable -> "RESIZEABLE"
@@ -52,7 +53,9 @@ type metadata = {
   lvs : Lv.t list;
   free_space : Pv.Allocator.t;
   (* XXX: hook in the redo log *)
-} with sexp
+} with sexp_of
+
+let to_string metadata = Sexplib.Sexp.to_string_hum (sexp_of_metadata metadata)
   
 let marshal vg b =
   let b = ref b in
@@ -314,7 +317,6 @@ module Volume = struct
             let sector_start = Int64.(add sector_start (of_int will_read)) in
             loop sector_start bs
           end else return (`Error (`Unknown (Printf.sprintf "Unknown physical volume %s" (Pv.Name.to_string l.Lv.Linear.name))))
-        | Some _ -> return (`Error (`Unknown "I only understand linear mapping"))
         | None -> return (`Error (`Unknown (Printf.sprintf "Logical extent %Ld has no segment" start_le))) in
       loop sector_start buffers
     end
@@ -413,7 +415,7 @@ let format name ?(magic = `Lvm) devices =
       write_pv (pv :: acc) pvs in
   write_pv [] devices >>= fun pvs ->
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
-  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write];
+  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write; Status.Resizeable];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=[]; free_space; } in
   ( match magic with
@@ -596,10 +598,3 @@ let sync vg =
   return ()
 
 end
-(*
-let set_dummy_mode base_dir mapper_name full_provision =
-  Constants.dummy_mode := true;
-  Constants.dummy_base := base_dir;
-  Constants.mapper_name := mapper_name;
-  Constants.full_provision := full_provision
-*)

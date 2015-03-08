@@ -73,9 +73,7 @@ module Label_header = struct
     Cstruct.blit_from_string label.ty 0 buf 24 8;
     Cstruct.shift buf 32
 
-  let to_string t =
-    Printf.sprintf "id: %s\nsector: %Ld\ncrc: %ld\noffset: %ld\nty: %s\n"
-      t.id t.sector t.crc t.offset t.ty
+  let to_string t = Sexplib.Sexp.to_string_hum (sexp_of_t t)
 
   include Result
 end
@@ -144,14 +142,8 @@ module Pv_header = struct
     let buf = do_disk_locn buf t.metadata_areas in
     buf
 
-  let to_string t =
-    let disk_area_list_to_ascii l =
-      (String.concat "," (List.map (fun da -> Printf.sprintf "{offset=%Ld,size=%Ld}" da.Location.offset da.Location.size) l)) in  
-    Printf.sprintf "pvh_id: %s\npvh_device_size: %Ld\npvh_areas1: %s\npvh_areas2: %s\n"
-      (Uuid.to_string t.id) t.device_size 
-      (disk_area_list_to_ascii t.extents)
-      (disk_area_list_to_ascii t.metadata_areas)
-
+  let to_string t = Sexplib.Sexp.to_string_hum (sexp_of_t t)
+ 
   include Result
 end
 
@@ -199,9 +191,6 @@ include Result
 
 let get_metadata_locations label = 
   label.pv_header.Pv_header.metadata_areas
-
-let get_pv_id label =
-  label.pv_header.Pv_header.id
 
 let create ?(magic = `Lvm) id size mda_start mda_size =
   let label = Label_header.create magic in

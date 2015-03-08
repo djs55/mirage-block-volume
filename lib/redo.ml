@@ -54,7 +54,3 @@ module Op = struct
     Cstruct.blit_from_string s 0 c 0 (Cstruct.len c);
     c
 end
-
-(** Converts the redo operation to a human-readable string. *)
-let redo_to_human_readable op =
-  op |> Op.sexp_of_t |> Sexplib.Sexp.to_string 

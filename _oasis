@@ -12,12 +12,17 @@ Flag mapper
   Description: build the device-mapper interface
   Default: false
 
+Library lvm_internal
+  Install: false
+  Path: internal
+  Modules: Lvmconfiglex, Lvmconfigparser, Absty
+
 Library lvm
   Path: lib
-  Modules: Result, S, Monad, Absty, Allocator, Constants, Label, Metadata, Crc, IO, Lvmconfiglex, Lvmconfigparser, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic, UnalignedBlock
+  Modules: Result, S, Monad, Expect, Allocator, Constants, Label, Metadata, Crc, IO, Lv, Uuid, Pv, Redo, Tag, Utils, Vg, Magic, UnalignedBlock
   Findlibname: lvm
   Pack: true
-  BuildDepends: sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring, bisect
+  BuildDepends: lvm_internal,sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring, bisect
 
 Library lvm_mapper
   Build$: flag(mapper)
@@ -35,18 +40,6 @@ Executable mlvm
   Custom:             true
   Install:            false
   BuildDepends:       lvm, cmdliner, io-page.unix, io-page, mirage-block-unix, io-page.unix
-
-Executable tag_test
-  CompiledObject:     best
-  Path:               lib_test
-  MainIs:             tag_test.ml
-  Custom:             true
-  Install:            false
-  BuildDepends:       lvm, oUnit, io-page.unix, bisect
-
-Test tag_test
-  Command:            ./tag_test.native
-  Run:                true
 
 Executable vg_test
   CompiledObject:     best

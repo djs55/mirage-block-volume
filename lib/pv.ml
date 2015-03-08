@@ -18,13 +18,14 @@ open Sexplib.Std
     the volume group. *)
 
 open Absty
+open Expect
 
 open Result
 
 module Status = struct  
   type t = 
     | Allocatable
-  with sexp
+  with sexp_of
 
   let to_string = function
     | Allocatable -> "ALLOCATABLE"
@@ -54,7 +55,7 @@ type t = {
   pe_count : int64;
   label : Label.t;  (* The one label for this PV *)
   headers : Metadata.Header.t list; 
-} with sexp
+} with sexp_of
 
 let marshal pv b =
   let ofs = ref 0 in
@@ -68,8 +69,6 @@ let marshal pv b =
     (String.concat ", " (List.map (o quote Status.to_string) pv.status))
     pv.size_in_sectors pv.pe_start pv.pe_count;
   Cstruct.shift b !ofs
-
-let to_string x = Sexplib.Sexp.to_string_hum (sexp_of_t x)
 
 module Make(Block: S.BLOCK) = struct
 

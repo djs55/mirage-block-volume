@@ -11,17 +11,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
+open Absty
 
 (* Useful helper fns *)
 let quote s = Printf.sprintf "\"%s\"" s 
 let o = fun f g x -> f (g x) 
 
-type absty = | AInt of int64
-	     | AStr of string
-	     | AStruct of (string * absty) list
-	     | AArr of absty list
-		 
 open Result
 
 let expect_string name field =

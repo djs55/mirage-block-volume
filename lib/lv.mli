@@ -18,7 +18,7 @@ module Status : sig
     | Read
     | Write
     | Visible
-  with sexp
+  with sexp_of
 
   include S.PRINT with type t := t
 
@@ -43,7 +43,7 @@ module Segment : sig
     cls : cls;
   } with sexp
 
-  type ts = t list with sexp
+  type ts = t list with sexp_of
 
   val sort: t list -> t list
 
@@ -79,5 +79,4 @@ val find_extent: t -> int64 -> Segment.t option
 (** [find_extent t x] returns the segment containing [x] *)
 
 val reduce_size_to: t -> int64 -> (t, string) Result.result
-(** [reduce_size_to lv new_size] reduces the size of [lv] to [new_size],
-    or fails if the [new_size] is less than the current size. *)
+(** [reduce_size_to lv new_size] reduces the size of [lv] to [new_size] *)
