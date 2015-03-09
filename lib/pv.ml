@@ -16,7 +16,7 @@ open Sexplib.Std
 (** Physical Volumes:
     Note we start with a physical volume and then use it to discover
     the volume group. *)
-
+open Lvm_internal
 open Absty
 open Expect
 
@@ -25,7 +25,7 @@ open Result
 module Status = struct  
   type t = 
     | Allocatable
-  with sexp_of
+  with sexp
 
   let to_string = function
     | Allocatable -> "ALLOCATABLE"
@@ -55,7 +55,7 @@ type t = {
   pe_count : int64;
   label : Label.t;  (* The one label for this PV *)
   headers : Metadata.Header.t list; 
-} with sexp_of
+} with sexp
 
 let marshal pv b =
   let ofs = ref 0 in

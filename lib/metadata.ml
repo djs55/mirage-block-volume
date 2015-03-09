@@ -12,7 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 open Sexplib.Std
-
+open Lvm_internal
 open Absty
 
 (** Start with the meta-metadata - this is how we actually locate the 
