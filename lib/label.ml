@@ -14,7 +14,7 @@
 open Sexplib.Std
 
 (** Physical Volume module *)
-
+open Lvm_internal
 open Absty
 open IO
 

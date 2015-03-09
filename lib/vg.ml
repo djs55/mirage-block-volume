@@ -12,6 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 open Sexplib.Std
+open Lvm_internal
 open Absty
 open Expect
 open Redo

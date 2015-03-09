@@ -16,7 +16,7 @@ open Sexplib.Std
 (** Physical Volumes:
     Note we start with a physical volume and then use it to discover
     the volume group. *)
-
+open Lvm_internal
 open Absty
 open Expect
 
