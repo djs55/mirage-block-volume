@@ -96,7 +96,7 @@ end
 type t = {
   name : string;
   id : Uuid.t;
-  tags : Tag.t list;
+  tags : Name.Tag.t list;
   status : Status.t list;
   segments : Segment.t list;
 } with sexp
@@ -118,7 +118,7 @@ let marshal lv b =
   bprintf "\n%s {\nid = \"%s\"\nstatus = [%s]\n" lv.name (Uuid.to_string lv.id)
     (String.concat ", " (List.map (o quote Status.to_string) lv.status));
   if List.length lv.tags > 0 then 
-    bprintf "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Tag.to_string) lv.tags));
+    bprintf "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Name.Tag.to_string) lv.tags));
   bprintf "segment_count = %d\n\n" (List.length lv.segments);
   let open Segment in
   iteri
@@ -145,7 +145,7 @@ let of_metadata name config =
   (if List.mem_assoc "tags" config
    then map_expected_mapped_array "tags" (expect_string "tags") config
    else return []) >>= fun tags ->
-  let tags = List.map Tag.of_string tags in
+  all @@ List.map Name.Tag.of_string tags >>= fun tags ->
   let segments = filter_structs config in
   Result.all (List.map (fun (a, _) ->
     expect_mapped_struct a segments >>= fun x ->

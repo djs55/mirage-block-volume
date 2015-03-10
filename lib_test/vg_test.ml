@@ -274,7 +274,7 @@ let lv_name_clash () =
       in
       Lwt_main.run t)
 
-let tag = Tag.of_string "tag"
+let tag = "tag"
 
 let lv_create magic () =
   let open Vg_IO in
@@ -464,8 +464,7 @@ let lv_tags () =
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            let printer xs = String.concat "," (List.map Tag.to_string xs) in
-            assert_equal ~printer [] v_md.Lv.tags;
+            assert_equal [] v_md.Lv.tags;
             (* first one that doesn't exist *)
             expect_error (Vg.add_tag (Vg_IO.metadata_of vg) "doesntexist" tag);
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
@@ -473,20 +472,20 @@ let lv_tags () =
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer [tag] v_md.Lv.tags;
+            assert_equal [tag] (List.map Name.Tag.to_string v_md.Lv.tags);
             (* add it again for no change *)
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer [tag] v_md.Lv.tags;
+            assert_equal [tag] (List.map Name.Tag.to_string v_md.Lv.tags);
             Vg.remove_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer [] v_md.Lv.tags;
+            assert_equal [] (List.map Name.Tag.to_string v_md.Lv.tags);
             Lwt.return ()
           )
       in

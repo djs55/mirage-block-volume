@@ -55,7 +55,7 @@ let table_of_pv pv = add_prefix (Pv.Name.to_string pv.Pv.name) [
 let table_of_lv lv = add_prefix lv.Lv.name [
   [ "name"; lv.Lv.name; ];
   [ "id"; Uuid.to_string lv.Lv.id; ];
-  [ "tags"; String.concat ", " (List.map Tag.to_string lv.Lv.tags) ];
+  [ "tags"; String.concat ", " (List.map Name.Tag.to_string lv.Lv.tags) ];
   [ "status"; String.concat ", " (List.map Lv.Status.to_string lv.Lv.status) ];
   [ "segments"; Sexplib.Sexp.to_string (Lv.Segment.sexp_of_ts lv.Lv.segments) ];
 ]
@@ -191,7 +191,7 @@ let remove common filename lvname =
   update_vg common filename (fun vg -> Vg.remove vg lvname)
 
 let add_tag common filename lvname tag =
-  update_vg common filename (fun vg -> Vg.add_tag vg lvname (Tag.of_string tag))
+  update_vg common filename (fun vg -> Vg.add_tag vg lvname tag)
 
 let remove_tag common filename lvname tag =
-  update_vg common filename (fun vg -> Vg.remove_tag vg lvname (Tag.of_string tag))
+  update_vg common filename (fun vg -> Vg.remove_tag vg lvname tag)

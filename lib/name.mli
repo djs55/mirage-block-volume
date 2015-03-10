@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2009-2013 Citrix Systems Inc.
+ * Copyright (C) 2009-2015 Citrix Systems Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -12,13 +12,13 @@
  * GNU Lesser General Public License for more details.
  *)
 
-type t
-(** A valid LVM volume tag *)
+module type Sanitised_string = sig
+  type t
+  include S.SEXPABLE with type t := t
+  include S.PRINT with type t := t
+  val of_string : string -> (t, string) Result.result
+end
 
-include S.SEXPABLE with type t := t
-include S.PRINT with type t := t
-
-val of_string : string -> t
-(** [of_string string] constructs a tag from a string. Any characters
-    which are illegal will be replaced by '_' *)
-
+module Vg_name : Sanitised_string
+module Lv_name : Sanitised_string
+module Tag : Sanitised_string
