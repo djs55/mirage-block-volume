@@ -223,6 +223,8 @@ let test_strings = [
   false, ".";
   false, "foo_rimage";
   false, "snapshot";
+  false, "\000";
+  false, String.make 128 'X';
 ]
 
 let lv_name_suite = "LV names" >::: (List.map test_lv_string test_strings)
