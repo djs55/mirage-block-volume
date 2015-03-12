@@ -211,6 +211,22 @@ let uuid_suite = "Uuid" >::: [
   "of_string ok" >:: uuid_of_string_ok;
 ]
 
+let test_lv_string (should_be_valid, s) =
+  Printf.sprintf "Checking if LV name '%s' is %svalid" s (if should_be_valid then "" else "in") >:: (fun () ->
+    let is_valid = match Name.Lv_name.of_string s with `Ok _ -> true | _ -> false in
+    assert_equal ~printer:string_of_bool should_be_valid is_valid
+  )
+
+let test_strings = [
+  false, "";
+  true, "foo";
+  false, ".";
+  false, "foo_rimage";
+  false, "snapshot";
+]
+
+let lv_name_suite = "LV names" >::: (List.map test_lv_string test_strings)
+
 let test_tag_string (should_be_valid, s) =
   Printf.sprintf "Checking if tag '%s' is %svalid" s (if should_be_valid then "" else "in") >:: (fun () ->
     let is_valid = match Name.Tag.of_string s with `Ok _ -> true | _ -> false in
@@ -573,6 +589,7 @@ let _ =
     label_suite;
     pv_header_suite;
     uuid_suite;
+    lv_name_suite;
     tag_suite;
     vg_suite;
     allocator_suite;
