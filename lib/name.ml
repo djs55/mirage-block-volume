@@ -100,10 +100,7 @@ module Make(Constraints : CONSTRAINTS) = struct
         !found
       end
     in
-    match 
-      try List.find_all (in_string s) Constraints.reserved_substrings
-      with Not_found -> []
-    with
+    match List.filter (in_string s) Constraints.reserved_substrings with
     | [] -> return ()
     | subs -> fail @@ Printf.sprintf "Reserved substrings: [ %s ]" @@ String.concat "; " subs
 
