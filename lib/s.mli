@@ -44,7 +44,12 @@ module type LOG = sig
   val error : ('a, unit, string, unit) format4 -> 'a
 end
 
-type 'a io = ('a, [ `Msg of string ]) Result.result Lwt.t
+type error = [
+  | `UnknownLV of string
+  | `DuplicateLV of string
+  | `OnlyThisMuchFree of int64
+  | `Msg of string
+]
 
 module type BLOCK = V1_LWT.BLOCK
 
@@ -67,31 +72,35 @@ module type VOLUME = sig
 
   type lv_status
   (** The status of an individual LV *)
-  
+ 
+  type error
+
+  type 'a result = ('a, error) Result.result
+ 
   val create: t -> name -> ?tags:tag list -> ?status:lv_status list -> int64 ->
-    (t * op, [ `Msg of string ]) Result.result
+    (t * op) result
   (** [create t name size] extends the volume group [t] with a new
       volume named [name] with size at least [size] bytes. The actual
       size of the volume may be rounded up. *)
 
-  val rename: t -> name -> name -> (t * op, [ `Msg of string ]) Result.result
+  val rename: t -> name -> name -> (t * op) result
   (** [rename t name new_name] returns a new volume group [t] where
       the volume previously named [name] has been renamed to [new_name] *)
 
-  val resize: t -> name -> size -> (t * op, [ `Msg of string ]) Result.result
+  val resize: t -> name -> size -> (t * op) result
   (** [resize t name new_size] returns a new volume group [t] where
       the volume with [name] has new size at least [new_size]. The
       size of the volume may be rounded up. *)
  
-  val remove: t -> name -> (t * op, [ `Msg of string]) Result.result
+  val remove: t -> name -> (t * op) result
   (** [remove t name] returns a new volume group [t] where the volume
       with [name] has been deallocated. *)
 
-  val add_tag: t -> name -> tag -> (t * op, [ `Msg of string]) Result.result
+  val add_tag: t -> name -> tag -> (t * op) result
   (** [add_tag t name tag] returns a new volume group [t] where the
       volume with [name] has a new tag [tag] *)
 
-  val remove_tag: t -> name -> tag -> (t * op, [ `Msg of string]) Result.result
+  val remove_tag: t -> name -> tag -> (t * op) result
   (** [remove_tag t name tag] returns a new volume group [t] where the
       volume with [name] has no tag [tag] *)
 end

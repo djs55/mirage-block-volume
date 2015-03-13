@@ -64,12 +64,19 @@ include S.PRINT with type t := t
 include S.MARSHAL with type t := t
 include S.UNMARSHAL with type t := t
 include S.SEXPABLE with type t := t
-include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
 val get_metadata_locations: t -> Location.t list
 
-module Make : functor(Block: S.BLOCK) -> sig
-  val read: Block.t -> t S.io
+type error = [
+  | `Msg of string
+]
 
-  val write: Block.t -> t -> unit S.io
+type 'a result = ('a, error) Result.result
+
+val open_error: 'a result -> ('a, [> error]) Result.result
+
+module Make : functor(Block: S.BLOCK) -> sig
+  val read: Block.t -> t result Lwt.t
+
+  val write: Block.t -> t -> unit result Lwt.t
 end

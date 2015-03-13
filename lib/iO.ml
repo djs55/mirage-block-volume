@@ -14,7 +14,6 @@
 
 open Lwt
 
-type 'a io = ('a, string) Result.result Lwt.t 
 type ('a, 'b) t = ('a, 'b) Result.result Lwt.t
 
 open S

@@ -21,12 +21,13 @@ let require name arg = match arg with
   | None -> failwith (Printf.sprintf "Please supply a %s argument" name)
   | Some x -> x
 
-let (>>|=) m f = m >>= function
-  | `Error (`Msg e) -> fail (Failure e)
-  | `Ok x -> f x
 let (>>*=) m f = match m with
   | `Error (`Msg e) -> fail (Failure e)
+  | `Error (`DuplicateLV x) -> fail (Failure (Printf.sprintf "%s is a duplicate LV name" x))
+  | `Error (`OnlyThisMuchFree x) -> fail (Failure (Printf.sprintf "There is only %Ld free" x))
+  | `Error (`UnknownLV x) -> fail (Failure (Printf.sprintf "I couldn't find an LV named %s" x))
   | `Ok x -> f x
+let (>>|=) m f = m >>= fun x -> x >>*= f
 
 let apply common =
   ()

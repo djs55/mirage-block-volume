@@ -17,6 +17,16 @@ open Sexplib.Std
 
 type t = string with sexp
 
+type error = [
+  | `Msg of string
+]
+
+type 'a result = ('a, error) Result.result
+
+let open_error = function
+  | `Ok x -> `Ok x
+  | `Error (`Msg x) -> `Error (`Msg x)
+
 let format = [6; 4; 4; 4; 4; 4; 6] 
 
 let charlist = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#"
@@ -46,9 +56,8 @@ let remove_hyphens str =
 
 let sizeof = 32
 
-include Result
-
 let unmarshal buf =
+  let open Result in
   if Cstruct.len buf < sizeof
   then `Error (`Msg (Printf.sprintf "Uuid.unmarshal: buffer is too small \"%s\"" (String.escaped (Cstruct.to_string buf))))
   else

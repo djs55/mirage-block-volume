@@ -24,6 +24,16 @@ let do_crc_from = crc_pos + 4
 let label_type            = "LVM2 001"
 let journalled_label_type = "JOUR 001"
 
+type error = [
+  | `Msg of string
+]
+
+type 'a result = ('a, error) Result.result
+
+let open_error = function
+  | `Error (`Msg x) -> `Error (`Msg x)
+  | `Ok x -> `Ok x
+
 module Label_header = struct
   type t = {
     id : string; (* 8 bytes, equal to label_id in Constants *)
@@ -74,8 +84,6 @@ module Label_header = struct
     Cstruct.shift buf 32
 
   let to_string t = Sexplib.Sexp.to_string_hum (sexp_of_t t)
-
-  include Result
 end
 
 module Location = struct
@@ -106,8 +114,8 @@ module Pv_header = struct
   }
 
   let unmarshal b =
-    let open Uuid in
-    unmarshal b >>= fun (id, b) ->
+    let open Result in
+    Uuid.unmarshal b >>= fun (id, b) ->
     let device_size = Cstruct.LE.get_uint64 b 0 in
     let b = Cstruct.shift b 8 in
     let rec do_disk_locn b acc =
@@ -143,8 +151,6 @@ module Pv_header = struct
     buf
 
   let to_string t = Sexplib.Sexp.to_string_hum (sexp_of_t t)
- 
-  include Result
 end
 
 type t = {
@@ -169,6 +175,7 @@ let marshal t buf =
 
 let unmarshal buf =
   let open Label_header in
+  let open Result in
   let rec find n =
     if n > 3
     then `Error (`Msg "No PV label found in any of the first 4 sectors")
@@ -186,8 +193,6 @@ let unmarshal buf =
   return ({
     label_header = label;
     pv_header = pvh; }, buf)
-
-include Result
 
 let get_metadata_locations label = 
   label.pv_header.Pv_header.metadata_areas

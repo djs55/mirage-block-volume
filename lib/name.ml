@@ -15,6 +15,12 @@
 open Sexplib.Std
 open Result
 
+type error = [ `Msg of string ]
+type 'a result = ('a, error) Result.result
+let open_error = function
+  | `Ok x -> `Ok x
+  | `Error (`Msg x) -> `Error (`Msg x)
+
 let fail msg = `Error (`Msg msg)
 
 module CharSet = struct

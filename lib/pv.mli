@@ -13,13 +13,21 @@
  *)
 open Lvm_internal
 
+type error = [
+  | `Msg of string
+]
+
+type 'a result = ('a, error) Result.result
+
+val open_error: 'a result -> ('a, [> error]) Result.result
+
 module Status : sig
   type t = 
     | Allocatable
 
   include S.PRINT with type t := t
 
-  val of_string: string -> (t, [ `Msg of string ]) Result.result
+  val of_string: string -> t result
 end
 
 module Name : sig
@@ -27,7 +35,7 @@ module Name : sig
 
   val to_string: t -> string
 
-  val of_string: string -> (t, [ `Msg of string ]) Result.result
+  val of_string: string -> t result
 end
 
 type t = {
@@ -45,17 +53,17 @@ type t = {
 include S.MARSHAL with type t := t
 
 module Make : functor(Block: S.BLOCK) -> sig
-  val format: Block.t -> ?magic: Magic.t -> Name.t -> t S.io
+  val format: Block.t -> ?magic: Magic.t -> Name.t -> t result Lwt.t
   (** [format device ?kind name] initialises a physical volume on [device]
       with [name]. One metadata area will be created, 10 MiB in size,
       at a fixed location. Any existing metadata on this device will
       be destroyed. *)
 
-  val read_metadata: Block.t -> Cstruct.t S.io
+  val read_metadata: Block.t -> Cstruct.t result Lwt.t
   (** [read_metadata device]: locates the metadata area on [device] and
       returns the volume group metadata. *)
 
-  val read: Block.t -> string -> (string * Absty.absty) list -> t S.io
+  val read: Block.t -> string -> (string * Absty.absty) list -> t result Lwt.t
   (** [read device name config] reads the information of physical volume [name]
       with configuration [config] read from the volume group metadata. *)
 end
