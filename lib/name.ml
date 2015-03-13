@@ -15,6 +15,8 @@
 open Sexplib.Std
 open Result
 
+let fail msg = `Error (`Msg msg)
+
 module CharSet = struct
   include Set.Make(struct type t = char let compare = compare end)
 
@@ -51,9 +53,8 @@ module type Sanitised_string = sig
   type t
   include S.SEXPABLE with type t := t
   include S.PRINT with type t := t
-  val of_string : string -> (t, string) Result.result
+  val of_string : string -> (t, [ `Msg of string ]) Result.result
 end
-
 
 module Make(Constraints : CONSTRAINTS) = struct
   open Constraints

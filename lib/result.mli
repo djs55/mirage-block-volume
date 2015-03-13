@@ -20,8 +20,8 @@ type ('a, 'b) result = [
 include Monad.S2 with type ('a, 'b) t := ('a, 'b) result
 
 val ok: 'a -> ('a, 'b) result
-val fail: 'b -> ('a, 'b) result
 
 val all: ('a, 'b) result list -> ('a list, 'b) result
 
-val ok_or_failwith: ('a, string) result -> 'a
+val get_ok: ('a, 'b) result -> 'a
+val get_error: ('a, 'b) result -> 'b

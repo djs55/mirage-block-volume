@@ -28,10 +28,6 @@ module Log = struct
     error "This is the error output"
 end
 
-let expect_error = function
-  | `Error _ -> ()
-  | `Ok _ -> failwith "expected error, got Ok"
-
 let expect_some = function
   | None -> raise (Invalid_argument "None")
   | Some x -> x
@@ -45,16 +41,17 @@ let unmarshal_good_magic () =
   let open Magic in
   let buf = Cstruct.create (String.length good_magic) in
   Cstruct.blit_from_string good_magic 0 buf 0 (String.length good_magic);
-  let _ = Result.ok_or_failwith (unmarshal buf) in
+  let _ = Result.get_ok (unmarshal buf) in
   ()
 
 let unmarshal_bad_magic () =
   let open Magic in
   let buf = Cstruct.create 0 in
-  expect_error (unmarshal buf);
+  let _ = Result.get_error (unmarshal buf) in
   let buf = Cstruct.create (String.length good_magic) in
   Cstruct.set_char buf 0 '\000';
-  expect_error (unmarshal buf)
+  let _ = Result.get_error (unmarshal buf) in
+  ()
 
 let magic_suite = "Magic" >::: [
   "unmarshal good magic" >:: unmarshal_good_magic;
@@ -70,7 +67,8 @@ let unmarshal_mdaheader () =
   Utils.zero data;
   let _ = marshal empty data in
   Cstruct.set_char data 0 '0'; (* corrupt *)
-  expect_error (unmarshal data)
+  let _ = Result.get_error (unmarshal data) in
+  ()
 
 let well_known_mdaheader () =
   let open Metadata.Header in
@@ -86,10 +84,10 @@ let unmarshal_marshal_mdaheader () =
   let data = Cstruct.create sizeof in
   Utils.zero data;
   let _ = marshal empty data in
-  let empty', _ = Result.ok_or_failwith (unmarshal data) in
+  let empty', _ = Result.get_ok (unmarshal data) in
   assert_equal ~printer:to_string ~cmp:equals empty empty';
   let _ = marshal empty' data in
-  let empty'', _ = Result.ok_or_failwith (unmarshal data) in
+  let empty'', _ = Result.get_ok (unmarshal data) in
   assert_equal ~printer:to_string ~cmp:equals empty' empty''
 
 let mdaheader_prettyprint () =
@@ -137,7 +135,7 @@ let well_known_label () =
   let open Label in
   let sector = Cstruct.create 512 in
   Utils.zero sector;
-  let uuid = Result.ok_or_failwith (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
+  let uuid = Result.get_ok (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
   let expected = create uuid 1234L 100L 200L in
   let _ = marshal expected sector in
   let label' = Cstruct.(to_string (sub sector 0 (String.length label))) in
@@ -156,7 +154,7 @@ let pv_header = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw\210\004\000\000\000\000\000\00
 
 let well_known_pv_header () =
   let open Label.Pv_header in
-  let uuid = Result.ok_or_failwith (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
+  let uuid = Result.get_ok (Uuid.of_string "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw") in
   let pvh = {
     id = uuid;
     device_size = 1234L;
@@ -173,7 +171,7 @@ let unmarshal_marshal_pv_header () =
   let pvh = create (Uuid.create ()) 1234L 100L 50L in
   let sector = Cstruct.create 512 in
   let _ = marshal pvh sector in
-  let pvh', _ = Result.ok_or_failwith (unmarshal sector) in
+  let pvh', _ = Result.get_ok (unmarshal sector) in
   assert_equal ~printer:to_string ~cmp:equals pvh pvh'
 
 let pv_header_suite = "PV header" >::: [
@@ -183,7 +181,8 @@ let pv_header_suite = "PV header" >::: [
 
 let uuid_unmarshal_error () =
   let open Uuid in
-  expect_error (unmarshal (Cstruct.create 0))
+  let _ = Result.get_error (unmarshal (Cstruct.create 0)) in
+  ()
 
 let uuid_marshalled = "Obwn1MGs3G3TN8Rchuo73nKTT0uLuUxw"
 let uuid_unmarshalled = "Obwn1M-Gs3G-3TN8-Rchu-o73n-KTT0-uLuUxw"
@@ -192,16 +191,17 @@ let well_known_uuid () =
   let open Uuid in
   let buf = Cstruct.create (String.length uuid_marshalled) in
   Cstruct.blit_from_string uuid_marshalled 0 buf 0 (String.length uuid_marshalled);
-  let uuid, _ = Result.ok_or_failwith (unmarshal buf) in
+  let uuid, _ = Result.get_ok (unmarshal buf) in
   assert_equal uuid_unmarshalled (to_string uuid)
 
 let uuid_of_string_error () =
   let open Uuid in
-  expect_error (of_string "")
+  let _ = Result.get_error (of_string "") in
+  ()
 
 let uuid_of_string_ok () =
   let open Uuid in
-  let _ = Result.ok_or_failwith (of_string uuid_unmarshalled) in
+  let _ = Result.get_ok (of_string uuid_unmarshalled) in
   ()
 
 let uuid_suite = "Uuid" >::: [
@@ -246,10 +246,10 @@ let tag_suite = "tags" >::: (List.map test_tag_string test_strings)
 module Vg_IO = Vg.Make(Log)(Block)
 
 let (>>|=) m f = m >>= function
-  | `Error e -> fail (Failure e)
+  | `Error (`Msg e) -> fail (Failure e)
   | `Ok x -> f x
 let (>>*=) m f = match m with
-  | `Error e -> fail (Failure e)
+  | `Error (`Msg e) -> fail (Failure e)
   | `Ok x -> f x
 
 let with_dummy fn =
@@ -272,7 +272,7 @@ let with_block filename f =
   | `Ok x ->
     f x (* no point catching errors here *)
 
-let pv = Result.ok_or_failwith (Pv.Name.of_string "pv0")
+let pv = Result.get_ok (Pv.Name.of_string "pv0")
 let small = Int64.(mul (mul 1024L 1024L) 4L)
 let small_extents = 1L
 
@@ -283,9 +283,9 @@ let lv_not_formatted () =
         with_block filename
           (fun block ->
             Vg_IO.connect [] `RW >>= fun t ->
-            expect_error t;
+            let _ = Result.get_error t in
             Vg_IO.connect [ block ] `RW >>= fun t ->
-            expect_error t;
+            let _ = Result.get_error t in
             return ()
           )
       in
@@ -300,7 +300,7 @@ let lv_name_clash () =
             Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (md,_) ->
-            expect_error (Vg.create md "name" small);
+            let _ = Result.get_error (Vg.create md "name" small) in
             Lwt.return ()
           )
       in
@@ -318,7 +318,7 @@ let lv_create magic () =
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             let free_extents = Pv.Allocator.size (Vg_IO.metadata_of vg).Vg.free_space in
             let free_bytes = Int64.(mul 512L (mul (Vg_IO.metadata_of vg).Vg.extent_size free_extents)) in
-            expect_error (Vg.create (Vg_IO.metadata_of vg) "toobig" (Int64.succ free_bytes));
+            let _ = Result.get_error (Vg.create (Vg_IO.metadata_of vg) "toobig" (Int64.succ free_bytes)) in
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (md, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
@@ -336,7 +336,7 @@ let lv_create magic () =
             assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
             (* While we're here, check we can't update a RO VG *)
             Vg_IO.update vg' [] >>= fun t ->
-            expect_error t;
+            let _ = Result.get_error t in
             Lwt.return ()
           )
       in
@@ -376,7 +376,7 @@ let lv_resize () =
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            expect_error (Vg.resize (Vg_IO.metadata_of vg) "doesntexist" 0L);
+            let _ = Result.get_error (Vg.resize (Vg_IO.metadata_of vg) "doesntexist" 0L) in
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
@@ -498,7 +498,7 @@ let lv_tags () =
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal [] v_md.Lv.tags;
             (* first one that doesn't exist *)
-            expect_error (Vg.add_tag (Vg_IO.metadata_of vg) "doesntexist" tag);
+            let _ = Result.get_error (Vg.add_tag (Vg_IO.metadata_of vg) "doesntexist" tag) in
             Vg.add_tag (Vg_IO.metadata_of vg) "name" tag >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
@@ -563,7 +563,7 @@ let rec allpairs xs = function
   | Cons (y, ys) ->
     append (map (fun x -> (x, y)) xs) (lazy(allpairs xs (Lazy.force ys)))
 
-let pv0 = Result.ok_or_failwith (Pv.Name.of_string "pv0")
+let pv0 = Result.get_ok (Pv.Name.of_string "pv0")
 
 let vectors: Lvm.Pv.Allocator.t l =
   [ 0L; 1L; 2L; 4L; 10L ]

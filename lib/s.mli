@@ -24,7 +24,7 @@ end
 
 module type UNMARSHAL = sig
   type t
-  val unmarshal: Cstruct.t -> (t * Cstruct.t, string) Result.result
+  val unmarshal: Cstruct.t -> (t * Cstruct.t, [ `Msg of string ]) Result.result
 end
 
 module type EQUALS = sig
@@ -44,7 +44,7 @@ module type LOG = sig
   val error : ('a, unit, string, unit) format4 -> 'a
 end
 
-type 'a io = ('a, string) Result.result Lwt.t
+type 'a io = ('a, [ `Msg of string ]) Result.result Lwt.t
 
 module type BLOCK = V1_LWT.BLOCK
 
@@ -69,29 +69,29 @@ module type VOLUME = sig
   (** The status of an individual LV *)
   
   val create: t -> name -> ?tags:tag list -> ?status:lv_status list -> int64 ->
-    (t * op, string) Result.result
+    (t * op, [ `Msg of string ]) Result.result
   (** [create t name size] extends the volume group [t] with a new
       volume named [name] with size at least [size] bytes. The actual
       size of the volume may be rounded up. *)
 
-  val rename: t -> name -> name -> (t * op, string) Result.result
+  val rename: t -> name -> name -> (t * op, [ `Msg of string ]) Result.result
   (** [rename t name new_name] returns a new volume group [t] where
       the volume previously named [name] has been renamed to [new_name] *)
 
-  val resize: t -> name -> size -> (t * op, string) Result.result
+  val resize: t -> name -> size -> (t * op, [ `Msg of string ]) Result.result
   (** [resize t name new_size] returns a new volume group [t] where
       the volume with [name] has new size at least [new_size]. The
       size of the volume may be rounded up. *)
  
-  val remove: t -> name -> (t * op, string) Result.result
+  val remove: t -> name -> (t * op, [ `Msg of string]) Result.result
   (** [remove t name] returns a new volume group [t] where the volume
       with [name] has been deallocated. *)
 
-  val add_tag: t -> name -> tag -> (t * op, string) Result.result
+  val add_tag: t -> name -> tag -> (t * op, [ `Msg of string]) Result.result
   (** [add_tag t name tag] returns a new volume group [t] where the
       volume with [name] has a new tag [tag] *)
 
-  val remove_tag: t -> name -> tag -> (t * op, string) Result.result
+  val remove_tag: t -> name -> tag -> (t * op, [ `Msg of string]) Result.result
   (** [remove_tag t name tag] returns a new volume group [t] where the
       volume with [name] has no tag [tag] *)
 end
@@ -127,7 +127,7 @@ module type ALLOCATOR = sig
       total amount of space currently free, which is insufficient to satisfy
       the request.
       The expected use is to 'allocate' space for a logical volume. *)
-  val find : t -> int64 -> (t, int64) Result.result
+  val find : t -> int64 -> (t, [ `OnlyThisMuchFree of int64 ]) Result.result
 
   (** [merge t1 t2] returns a region [t] which contains all the physical
       space from both [t1] and [t2].

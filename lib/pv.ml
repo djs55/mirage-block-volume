@@ -22,6 +22,8 @@ open Expect
 
 open Result
 
+let fail msg = `Error (`Msg msg)
+
 module Status = struct  
   type t = 
     | Allocatable

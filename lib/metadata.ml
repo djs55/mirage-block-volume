@@ -76,7 +76,7 @@ module Header = struct
     let crc_to_check = Cstruct.sub buf 4 (sizeof - 4) in
     let crc = Crc.crc crc_to_check in
     if crc <> mdah_checksum
-    then `Error (Printf.sprintf "Bad checksum in metadata area: expected %08lx, got %08lx" mdah_checksum crc)
+    then `Error (`Msg (Printf.sprintf "Bad checksum in metadata area: expected %08lx, got %08lx" mdah_checksum crc))
     else `Ok ({mdah_checksum; mdah_magic; mdah_version; mdah_start; mdah_size; mdah_raw_locns}, b)
 
   let to_string mdah = Sexplib.Sexp.to_string_hum (sexp_of_t mdah)
@@ -169,7 +169,7 @@ let read dev mdah n =
   Cstruct.blit buf' 0 result firstbit secondbit;
   let checksum = Crc.crc result in
   if checksum <> locn.mrl_checksum
-  then Lwt.return (`Error (Printf.sprintf "Ignoring invalid checksum in metadata: Found %lx, expecting %lx" checksum locn.mrl_checksum))
+  then Lwt.return (`Error (`Msg (Printf.sprintf "Ignoring invalid checksum in metadata: Found %lx, expecting %lx" checksum locn.mrl_checksum)))
   else return result
       
 let write device mdah md =

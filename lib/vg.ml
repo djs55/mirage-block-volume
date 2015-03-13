@@ -18,6 +18,10 @@ open Expect
 open Redo
 open Result
 
+let (>>|=) m f = Lwt.bind m (function
+| `Error e -> Lwt.return (`Error e)
+| `Ok x -> f x)
+
 module Status = struct
   type t =
     | Read
@@ -37,7 +41,7 @@ module Status = struct
     | "WRITE" -> return Write
     | "READ" -> return Read
     | "CLUSTERED" -> return Clustered
-    | x -> fail (Printf.sprintf "Bad VG status string: %s" x)
+    | x -> `Error (`Msg (Printf.sprintf "Bad VG status string: %s" x))
 end
 
 type lv_status = Lv.Status.t
@@ -91,13 +95,13 @@ let marshal vg b =
 
 type op = Redo.Op.t
 
-let do_op vg op : (metadata * op, string) Result.result =
+let do_op vg op : (metadata * op, [ `Msg of string ]) Result.result =
   let open Redo.Op in
   let change_lv lv_name fn =
     let lv,others = List.partition (fun lv -> lv.Lv.name=lv_name) vg.lvs in
     match lv with
     | [lv] -> fn lv others
-    | _ -> fail (Printf.sprintf "VG: unknown LV %s" lv_name) in
+    | _ -> `Error (`Msg (Printf.sprintf "VG: unknown LV %s" lv_name)) in
   match op with
   | LvCreate lv ->
     let new_free_space = Pv.Allocator.sub vg.free_space (Lv.to_allocation lv) in
@@ -167,7 +171,7 @@ let bytes_to_extents bytes vg =
 
 let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size = 
   if List.exists (fun lv -> lv.Lv.name = name) vg.lvs
-  then `Error "Duplicate name detected"
+  then `Error (`Msg "Duplicate name detected")
   else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
     let segments = Lv.Segment.sort (Lv.Segment.linear 0L lvc_segments) in
@@ -175,8 +179,8 @@ let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size 
     all @@ List.map Name.Tag.of_string tags >>= fun tags ->
     let lv = Lv.({ name; id; tags; status; segments }) in
     do_op vg Redo.Op.(LvCreate lv)
-  | `Error free ->
-    `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" size free)
+  | `Error (`OnlyThisMuchFree free) ->
+    `Error (`Msg (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" size free))
 
 let rename vg old_name new_name =
   do_op vg Redo.Op.(LvRename (old_name,{lvmv_new_name=new_name}))
@@ -192,11 +196,11 @@ let resize vg name new_size =
         | `Ok extents ->
            let lvex_segments = Lv.Segment.linear current_size extents in
 	   return Redo.Op.(LvExpand (name,{lvex_segments}))
-        | `Error free ->
-          `Error (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" to_allocate free)
+        | `Error (`OnlyThisMuchFree free) ->
+          `Error (`Msg (Printf.sprintf "insufficient free space: requested %Ld, free %Ld" to_allocate free))
 	else
 	  return Redo.Op.(LvReduce (name,{lvrd_new_extent_count=new_size}))
-    | _ -> fail (Printf.sprintf "Can't find LV %s" name) ) >>= fun op ->
+    | _ -> `Error (`Msg (Printf.sprintf "Can't find LV %s" name)) ) >>= fun op ->
   do_op vg op
 
 let remove vg name =
@@ -293,10 +297,6 @@ module Volume = struct
     let size_sectors = Int64.mul segments t.extent_size in
     return { read_write; sector_size = t.sector_size; size_sectors }
 
-  let (>>|=) m f = m >>= function
-  | `Error e -> return (`Error e)
-  | `Ok x -> f x
-  
   let io op t sector_start buffers =
     if t.disconnected
     then return (`Error `Disconnected)
@@ -376,7 +376,7 @@ let write metadata devices =
     | [] -> return (List.rev acc)
     | m :: ms ->
       if not(List.mem_assoc pv.Pv.id id_to_devices)
-      then fail (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))
+      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))))
       else begin
         let open IO in
         Metadata_IO.write (List.assoc pv.Pv.id id_to_devices) m md >>= fun h ->
@@ -386,7 +386,7 @@ let write metadata devices =
     | [] -> return (List.rev acc)
     | pv :: pvs ->
       if not(List.mem_assoc pv.Pv.id id_to_devices)
-      then fail (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))
+      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))))
       else begin
         let open IO in
         Label_IO.write (List.assoc pv.Pv.id id_to_devices) pv.Pv.label >>= fun () ->
@@ -439,10 +439,10 @@ let read devices flag =
 
   (* Read metadata from any of the provided devices *)
   ( match devices with
-    | [] -> return (`Error "Vg.read needs at least one device")
+    | [] -> return (`Error (`Msg "Vg.read needs at least one device"))
     | devices -> begin
       IO.FromResult.all (Lwt_list.map_s Pv_IO.read_metadata devices) >>= function
-      | [] -> return (`Error "Failed to find metadata on any of the devices")
+      | [] -> return (`Error (`Msg "Failed to find metadata on any of the devices"))
       | md :: _ ->
         let text = Cstruct.to_string md in
         let lexbuf = Lexing.from_string text in
@@ -451,12 +451,12 @@ let read devices flag =
   let open IO.FromResult in
   ( match config with
     | `Ok (AStruct c) -> `Ok c
-    | _ -> `Error "VG metadata doesn't begin with a structure element" ) >>= fun config ->
+    | _ -> `Error (`Msg "VG metadata doesn't begin with a structure element") ) >>= fun config ->
   let vg = filter_structs config in
   ( match vg with
     | [ name, _ ] -> `Ok name
-    | [] -> `Error "VG metadata contains no defined volume groups"
-    | _ -> `Error "VG metadata contains multiple volume groups" ) >>= fun name ->
+    | [] -> `Error (`Msg "VG metadata contains no defined volume groups")
+    | _ -> `Error (`Msg "VG metadata contains multiple volume groups") ) >>= fun name ->
   expect_mapped_struct name vg >>= fun alist ->
   expect_mapped_string "id" alist >>= fun id ->
   Uuid.of_string id >>= fun id ->
@@ -482,7 +482,7 @@ let read devices flag =
     match Uuid.of_string id with
     | `Ok id ->
       if not(List.mem_assoc id id_to_devices)
-      then fail (Printf.sprintf "Unable to find a device containing PV with id %s" (Uuid.to_string id))
+      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find a device containing PV with id %s" (Uuid.to_string id))))
       else Pv_IO.read (List.assoc id id_to_devices) a x
     | `Error x -> fail x
   ) pvs) >>= fun pvs ->
@@ -510,22 +510,16 @@ let read devices flag =
       else None (* passed in devices list was a proper superset of pvs in metadata *)
      )
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
-
-  let ok_or_fail x =
-    let open Lwt in
-    x >>= function
-    | `Ok x -> return x
-    | `Error x -> fail (Failure x) in
-
+  
   let on_disk_metadata = ref vg in
   let perform ops =
     let open Lwt in
-    ok_or_fail (run !on_disk_metadata ops)
-    >>= fun metadata ->
-    ok_or_fail (write metadata name_to_devices)
-    >>= fun () ->
+    run !on_disk_metadata ops
+    >>|= fun metadata ->
+    write metadata name_to_devices
+    >>|= fun () ->
     on_disk_metadata := metadata;
-    return () in
+    return (`Ok ()) in
 
   let redo_log = None in
   let wait_for_flush_t () = Lwt.return () in
@@ -549,10 +543,10 @@ let read devices flag =
         Volume.connect lv
         >>= function
         | `Ok disk ->
+          let open IO in
           Log.info "Enabling redo-log on volume group";
           Redo_log.start disk perform
           >>= fun r ->
-          let open IO in
           (* NB the metadata we read in is already out of date! *)
           return { t with metadata = !on_disk_metadata; redo_log = Some r }
         | `Error _ ->
@@ -570,7 +564,7 @@ let connect devices flag = read devices flag
 
 let update vg ops =
   if vg.flag = `RO
-  then Lwt.return (`Error "Volume group is read-only")
+  then Lwt.return (`Error (`Msg "Volume group is read-only"))
   else Lwt_mutex.with_lock vg.m
     (fun () ->
       run vg.metadata ops
@@ -580,14 +574,10 @@ let update vg ops =
         | None ->
           write metadata vg.devices
         | Some r ->
+          IO.FromResult.all (Lwt_list.map_s (Redo_log.push r) ops)
+          >>= fun waiters ->
           let open Lwt in
-          Lwt_list.iter_s (fun op ->
-            Redo_log.push r op
-            >>= fun waiter ->
-            vg.wait_for_flush_t <- waiter;
-            return ()
-          ) ops
-          >>= fun () ->
+          vg.wait_for_flush_t <- (fun () -> Lwt.join (List.map (fun f -> f ()) waiters));
           return (`Ok ()) ) >>= fun () ->
       (* Update our cache of the metadata *)
       vg.metadata <- metadata;

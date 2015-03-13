@@ -27,6 +27,6 @@ include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 val create: unit -> t
 (** [create ()] generates a fresh uuid *)
 
-val of_string: string -> (t, string) Result.result
+val of_string: string -> (t, [ `Msg of string ]) Result.result
 (** [of_string s] returns [t] corresponding to [s] *)
 
