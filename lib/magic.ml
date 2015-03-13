@@ -29,7 +29,7 @@ let marshal t buf =
 
 let unmarshal buf =
   if Cstruct.len buf < length
-  then `Error "Buffer is too small for a magic string"
+  then `Error (`Msg "Buffer is too small for a magic string")
   else begin
     let m = Cstruct.(to_string (sub buf 0 length)) in
     let rest = Cstruct.shift buf length in
@@ -37,5 +37,5 @@ let unmarshal buf =
     then `Ok (`Lvm, rest)
     else if m = journal_magic
     then `Ok (`Journalled, rest)
-    else `Error (Printf.sprintf "Failed to parse magic string '%s'" (String.escaped m))
+    else `Error (`Msg (Printf.sprintf "Failed to parse magic string '%s'" (String.escaped m)))
   end

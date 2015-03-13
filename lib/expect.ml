@@ -20,6 +20,8 @@ let o = fun f g x -> f (g x)
 
 open Result
 
+let fail msg = `Error (`Msg msg)
+
 let expect_string name field =
   match field with 
     | AStr s -> return s

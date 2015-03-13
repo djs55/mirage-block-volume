@@ -22,10 +22,10 @@ let require name arg = match arg with
   | Some x -> x
 
 let (>>|=) m f = m >>= function
-  | `Error e -> fail (Failure e)
+  | `Error (`Msg e) -> fail (Failure e)
   | `Ok x -> f x
 let (>>*=) m f = match m with
-  | `Error e -> fail (Failure e)
+  | `Error (`Msg e) -> fail (Failure e)
   | `Ok x -> f x
 
 let apply common =
@@ -111,7 +111,7 @@ let format common filename vgname pvname journalled =
   try
     let filename = require "filename" filename in
     begin match Pv.Name.of_string pvname with
-    | `Error x -> failwith x
+    | `Error (`Msg x) -> failwith x
     | `Ok pvname ->
       let t =
         with_block filename

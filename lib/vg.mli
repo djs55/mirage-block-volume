@@ -22,7 +22,7 @@ module Status : sig
 
   include S.PRINT with type t := t
 
-  val of_string: string -> (t, string) Result.result
+  val of_string: string -> (t, [ `Msg of string ]) Result.result
 end
 
 type metadata = {
@@ -39,7 +39,7 @@ type metadata = {
 } with sexp
 (** A volume group *)
 
-val do_op: metadata -> Redo.Op.t -> (metadata * Redo.Op.t, string) Result.result
+val do_op: metadata -> Redo.Op.t -> (metadata * Redo.Op.t, [ `Msg of string ]) Result.result
 (** [do_op t op] performs [op], returning the modified volume group [t] *)
 
 include S.MARSHAL with type t := metadata

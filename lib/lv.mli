@@ -23,7 +23,7 @@ module Status : sig
 
   include S.PRINT with type t := t
 
-  val of_string: string -> (t, string) Result.result
+  val of_string: string -> (t, [ `Msg of string ]) Result.result
 end
 
 module Linear : sig
@@ -70,7 +70,7 @@ type t = {
 include S.SEXPABLE with type t := t
 include S.MARSHAL with type t := t
 
-val of_metadata: string -> (string * Absty.absty) list -> (t, string) Result.result
+val of_metadata: string -> (string * Absty.absty) list -> (t, [ `Msg of string ]) Result.result
 
 val to_allocation: t -> (Pv.Name.t * (int64 * int64)) list
 
@@ -79,5 +79,5 @@ val size_in_extents: t -> int64
 val find_extent: t -> int64 -> Segment.t option
 (** [find_extent t x] returns the segment containing [x] *)
 
-val reduce_size_to: t -> int64 -> (t, string) Result.result
+val reduce_size_to: t -> int64 -> (t, [ `Msg of string ]) Result.result
 (** [reduce_size_to lv new_size] reduces the size of [lv] to [new_size] *)

@@ -15,10 +15,10 @@
 open Lwt
 
 let block_error = function
-  | `Unknown x -> `Error x
-  | `Unimplemented -> `Error "unimplemented"
-  | `Is_read_only -> `Error "device is read-only"
-  | `Disconnected -> `Error "disconnected"
+  | `Unknown x -> `Error (`Msg x)
+  | `Unimplemented -> `Error (`Msg "unimplemented")
+  | `Is_read_only -> `Error (`Msg "device is read-only")
+  | `Disconnected -> `Error (`Msg "disconnected")
 
 module IO = struct
   let ( >>= ) m f = m >>= function

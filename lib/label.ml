@@ -57,7 +57,7 @@ module Label_header = struct
     let crc_check = Cstruct.sub b0 20 (Constants.label_size - 20) in
     let calculated_crc = Crc.crc crc_check in
     if calculated_crc <> crc_xl
-    then `Error (Printf.sprintf "Label_header: bad checksum, expected %08lx, got %08lx" calculated_crc crc_xl)
+    then `Error (`Msg (Printf.sprintf "Label_header: bad checksum, expected %08lx, got %08lx" calculated_crc crc_xl))
     else `Ok ({id=id;
      sector=sector_xl;
      crc=crc_xl;
@@ -171,7 +171,7 @@ let unmarshal buf =
   let open Label_header in
   let rec find n =
     if n > 3
-    then `Error "No PV label found in any of the first 4 sectors"
+    then `Error (`Msg "No PV label found in any of the first 4 sectors")
     else begin
       let b = Cstruct.shift buf (n * Constants.sector_size) in
       if Cstruct.(to_string (sub b 0 8)) = Constants.label_id then begin

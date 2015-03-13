@@ -43,7 +43,7 @@ let read devices =
       (fun t ->
         Label_IO.read t
         >>= function
-        | `Error x -> fail (Failure x)
+        | `Error (`Msg x) -> fail (Failure x)
         | `Ok x -> return (x.Label.pv_header.Label.Pv_header.id, device)
       )
   ) devices

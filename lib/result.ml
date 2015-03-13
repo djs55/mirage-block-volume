@@ -25,7 +25,7 @@ let ( >>| ) = map
 
 let return x = `Ok x
 let ok = return
-let fail x = `Error x
+let fail x = `Error (`Msg x)
 
 let all xs =
   let rec loop acc = function
@@ -34,6 +34,10 @@ let all xs =
   | `Error x :: _ -> `Error x in
   loop [] xs
 
-let ok_or_failwith = function
-  | `Ok x -> x
-  | `Error x -> failwith x
+let get_ok = function
+| `Ok x -> x
+| `Error _ -> raise (Invalid_argument "get_ok encountered an `Error")
+
+let get_error = function
+| `Error x -> x
+| `Ok _ -> raise (Invalid_argument "get_error encountered an `Ok")

@@ -19,7 +19,7 @@ module Status : sig
 
   include S.PRINT with type t := t
 
-  val of_string: string -> (t, string) Result.result
+  val of_string: string -> (t, [ `Msg of string ]) Result.result
 end
 
 module Name : sig
@@ -27,7 +27,7 @@ module Name : sig
 
   val to_string: t -> string
 
-  val of_string: string -> (t, string) Result.result
+  val of_string: string -> (t, [ `Msg of string ]) Result.result
 end
 
 type t = {
