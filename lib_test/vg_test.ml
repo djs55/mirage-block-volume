@@ -245,12 +245,10 @@ let tag_suite = "tags" >::: (List.map test_tag_string test_strings)
 
 module Vg_IO = Vg.Make(Log)(Block)
 
-let (>>|=) m f = m >>= function
+let (>>*=) m f = match Lvm.Vg.error_to_msg m with
   | `Error (`Msg e) -> fail (Failure e)
   | `Ok x -> f x
-let (>>*=) m f = match m with
-  | `Error (`Msg e) -> fail (Failure e)
-  | `Ok x -> f x
+let (>>|=) m f = m >>= fun x -> x >>*= f
 
 let with_dummy fn =
   let filename = "/tmp/vg" in
@@ -318,8 +316,11 @@ let lv_create magic () =
             Vg_IO.connect [ block ] `RW >>|= fun vg ->
             let free_extents = Pv.Allocator.size (Vg_IO.metadata_of vg).Vg.free_space in
             let free_bytes = Int64.(mul 512L (mul (Vg_IO.metadata_of vg).Vg.extent_size free_extents)) in
-            let _ = Result.get_error (Vg.create (Vg_IO.metadata_of vg) "toobig" (Int64.succ free_bytes)) in
+            let _ =
+              Vg.create (Vg_IO.metadata_of vg) "toobig" (Int64.succ free_bytes)
+              |> Vg.error_to_msg |> Result.get_error in
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (md, op) ->
+            let _ = Vg.create md "name" small |> Vg.error_to_msg |> Result.get_error in
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let md' = Vg_IO.metadata_of vg in
@@ -336,7 +337,7 @@ let lv_create magic () =
             assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
             (* While we're here, check we can't update a RO VG *)
             Vg_IO.update vg' [] >>= fun t ->
-            let _ = Result.get_error t in
+            let _ = t |> Vg.error_to_msg |> Result.get_error in
             Lwt.return ()
           )
       in
@@ -376,7 +377,9 @@ let lv_resize () =
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let _ = Result.get_error (Vg.resize (Vg_IO.metadata_of vg) "doesntexist" 0L) in
+            let _ =
+              Vg.resize (Vg_IO.metadata_of vg) "doesntexist" 0L
+              |> Vg.error_to_msg |> Result.get_error in
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));

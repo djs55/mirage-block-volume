@@ -12,6 +12,13 @@
  * GNU Lesser General Public License for more details.
  *)
 
+type error = [
+  | `Msg of string
+]
+type 'a result = ('a, error) Result.result
+
+val open_error: 'a result -> ('a, [> error]) Result.result
+
 module Header: sig
   type t
   (** The MetaDataArea header, which allows us to locate the metadata.
@@ -26,17 +33,16 @@ module Header: sig
   include S.PRINT with type t := t
   include S.MARSHAL with type t := t
   include S.UNMARSHAL with type t := t
-  include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
   module Make : functor(Block: S.BLOCK) -> sig
 
-    val write: t -> Block.t -> unit S.io
+    val write: t -> Block.t -> unit result Lwt.t
     (** [write t device] writes [t] to the [device] *)
 
-    val read: Block.t -> Label.Location.t -> t S.io
+    val read: Block.t -> Label.Location.t -> t result Lwt.t
     (** [read device location] reads [t] from the [device] *)
 
-    val read_all: Block.t -> Label.Location.t list -> t list S.io
+    val read_all: Block.t -> Label.Location.t list -> t list result Lwt.t
     (** [read device locations] reads the [t]s found at [location]s,
         or an error if any single one can't be read. *)
   end
@@ -55,7 +61,7 @@ val default_size: int64
 (** Default length of the metadata area in bytes *)
 
 module Make : functor(Block: S.BLOCK) -> sig
-  val read: Block.t -> Header.t -> int -> Cstruct.t S.io
+  val read: Block.t -> Header.t -> int -> Cstruct.t result Lwt.t
 
-  val write: Block.t -> Header.t -> Cstruct.t -> Header.t S.io
+  val write: Block.t -> Header.t -> Cstruct.t -> Header.t result Lwt.t
 end

@@ -21,6 +21,15 @@ open Absty
 
 open IO
 
+type error = [
+  | `Msg of string
+]
+type 'a result = ('a, error) Result.result
+
+let open_error = function
+  | `Ok x -> `Ok x
+  | `Error (`Msg x) -> `Error (`Msg x)
+
 let default_start = 4096L
 let default_size = Int64.mul 10240L 1024L (* 10 MiB *)
 

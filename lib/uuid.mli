@@ -18,11 +18,18 @@
 type t
 (** An LVM 'uuid'. Note this isn't a valid uuid according to RFC4122 *)
 
+type error = [
+ | `Msg of string
+]
+
+type 'a result = ('a, error) Result.result
+
+val open_error: 'a result -> ('a, [> error]) Result.result
+
 include S.PRINT with type t := t
 include S.SEXPABLE with type t := t
 include S.MARSHAL with type t := t
 include S.UNMARSHAL with type t := t
-include Monad.S2 with type ('a, 'b) t := ('a, 'b) Result.result
 
 val create: unit -> t
 (** [create ()] generates a fresh uuid *)

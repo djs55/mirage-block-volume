@@ -22,8 +22,20 @@ module Status : sig
 
   include S.PRINT with type t := t
 
-  val of_string: string -> (t, [ `Msg of string ]) Result.result
+  type error = [
+    | `Msg of string
+  ]
+  type 'a result = ('a, error) Result.result
+
+  val of_string: string -> t result
 end
+
+type error = [
+  | `UnknownLV of string
+  | `DuplicateLV of string
+  | `OnlyThisMuchFree of int64
+  | `Msg of string
+]
 
 type metadata = {
   name : string;                (** name given by the user *)
@@ -39,9 +51,6 @@ type metadata = {
 } with sexp
 (** A volume group *)
 
-val do_op: metadata -> Redo.Op.t -> (metadata * Redo.Op.t, [ `Msg of string ]) Result.result
-(** [do_op t op] performs [op], returning the modified volume group [t] *)
-
 include S.MARSHAL with type t := metadata
 include S.PRINT with type t := metadata
 include S.VOLUME
@@ -51,6 +60,13 @@ include S.VOLUME
   and type lv_status := Lv.Status.t
   and type size := int64
   and type op := Redo.Op.t
+  and type error := error
+
+val pp_error: Format.formatter -> error -> unit
+val error_to_msg: 'a result -> ('a, [ `Msg of string ]) Result.result
+
+val do_op: metadata -> Redo.Op.t -> (metadata * Redo.Op.t) result
+(** [do_op t op] performs [op], returning the modified volume group [t] *)
 
 module Make(Log: S.LOG)(Block: S.BLOCK) : sig
 
@@ -60,21 +76,21 @@ module Make(Log: S.LOG)(Block: S.BLOCK) : sig
   val metadata_of: vg -> metadata
   (** Extract a snapshot of the volume group metadata *)
 
-  val format: string -> ?magic:Magic.t -> (Pv.Name.t * Block.t) list -> unit S.io
+  val format: string -> ?magic:Magic.t -> (Pv.Name.t * Block.t) list -> unit result Lwt.t
   (** [format name devices_and_names] initialises a new volume group
       with name [name], using physical volumes [devices] *)
 
-  val connect: Block.t list -> [ `RO | `RW ] -> vg S.io
+  val connect: Block.t list -> [ `RO | `RW ] -> vg result Lwt.t
   (** [connect disks flag] opens a volume group contained on [devices].
       If `RO is provided then no updates will be persisted to disk,
       this is particularly useful if the volume group is opened for writing
       somewhere else. *)
 
-  val update: vg -> Redo.Op.t list -> unit S.io
+  val update: vg -> Redo.Op.t list -> unit result Lwt.t
   (** [update t updates] performs the operations [updates] and ensures
       the changes are persisted. *)
 
-  val sync: vg -> unit S.io
+  val sync: vg -> unit result Lwt.t
   (** [sync t] flushes all pending writes associated with [t] to the
       main metadata area. This is only needed if you plan to switch off
       the redo-log. *)

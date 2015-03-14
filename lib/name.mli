@@ -12,6 +12,10 @@
  * GNU Lesser General Public License for more details.
  *)
 
+type error = [ `Msg of string ]
+type 'a result = ('a, error) Result.result
+val open_error: 'a result -> ('a, [> error ]) Result.result
+
 module type Sanitised_string = sig
   type t
   include S.SEXPABLE with type t := t
