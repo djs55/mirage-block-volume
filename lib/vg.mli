@@ -68,7 +68,7 @@ val error_to_msg: 'a result -> ('a, [ `Msg of string ]) Result.result
 val do_op: metadata -> Redo.Op.t -> (metadata * Redo.Op.t) result
 (** [do_op t op] performs [op], returning the modified volume group [t] *)
 
-module Make(Log: S.LOG)(Block: S.BLOCK) : sig
+module Make(Log: S.LOG)(Block: S.BLOCK)(Time: S.TIME)(Clock: S.CLOCK) : sig
 
   type vg
   (** A volume group spread over a set of block devices *)
@@ -80,11 +80,15 @@ module Make(Log: S.LOG)(Block: S.BLOCK) : sig
   (** [format name devices_and_names] initialises a new volume group
       with name [name], using physical volumes [devices] *)
 
-  val connect: Block.t list -> [ `RO | `RW ] -> vg result Lwt.t
-  (** [connect disks flag] opens a volume group contained on [devices].
+  val connect: ?flush_interval:float -> Block.t list -> [ `RO | `RW ]
+      -> vg result Lwt.t
+  (** [connect ?seconds disks flag] opens a volume group contained on [devices].
       If `RO is provided then no updates will be persisted to disk,
       this is particularly useful if the volume group is opened for writing
-      somewhere else. *)
+      somewhere else. If `RW is provided then updates will be appended to
+      a redo log and flushed to the LVM metadata. The optional ?flush_interval
+      imposes a interval between successive rewrites of the LVM metadata to
+      encourage batching. *)
 
   val update: vg -> Redo.Op.t list -> unit result Lwt.t
   (** [update t updates] performs the operations [updates] and ensures
