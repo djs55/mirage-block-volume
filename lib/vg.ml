@@ -245,7 +245,7 @@ let remove_tag vg name tag =
   Name.open_error @@ Name.Tag.of_string tag >>= fun tag ->
   do_op vg Redo.Op.(LvRemoveTag (name, tag))
 
-module Make(Log: S.LOG)(Block: S.BLOCK) = struct
+module Make(Log: S.LOG)(Block: S.BLOCK)(Time: S.TIME)(Clock: S.CLOCK) = struct
 
 module Pv_IO = Pv.Make(Block)
 module Label_IO = Label.Make(Block)
@@ -481,7 +481,7 @@ let format name ?(magic = `Lvm) devices =
   write metadata devices >>= fun () ->
   return ()
 
-let read devices flag : vg result Lwt.t =
+let read interval devices flag : vg result Lwt.t =
   id_to_devices devices
   >>= fun id_to_devices ->
   let id_to_devices = (id_to_devices :> (Uuid.t * Block.t) list) in
@@ -565,12 +565,17 @@ let read devices flag : vg result Lwt.t =
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
   
   let on_disk_metadata = ref vg in
+  let last_write = ref 0. in
   let perform ops =
     let open Lwt in
+    let time_since_last_write = Clock.time () -. !last_write in
+    Time.sleep (max 0. (interval -. time_since_last_write))
+    >>= fun () ->
     run !on_disk_metadata ops
     >>|= fun metadata ->
     write metadata name_to_devices
     >>|= fun () ->
+    last_write := Clock.time ();
     on_disk_metadata := metadata;
     return (`Ok ()) in
 
@@ -616,7 +621,7 @@ let read devices flag : vg result Lwt.t =
     Log.error "Failed to read headers to discover whether we're in Journalled mode";
     return t
 
-let connect devices flag = read devices flag
+let connect ?(flush_interval=5.) devices flag = read flush_interval devices flag
 
 let update vg ops : unit result Lwt.t =
   if vg.flag = `RO
@@ -633,7 +638,10 @@ let update vg ops : unit result Lwt.t =
           (IO.FromResult.all (Lwt_list.map_s (Redo_log.push r) ops) :> Redo_log.waiter list result Lwt.t)
           >>= fun waiters ->
           let open Lwt in
-          vg.wait_for_flush_t <- (fun () -> Lwt.join (List.map (fun f -> f ()) waiters));
+          (* we only need the last waiter *)
+          ( match List.rev waiters with
+            | last :: _ -> vg.wait_for_flush_t <- last
+            | [] -> () );
           return (`Ok ()) ) >>= fun () ->
       (* Update our cache of the metadata *)
       vg.metadata <- metadata;

@@ -243,7 +243,12 @@ let test_strings = [
 
 let tag_suite = "tags" >::: (List.map test_tag_string test_strings)
 
-module Vg_IO = Vg.Make(Log)(Block)
+module Time = struct
+  type 'a io = 'a Lwt.t
+  let sleep = Lwt_unix.sleep
+end
+
+module Vg_IO = Vg.Make(Log)(Block)(Time)(Clock)
 
 let (>>*=) m f = match Lvm.Vg.error_to_msg m with
   | `Error (`Msg e) -> fail (Failure e)
@@ -280,9 +285,9 @@ let lv_not_formatted () =
       let t = 
         with_block filename
           (fun block ->
-            Vg_IO.connect [] `RW >>= fun t ->
+            Vg_IO.connect ~flush_interval:0. [] `RW >>= fun t ->
             let _ = Result.get_error t in
-            Vg_IO.connect [ block ] `RW >>= fun t ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>= fun t ->
             let _ = Result.get_error t in
             return ()
           )
@@ -296,7 +301,7 @@ let lv_name_clash () =
         with_block filename
           (fun block ->
             Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" small >>*= fun (md,_) ->
             let _ = Result.get_error (Vg.create md "name" small) in
             Lwt.return ()
@@ -313,7 +318,7 @@ let lv_create magic () =
         with_block filename
           (fun block ->
             Vg_IO.format ~magic "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             let free_extents = Pv.Allocator.size (Vg_IO.metadata_of vg).Vg.free_space in
             let free_bytes = Int64.(mul 512L (mul (Vg_IO.metadata_of vg).Vg.extent_size free_extents)) in
             let _ =
@@ -331,7 +336,7 @@ let lv_create magic () =
             assert_equal ~printer:(fun x -> x) "name" v_md.Lv.name;
             assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
             (* Re-read the metadata and check it matches *)
-            Vg_IO.connect [ block ] `RO >>|= fun vg' ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RO >>|= fun vg' ->
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md' = Vg_IO.Volume.metadata_of id in
             assert_equal ~printer:(fun x -> Sexplib.Sexp.to_string_hum (Lv.sexp_of_t x)) v_md v_md';
@@ -350,7 +355,7 @@ let lv_rename () =
         with_block filename
           (fun block ->
             Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
@@ -373,7 +378,7 @@ let lv_resize () =
         with_block filename
           (fun block ->
             Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
@@ -419,7 +424,7 @@ let lv_crop () =
         with_block filename
           (fun block ->
             Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
@@ -447,7 +452,7 @@ let lv_remove () =
         with_block filename
           (fun block ->
             Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
@@ -468,7 +473,7 @@ let lv_lots_of_ops () =
         with_block filename
           (fun block ->
             Vg_IO.format ~magic:`Lvm "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             let rec loop = function
             | 0 -> return ()
             | n ->
@@ -493,7 +498,7 @@ let lv_tags () =
         with_block filename
           (fun block ->
             Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect [ block ] `RW >>|= fun vg ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
             Vg.create (Vg_IO.metadata_of vg) "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->

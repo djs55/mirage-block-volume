@@ -88,9 +88,14 @@ module Log = struct
   let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
 end
 
+module Time = struct
+  type 'a io = 'a Lwt.t
+  let sleep = Lwt_unix.sleep
+end
+
 let read common filename =
   apply common;
-  let module Vg_IO = Vg.Make(Log)(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block)(Time)(Clock) in
   try
     let filename = require "filename" filename in
     let t =
@@ -108,7 +113,7 @@ let read common filename =
 
 let format common filename vgname pvname journalled =
   apply common;
-  let module Vg_IO = Vg.Make(Log)(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block)(Time)(Clock) in
   try
     let filename = require "filename" filename in
     begin match Pv.Name.of_string pvname with
@@ -129,7 +134,7 @@ let format common filename vgname pvname journalled =
 
 let map common filename lvname =
   apply common;
-  let module Vg_IO = Vg.Make(Log)(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block)(Time)(Clock) in
   try
     let filename = require "filename" filename in
     let t =
@@ -154,7 +159,7 @@ let map common filename lvname =
 
 let update_vg common filename f =
   apply common;
-  let module Vg_IO = Vg.Make(Log)(Block) in
+  let module Vg_IO = Vg.Make(Log)(Block)(Time)(Clock) in
   try
     let filename = require "filename" filename in
     let t =

@@ -52,6 +52,8 @@ type error = [
 ]
 
 module type BLOCK = V1_LWT.BLOCK
+module type TIME = V1_LWT.TIME
+module type CLOCK = V1.CLOCK
 
 module type VOLUME = sig
 
