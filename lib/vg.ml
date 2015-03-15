@@ -639,7 +639,7 @@ let read interval devices flag : vg result Lwt.t =
     Log.error "Failed to read headers to discover whether we're in Journalled mode";
     return t
 
-let connect ?(flush_interval=5.) devices flag = read flush_interval devices flag
+let connect ?(flush_interval=120.) devices flag = read flush_interval devices flag
 
 let update vg ops : unit result Lwt.t =
   if vg.flag = `RO
