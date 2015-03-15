@@ -468,7 +468,7 @@ let run metadata ops : metadata result Lwt.t =
   Lwt.return (loop metadata ops)
 
 let _redo_log_name = "mirage_block_volume_redo_log"
-let _redo_log_size = Int64.(mul 4L (mul 1024L 1024L))
+let _redo_log_size = Int64.(mul 32L (mul 1024L 1024L))
 
 let format name ?(magic = `Lvm) devices =
   let open IO in
