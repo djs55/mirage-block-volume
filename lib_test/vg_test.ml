@@ -509,7 +509,7 @@ let lv_lots_of_out_of_sync () =
               f n
               >>= fun () ->
               loop f (n - 1) in
-            let n = 10000 in
+            let n = 1000 in
             loop (fun n ->
               let name = name n in
               Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] name ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
