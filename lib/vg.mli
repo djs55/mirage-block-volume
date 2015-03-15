@@ -37,6 +37,8 @@ type error = [
   | `Msg of string
 ]
 
+module LVs : Map.S with type key = string
+
 type metadata = {
   name : string;                (** name given by the user *)
   id : Uuid.t;                  (** arbitrary unique id *)
@@ -46,7 +48,7 @@ type metadata = {
   max_lv : int;
   max_pv : int;
   pvs : Pv.t list;              (** physical volumes *)
-  lvs : Lv.t list;              (** logical volumes *)
+  lvs : Lv.t LVs.t;             (** logical volumes *)
   free_space : Pv.Allocator.t;  (** free space in physical volumes, which can be used for logical volumes *)
 } with sexp
 (** A volume group *)

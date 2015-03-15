@@ -520,7 +520,7 @@ let lv_lots_of_out_of_sync () =
             ) n
             >>= fun () ->
             (* One more for the redo log *)
-            assert_equal ~printer:string_of_int (n + 1) (List.length (Vg_IO.metadata_of vg).Vg.lvs);
+            assert_equal ~printer:string_of_int (n + 1) (Vg.LVs.cardinal (Vg_IO.metadata_of vg).Vg.lvs);
             loop (fun n ->
               let name = name n in
               Vg.remove (Vg_IO.metadata_of vg) name >>*= fun (_, op) ->
@@ -530,7 +530,7 @@ let lv_lots_of_out_of_sync () =
             ) n
             >>= fun () ->
             (* One more for the redo log *)
-            assert_equal ~printer:string_of_int 1 (List.length (Vg_IO.metadata_of vg).Vg.lvs);
+            assert_equal ~printer:string_of_int 1 (Vg.LVs.cardinal (Vg_IO.metadata_of vg).Vg.lvs);
             Vg_IO.sync vg >>|= fun () ->
             return ()
           )
