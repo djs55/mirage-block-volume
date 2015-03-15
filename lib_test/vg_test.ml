@@ -493,6 +493,49 @@ let lv_lots_of_ops () =
       in
       Lwt_main.run t)
 
+(* test lots of out-of-sync operations *)
+let lv_lots_of_out_of_sync () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t =
+        with_block filename
+          (fun block ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect ~flush_interval:5. [ block ] `RW >>|= fun vg ->
+            let name n = Printf.sprintf "lv%d" n in
+            let rec loop f = function
+            | 0 -> return ()
+            | n ->
+              f n
+              >>= fun () ->
+              loop f (n - 1) in
+            let n = 10000 in
+            loop (fun n ->
+              let name = name n in
+              Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] name ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+              Vg_IO.update vg [ op ] >>|= fun () ->
+              let (_: Vg_IO.Volume.id) = expect_some (Vg_IO.find vg name) in
+              return ()
+            ) n
+            >>= fun () ->
+            (* One more for the redo log *)
+            assert_equal ~printer:string_of_int (n + 1) (List.length (Vg_IO.metadata_of vg).Vg.lvs);
+            loop (fun n ->
+              let name = name n in
+              Vg.remove (Vg_IO.metadata_of vg) name >>*= fun (_, op) ->
+              Vg_IO.update vg [ op ] >>|= fun () ->
+              expect_none (Vg_IO.find vg name);
+              return ()
+            ) n
+            >>= fun () ->
+            (* One more for the redo log *)
+            assert_equal ~printer:string_of_int 1 (List.length (Vg_IO.metadata_of vg).Vg.lvs);
+            Vg_IO.sync vg >>|= fun () ->
+            return ()
+          )
+      in
+      Lwt_main.run t)
+
 let lv_tags () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -544,6 +587,7 @@ let vg_suite = "Vg" >::: [
     "LV remove" >:: lv_remove;
     "LV tags" >:: lv_tags;
     "LV lots of ops" >:: lv_lots_of_ops;
+    "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
   ]
 
 open Pv.Allocator
