@@ -258,7 +258,9 @@ let (>>|=) m f = m >>= fun x -> x >>*= f
 let with_dummy fn =
   let filename = "/tmp/vg" in
   let f = Unix.openfile filename [Unix.O_CREAT; Unix.O_RDWR; Unix.O_TRUNC] 0o644 in
-  let _ = Unix.lseek f (1024*1024*100 - 1) Unix.SEEK_SET in
+  (* approximately 10000 4MiB extents for volumes, 100MiB for metadata and
+     overhead *)
+  let _ = Unix.lseek f (1024*1024*4*10100 - 1) Unix.SEEK_SET in
   ignore(Unix.write f "\000" 0 1);
   Unix.close f;
   let result = fn filename in
