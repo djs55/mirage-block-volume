@@ -258,7 +258,9 @@ let (>>|=) m f = m >>= fun x -> x >>*= f
 let with_dummy fn =
   let filename = "/tmp/vg" in
   let f = Unix.openfile filename [Unix.O_CREAT; Unix.O_RDWR; Unix.O_TRUNC] 0o644 in
-  let _ = Unix.lseek f (1024*1024*100 - 1) Unix.SEEK_SET in
+  (* approximately 10000 4MiB extents for volumes, 100MiB for metadata and
+     overhead *)
+  let _ = Unix.lseek f (1024*1024*4*10100 - 1) Unix.SEEK_SET in
   ignore(Unix.write f "\000" 0 1);
   Unix.close f;
   let result = fn filename in
@@ -491,6 +493,51 @@ let lv_lots_of_ops () =
       in
       Lwt_main.run t)
 
+(*BISECT-IGNORE-BEGIN*)
+(* test lots of out-of-sync operations *)
+let lv_lots_of_out_of_sync () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t =
+        with_block filename
+          (fun block ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect ~flush_interval:5. [ block ] `RW >>|= fun vg ->
+            let name n = Printf.sprintf "lv%d" n in
+            let rec loop f = function
+            | 0 -> return ()
+            | n ->
+              f n
+              >>= fun () ->
+              loop f (n - 1) in
+            let n = 1000 in
+            loop (fun n ->
+              let name = name n in
+              Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] name ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+              Vg_IO.update vg [ op ] >>|= fun () ->
+              let (_: Vg_IO.Volume.id) = expect_some (Vg_IO.find vg name) in
+              return ()
+            ) n
+            >>= fun () ->
+            (* One more for the redo log *)
+            assert_equal ~printer:string_of_int (n + 1) (List.length (Vg_IO.metadata_of vg).Vg.lvs);
+            loop (fun n ->
+              let name = name n in
+              Vg.remove (Vg_IO.metadata_of vg) name >>*= fun (_, op) ->
+              Vg_IO.update vg [ op ] >>|= fun () ->
+              expect_none (Vg_IO.find vg name);
+              return ()
+            ) n
+            >>= fun () ->
+            (* One more for the redo log *)
+            assert_equal ~printer:string_of_int 1 (List.length (Vg_IO.metadata_of vg).Vg.lvs);
+            Vg_IO.sync vg >>|= fun () ->
+            return ()
+          )
+      in
+      Lwt_main.run t)
+(*BISECT-IGNORE-END*)
+
 let lv_tags () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -542,6 +589,9 @@ let vg_suite = "Vg" >::: [
     "LV remove" >:: lv_remove;
     "LV tags" >:: lv_tags;
     "LV lots of ops" >:: lv_lots_of_ops;
+    (* XXX: this test fails on travis-- problem in the journal code?
+    "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
+    *)
   ]
 
 open Pv.Allocator
