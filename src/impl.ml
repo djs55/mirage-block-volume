@@ -63,7 +63,8 @@ let table_of_lv lv = add_prefix lv.Lv.name [
 
 let table_of_vg vg =
   let pvs = List.flatten (List.map table_of_pv vg.Vg.pvs) in
-  let lvs = List.flatten (List.map table_of_lv vg.Vg.lvs) in [
+  let lvs = Vg.LVs.fold (fun _ lv acc -> lv :: acc) vg.Vg.lvs [] in
+  let lvs = List.flatten (List.map table_of_lv lvs) in [
   [ "name"; vg.Vg.name ];
   [ "id"; Uuid.to_string vg.Vg.id ];
   [ "status"; String.concat ", " (List.map Vg.Status.to_string vg.Vg.status) ];
@@ -141,7 +142,7 @@ let map common filename lvname =
       with_block filename
         (fun x ->
           Vg_IO.connect [ x ] `RO >>|= fun vg ->
-          let lv = List.find (fun lv -> lv.Lv.name = lvname) (Vg_IO.metadata_of vg).Vg.lvs in
+          let lv = Vg.LVs.find lvname (Vg_IO.metadata_of vg).Vg.lvs in
           List.iter (fun seg ->
             Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
               (match seg.Lv.Segment.cls with
