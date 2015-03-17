@@ -26,6 +26,8 @@ let fail msg = `Error (`Msg msg)
 module CharSet = struct
   include Set.Make(struct type t = char let compare = compare end)
 
+  let of_list = List.fold_left (fun set x -> add x set) empty
+
   let range c c' =
     let chars = Char.(Array.(to_list @@ make (code c' - code c + 1) c)) in
     of_list @@ List.mapi (fun i c -> Char.(chr @@ code c + i)) chars
