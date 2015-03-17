@@ -105,6 +105,10 @@ module type VOLUME = sig
   val remove_tag: t -> name -> tag -> (t * op) result
   (** [remove_tag t name tag] returns a new volume group [t] where the
       volume with [name] has no tag [tag] *)
+
+  val set_status: t -> name -> lv_status list -> (t * op) result
+  (** [set_status t name status] returns a new volume group [t] where
+      the volume with [name] has status equal to [status] *)
 end
 
 module type NAME = sig

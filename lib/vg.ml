@@ -210,6 +210,10 @@ let do_op vg op : (metadata * op) result =
       let tags = lv.Lv.tags in
       let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
       return ({vg with lvs = LVs.add lv.Lv.name lv' vg.lvs},op))
+  | LvSetStatus (name, status) ->
+    with_lv vg name (fun lv ->
+      let lv' = {lv with Lv.status=status} in
+      return ({vg with lvs = LVs.add lv.Lv.name lv' vg.lvs},op))
 
 (* Convert from bytes to extents, rounding up *)
 let bytes_to_extents bytes vg =
@@ -261,6 +265,9 @@ let add_tag vg name tag =
 let remove_tag vg name tag =
   Name.open_error @@ Name.Tag.of_string tag >>= fun tag ->
   do_op vg Redo.Op.(LvRemoveTag (name, tag))
+
+let set_status vg name status =
+  do_op vg Redo.Op.(LvSetStatus (name,status))
 
 module Make(Log: S.LOG)(Block: S.BLOCK)(Time: S.TIME)(Clock: S.CLOCK) = struct
 
