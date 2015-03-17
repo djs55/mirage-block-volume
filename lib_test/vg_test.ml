@@ -578,6 +578,33 @@ let lv_tags () =
       in
       Lwt_main.run t)
 
+let lv_status () =
+  let open Vg_IO in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
+            Vg.create (Vg_IO.metadata_of vg) "name" ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = expect_some (Vg_IO.find vg "name") in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal Lv.Status.([Read; Write; Visible]) v_md.Lv.status;
+            (* first one that doesn't exist *)
+            Vg.set_status (Vg_IO.metadata_of vg) "name" Lv.Status.([Read]) >>*= fun (_, op) ->
+            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg_IO.sync vg >>|= fun () ->
+            let id = expect_some (Vg_IO.find vg "name") in
+            let v_md = Vg_IO.Volume.metadata_of id in
+            assert_equal Lv.Status.([Read]) v_md.Lv.status;
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+    
+
 let vg_suite = "Vg" >::: [
     "LV not formatted" >:: lv_not_formatted;
     "LV name clash" >:: lv_name_clash;
@@ -588,6 +615,7 @@ let vg_suite = "Vg" >::: [
     "LV crop" >:: lv_crop;
     "LV remove" >:: lv_remove;
     "LV tags" >:: lv_tags;
+    "LV status" >:: lv_status;
     "LV lots of ops" >:: lv_lots_of_ops;
     (* XXX: this test fails on travis-- problem in the journal code?
     "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
