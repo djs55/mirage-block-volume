@@ -19,7 +19,7 @@ module Status : sig
     | Read
     | Write
     | Visible
-  with sexp_of
+  with sexp
 
   include S.PRINT with type t := t
 

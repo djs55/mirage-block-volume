@@ -40,6 +40,7 @@ module Op = struct
     | LvRemove of string
     | LvAddTag of string * Name.Tag.t
     | LvRemoveTag of string * Name.Tag.t
+    | LvSetStatus of string * (Lv.Status.t list)
   with sexp
 
   let of_cstruct x =
