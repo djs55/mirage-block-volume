@@ -505,7 +505,7 @@ let format name ?(magic = `Lvm) devices =
   write metadata devices >>= fun () ->
   return ()
 
-let read interval devices flag : vg result Lwt.t =
+let read flush_interval devices flag : vg result Lwt.t =
   id_to_devices devices
   >>= fun id_to_devices ->
   let id_to_devices = (id_to_devices :> (Uuid.t * Block.t) list) in
@@ -590,17 +590,12 @@ let read interval devices flag : vg result Lwt.t =
   |> List.fold_left (fun acc x -> match x with None -> acc | Some x -> x :: acc) [] in
   
   let on_disk_metadata = ref vg in
-  let last_write = ref 0. in
   let perform ops =
     let open Lwt in
-    let time_since_last_write = Clock.time () -. !last_write in
-    Time.sleep (max 0. (interval -. time_since_last_write))
-    >>= fun () ->
     run !on_disk_metadata ops
     >>|= fun metadata ->
     write metadata name_to_devices
     >>|= fun () ->
-    last_write := Clock.time ();
     on_disk_metadata := metadata;
     return (`Ok ()) in
 
@@ -628,7 +623,7 @@ let read interval devices flag : vg result Lwt.t =
         | `Ok disk ->
           let open Lwt in
           Log.info "Enabling redo-log on volume group";
-          Redo_log.start disk (fun ops -> Lwt.map error_to_msg (perform ops))
+          Redo_log.start ~flush_interval disk (fun ops -> Lwt.map error_to_msg (perform ops))
           >>= fun r ->
           let open IO.FromResult in
           Redo_log.open_error r
