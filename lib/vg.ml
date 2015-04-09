@@ -388,7 +388,7 @@ module Volume = struct
     return ()
 end
 
-module Redo_log = Shared_block.Journal.Make(Log)(Volume)(Redo.Op)
+module Redo_log = Shared_block.Journal.Make(Log)(Volume)(Time)(Clock)(Redo.Op)
 
 type vg = {
   mutable metadata: metadata;
