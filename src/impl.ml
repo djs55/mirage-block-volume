@@ -17,6 +17,11 @@ open Cmdliner
 open Lwt
 open Lvm
 
+module Time = struct
+  type 'a io = 'a Lwt.t
+  let sleep = Lwt_unix.sleep
+end
+
 let require name arg = match arg with
   | None -> failwith (Printf.sprintf "Please supply a %s argument" name)
   | Some x -> x
@@ -87,11 +92,6 @@ module Log = struct
   let debug fmt = Printf.ksprintf (fun s -> print_endline s) fmt
   let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
   let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
-end
-
-module Time = struct
-  type 'a io = 'a Lwt.t
-  let sleep = Lwt_unix.sleep
 end
 
 let read common filename =
