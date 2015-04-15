@@ -1,0 +1,23 @@
+# OASIS_START
+# DO NOT EDIT (digest: e084c464365d70daaae0e32098fa3cfd)
+version = "0.1"
+description = "Pure OCaml volume manager, compatible with Linux LVM"
+requires =
+"lvm_internal sexplib.syntax sexplib uuidm re.str cstruct mirage-types lwt io-page shared-block-ring"
+archive(byte) = "lvm.cma"
+archive(byte, plugin) = "lvm.cma"
+archive(native) = "lvm.cmxa"
+archive(native, plugin) = "lvm.cmxs"
+exists_if = "lvm.cma"
+package "mapper" (
+ version = "0.1"
+ description = "Pure OCaml volume manager, compatible with Linux LVM"
+ requires = "lvm devmapper mirage-block-unix"
+ archive(byte) = "lvm_mapper.cma"
+ archive(byte, plugin) = "lvm_mapper.cma"
+ archive(native) = "lvm_mapper.cmxa"
+ archive(native, plugin) = "lvm_mapper.cmxs"
+ exists_if = "lvm_mapper.cma"
+)
+# OASIS_STOP
+

@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: 9de2c18c98c8b4923110671bafc6d05a)
+version = "0.1"
+description = "Pure OCaml volume manager, compatible with Linux LVM"
+archive(byte) = "lvm_internal.cma"
+archive(byte, plugin) = "lvm_internal.cma"
+archive(native) = "lvm_internal.cmxa"
+archive(native, plugin) = "lvm_internal.cmxs"
+exists_if = "lvm_internal.cma"
+# OASIS_STOP
+

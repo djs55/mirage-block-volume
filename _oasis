@@ -22,7 +22,7 @@ Library lvm
   Modules: Result, S, Monad, Expect, Allocator, Constants, Label, Metadata, Crc, IO, Lv, Uuid, Pv, Redo, Name, Utils, Vg, Magic, UnalignedBlock
   Findlibname: lvm
   Pack: true
-  BuildDepends: lvm_internal,sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring, bisect
+  BuildDepends: lvm_internal,sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring
 
 Library lvm_mapper
   Build$: flag(mapper)
@@ -31,7 +31,7 @@ Library lvm_mapper
   Modules: Mapper
   Findlibname: mapper
   Findlibparent: lvm
-  BuildDepends: lvm, devmapper, mirage-block-unix, bisect
+  BuildDepends: lvm, devmapper, mirage-block-unix
 
 Executable mlvm
   CompiledObject:     best
@@ -47,7 +47,7 @@ Executable vg_test
   MainIs:             vg_test.ml
   Custom:             true
   Install:            false
-  BuildDepends:       lvm, oUnit, io-page.unix, io-page, mirage-block-unix, mirage-clock-unix, io-page.unix, bisect
+  BuildDepends:       lvm, oUnit, io-page.unix, io-page, mirage-block-unix, mirage-clock-unix, io-page.unix
 
 Test vg_test
   Command:            ./vg_test.native
