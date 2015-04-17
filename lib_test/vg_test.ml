@@ -538,6 +538,27 @@ let lv_lots_of_out_of_sync () =
       Lwt_main.run t)
 (*BISECT-IGNORE-END*)
 
+let lv_op_idempotence () =
+  let test_op md f =
+    let (md', op) = f md |> Result.get_ok in
+    let (md'', _) = Vg.do_op md' op |> Result.get_ok in
+    assert_equal ~cmp:(<>) md md';
+    assert_equal ~cmp:(=) md' md'';
+    md''
+  in
+  (* get some metadata to play around with *)
+  with_dummy (fun filename ->
+    with_block filename (fun block ->
+      Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
+      Vg_IO.connect ~flush_interval:5. [ block ] `RW >>|= fun vg ->
+      return (Vg_IO.metadata_of vg)
+    )
+  ) |> Lwt_main.run |> fun init_md ->
+  let ops_to_test = [
+    (fun md -> Vg.create md ~tags:[tag] "lv0" ~status:Lv.Status.([Read; Write; Visible]) small);
+  ] in
+  List.fold_left test_op init_md ops_to_test |> ignore
+
 let lv_tags () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -617,6 +638,7 @@ let vg_suite = "Vg" >::: [
     "LV tags" >:: lv_tags;
     "LV status" >:: lv_status;
     "LV lots of ops" >:: lv_lots_of_ops;
+    "LV op idempotence" >:: lv_op_idempotence;
     (* XXX: this test fails on travis-- problem in the journal code?
     "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
     *)
