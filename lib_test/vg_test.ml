@@ -546,9 +546,14 @@ let lv_op_idempotence () =
   let test_op md f =
     let (md', op) = f md |> ok_or_failwith in
     let (md'', _) = Vg.do_op md' op |> ok_or_failwith in
-    let printer m = Sexplib.Sexp.to_string_hum (Vg.sexp_of_metadata m) in
-    assert_equal ~printer ~cmp:(<>) md md';
-    assert_equal ~printer ~cmp:(=) md' md'';
+    let printer m = Sexplib.Sexp.to_string_hum @@ Vg.sexp_of_metadata m in
+    let msg x =
+      Printf.sprintf "Expected %s op to be %s but %s observed"
+      (Sexplib.Sexp.to_string_hum @@ Redo.Op.sexp_of_t op)
+      (match x with `Potent -> "effectual" | `Impotent -> "ineffectual")
+      (match x with `Potent -> "no change" | `Impotent -> "change") in
+    assert_equal ~msg:(msg `Potent) ~printer ~cmp:(<>) md md';
+    assert_equal ~msg:(msg `Impotent) ~printer ~cmp:(=) md' md'';
     md''
   in
   (* get some metadata to play around with *)
