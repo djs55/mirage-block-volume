@@ -578,6 +578,7 @@ let lv_op_idempotence () =
     Redo.Op.(LvAddTag("lv0", Name.Tag.of_string "tag" |> Result.get_ok));
     Redo.Op.(LvRemoveTag("lv0", Name.Tag.of_string "tag" |> Result.get_ok));
     Redo.Op.(LvSetStatus("lv0", Lv.Status.([Read; Write; Visible])));
+    Redo.Op.(LvRename("lv0", {lvmv_new_name="lv1"}));
   ] in
   List.fold_left test_op init_md ops_to_test |> ignore
 
