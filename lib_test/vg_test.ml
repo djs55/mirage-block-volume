@@ -575,6 +575,8 @@ let lv_op_idempotence () =
     Redo.Op.(LvReduce("lv0", {lvrd_new_extent_count=1L}));
     Redo.Op.(LvExpand("lv0", {lvex_segments=[segment]}));
     Redo.Op.(LvCrop("lv0", {lvc_segments=[{segment with extent_count=1L}]}));
+    Redo.Op.(LvAddTag("lv0", Name.Tag.of_string "tag" |> Result.get_ok));
+    Redo.Op.(LvRemoveTag("lv0", Name.Tag.of_string "tag" |> Result.get_ok));
   ] in
   List.fold_left test_op init_md ops_to_test |> ignore
 
