@@ -543,8 +543,8 @@ let lv_op_idempotence () =
   | `Ok x -> x
   | `Error (`Msg m) -> failwith m
   in
-  let test_op md f =
-    let (md', op) = f md |> ok_or_failwith in
+  let test_op md op =
+    let (md', _) = Vg.do_op md op |> ok_or_failwith in
     let (md'', _) = Vg.do_op md' op |> ok_or_failwith in
     let printer m = Sexplib.Sexp.to_string_hum @@ Vg.sexp_of_metadata m in
     let msg x =
@@ -564,10 +564,15 @@ let lv_op_idempotence () =
       Vg_IO.metadata_of vg |> return
     )
   ) |> Lwt_main.run |> fun init_md ->
+  let segments =
+    let open Lv.Segment in
+    [{start_extent=0L; extent_count=4L; cls=(Linear {name=pv; start_extent=8L})}]
+  in
+  let lv = Lv.({name="lv0"; id=(Uuid.create ()); tags=[]; status=[]; segments}) in
   let ops_to_test = [
-    (fun md -> Vg.create md ~tags:[tag] "lv0" ~status:Lv.Status.([Read; Write; Visible]) small);
-    (fun md -> Vg.resize md "lv0" (Int64.mul small 2L));
-    (fun md -> Vg.resize md "lv0" small);
+    Redo.Op.(LvCreate lv);
+    Redo.Op.(LvReduce("lv0", {lvrd_new_extent_count=1L}));
+    Redo.Op.(LvExpand("lv0", {lvex_segments=segments}));
   ] in
   List.fold_left test_op init_md ops_to_test |> ignore
 
