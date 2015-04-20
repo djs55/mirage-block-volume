@@ -564,15 +564,17 @@ let lv_op_idempotence () =
       Vg_IO.metadata_of vg |> return
     )
   ) |> Lwt_main.run |> fun init_md ->
-  let segments =
-    let open Lv.Segment in
-    [{start_extent=0L; extent_count=4L; cls=(Linear {name=pv; start_extent=8L})}]
-  in
-  let lv = Lv.({name="lv0"; id=(Uuid.create ()); tags=[]; status=[]; segments}) in
+  let open Lv.Segment in
+  let segment = {
+    start_extent=0L; extent_count=2L;
+    cls=Lv.Linear.(Linear {name=pv; start_extent=8L})
+  } in
+  let lv = Lv.({name="lv0"; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
   let ops_to_test = [
     Redo.Op.(LvCreate lv);
     Redo.Op.(LvReduce("lv0", {lvrd_new_extent_count=1L}));
-    Redo.Op.(LvExpand("lv0", {lvex_segments=segments}));
+    Redo.Op.(LvExpand("lv0", {lvex_segments=[segment]}));
+    Redo.Op.(LvCrop("lv0", {lvc_segments=[{segment with extent_count=1L}]}));
   ] in
   List.fold_left test_op init_md ops_to_test |> ignore
 
