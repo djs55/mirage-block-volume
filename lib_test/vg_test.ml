@@ -539,11 +539,16 @@ let lv_lots_of_out_of_sync () =
 (*BISECT-IGNORE-END*)
 
 let lv_op_idempotence () =
+  let ok_or_failwith x = match Vg.error_to_msg x with
+  | `Ok x -> x
+  | `Error (`Msg m) -> failwith m
+  in
   let test_op md f =
-    let (md', op) = f md |> Result.get_ok in
-    let (md'', _) = Vg.do_op md' op |> Result.get_ok in
-    assert_equal ~cmp:(<>) md md';
-    assert_equal ~cmp:(=) md' md'';
+    let (md', op) = f md |> ok_or_failwith in
+    let (md'', _) = Vg.do_op md' op |> ok_or_failwith in
+    let printer m = Sexplib.Sexp.to_string_hum (Vg.sexp_of_metadata m) in
+    assert_equal ~printer ~cmp:(<>) md md';
+    assert_equal ~printer ~cmp:(=) md' md'';
     md''
   in
   (* get some metadata to play around with *)
@@ -551,11 +556,13 @@ let lv_op_idempotence () =
     with_block filename (fun block ->
       Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
       Vg_IO.connect ~flush_interval:5. [ block ] `RW >>|= fun vg ->
-      return (Vg_IO.metadata_of vg)
+      Vg_IO.metadata_of vg |> return
     )
   ) |> Lwt_main.run |> fun init_md ->
   let ops_to_test = [
     (fun md -> Vg.create md ~tags:[tag] "lv0" ~status:Lv.Status.([Read; Write; Visible]) small);
+    (fun md -> Vg.resize md "lv0" (Int64.mul small 2L));
+    (fun md -> Vg.resize md "lv0" small);
   ] in
   List.fold_left test_op init_md ops_to_test |> ignore
 
