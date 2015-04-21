@@ -56,14 +56,23 @@ module StringMap = Map.Make(struct
   let compare (a: string) (b: string) = compare a b
 end)
 
+module UuidMap = Map.Make(struct
+  type t = Uuid.t
+  let compare (a: t) (b: t) = compare a b
+end)
+
 module LVs = struct
-  include StringMap
-  type t' = (string * Lv.t) list with sexp
+  include UuidMap
+
+  let find_by_name name t =
+    filter (fun _ lv -> lv.Lv.name = name) t |> choose |> snd
+
+  type t' = (Uuid.t * Lv.t) list with sexp
   let t_of_sexp _ s =
     let t' = t'_of_sexp s in
-    List.fold_left (fun map (k, v) -> StringMap.add k v map) StringMap.empty t'
+    List.fold_left (fun map (k, v) -> UuidMap.add k v map) UuidMap.empty t'
   let sexp_of_t _ t =
-    let t' = StringMap.fold (fun k v acc -> (k, v) :: acc) t [] in
+    let t' = UuidMap.fold (fun k v acc -> (k, v) :: acc) t [] in
     sexp_of_t' t'
 end
 
@@ -143,19 +152,22 @@ let error_to_msg = function
     Format.pp_print_flush fmt ();
     `Error (`Msg (Buffer.contents b))
 
-let with_lv vg lv_name fn =
-  match try Some (LVs.find lv_name vg.lvs) with Not_found -> None with
-  | None -> `Error (`UnknownLV lv_name)
-  | Some lv -> fn lv
+let with_lv vg lv_id fn =
+  try LVs.find lv_id vg.lvs |> fn
+  with Not_found -> `Error (`UnknownLV (Uuid.to_string lv_id))
+
+let with_lv_by_name vg lv_name fn =
+  try LVs.find_by_name lv_name vg.lvs |> fn
+  with Not_found -> `Error (`UnknownLV (lv_name))
 
 let do_op vg op : (metadata * op) result =
   let open Redo.Op in
   match op with
   | LvCreate lv ->
     let new_free_space = Pv.Allocator.sub vg.free_space (Lv.to_allocation lv) in
-    return ({vg with lvs = LVs.add lv.Lv.name lv vg.lvs; free_space = new_free_space},op)
-  | LvExpand (name,l) ->
-    with_lv vg name (fun lv ->
+    return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space = new_free_space},op)
+  | LvExpand (id, l) ->
+    with_lv vg id (fun lv ->
       (* Compute the new physical extents, remove from free space *)
       let extents = List.fold_left (fun acc x ->
         Pv.Allocator.merge acc (Lv.Segment.to_allocation x)
@@ -174,46 +186,46 @@ let do_op vg op : (metadata * op) result =
         |> snd
         |> List.rev in
       let lv = {lv with Lv.segments} in
-      return ({vg with lvs = LVs.add lv.Lv.name lv vg.lvs; free_space=free_space},op))
-  | LvCrop (name, l) ->
-    with_lv vg name (fun lv ->
+      return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space=free_space},op))
+  | LvCrop (id, l) ->
+    with_lv vg id (fun lv ->
       let current = Lv.to_allocation lv in
       let to_free = List.fold_left Pv.Allocator.merge [] (List.map Lv.Segment.to_allocation l.lvc_segments) in
       let reduced = Pv.Allocator.sub current to_free in
       let free_space = Pv.Allocator.merge vg.free_space to_free in
       let segments = Lv.Segment.linear 0L reduced in
       let lv = { lv with Lv.segments } in
-      return ({vg with lvs = LVs.add lv.Lv.name lv vg.lvs; free_space},op))
-  | LvReduce (name,l) ->
-    with_lv vg name (fun lv ->
+      return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space},op))
+  | LvReduce (id, l) ->
+    with_lv vg id (fun lv ->
       let allocation = Lv.to_allocation lv in
       Lv.reduce_size_to lv l.lvrd_new_extent_count >>= fun lv ->
       let new_allocation = Lv.to_allocation lv in
       let free_space = Pv.Allocator.sub (Pv.Allocator.merge vg.free_space allocation) new_allocation in
-      return ({vg with lvs = LVs.add lv.Lv.name lv vg.lvs; free_space},op))
-  | LvRemove name ->
-    with_lv vg name (fun lv ->
+      return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space},op))
+  | LvRemove id ->
+    with_lv vg id (fun lv ->
       let allocation = Lv.to_allocation lv in
-      return ({vg with lvs = LVs.remove lv.Lv.name vg.lvs; free_space = Pv.Allocator.merge vg.free_space allocation },op))
-  | LvRename (name,l) ->
-    with_lv vg name (fun lv ->
-      let lvs = LVs.(add l.lvmv_new_name { lv with Lv.name = l.lvmv_new_name }
-        (remove lv.Lv.name vg.lvs)) in
+      return ({vg with lvs = LVs.remove lv.Lv.id vg.lvs; free_space = Pv.Allocator.merge vg.free_space allocation },op))
+  | LvRename (id, l) ->
+    with_lv vg id (fun lv ->
+      let lvs = LVs.(add id { lv with Lv.name = l.lvmv_new_name }
+        (remove lv.Lv.id vg.lvs)) in
       return ({vg with lvs }, op))
-  | LvAddTag (name, tag) ->
-    with_lv vg name (fun lv ->
+  | LvAddTag (id, tag) ->
+    with_lv vg id (fun lv ->
       let tags = lv.Lv.tags in
       let lv' = {lv with Lv.tags = if List.mem tag tags then tags else tag::tags} in
-      return ({vg with lvs = LVs.add lv.Lv.name lv' vg.lvs},op))
-  | LvRemoveTag (name, tag) ->
-    with_lv vg name (fun lv ->
+      return ({vg with lvs = LVs.add lv.Lv.id lv' vg.lvs},op))
+  | LvRemoveTag (id, tag) ->
+    with_lv vg id (fun lv ->
       let tags = lv.Lv.tags in
       let lv' = {lv with Lv.tags = List.filter (fun t -> t <> tag) tags} in
-      return ({vg with lvs = LVs.add lv.Lv.name lv' vg.lvs},op))
-  | LvSetStatus (name, status) ->
-    with_lv vg name (fun lv ->
+      return ({vg with lvs = LVs.add lv.Lv.id lv' vg.lvs},op))
+  | LvSetStatus (id, status) ->
+    with_lv vg id (fun lv ->
       let lv' = {lv with Lv.status=status} in
-      return ({vg with lvs = LVs.add lv.Lv.name lv' vg.lvs},op))
+      return ({vg with lvs = LVs.add lv.Lv.id lv' vg.lvs},op))
 
 (* Convert from bytes to extents, rounding up *)
 let bytes_to_extents bytes vg =
@@ -223,7 +235,7 @@ let bytes_to_extents bytes vg =
   div (add bytes (sub extents_in_bytes 1L)) extents_in_bytes
 
 let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size : ('a, error) Result.result = 
-  if LVs.mem name vg.lvs
+  if LVs.exists (fun _ lv -> lv.Lv.name = name) vg.lvs
   then `Error (`DuplicateLV name)
   else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
   | `Ok lvc_segments ->
@@ -236,38 +248,43 @@ let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size 
     `Error (`OnlyThisMuchFree free)
 
 let rename vg old_name new_name =
-  do_op vg Redo.Op.(LvRename (old_name,{lvmv_new_name=new_name}))
+  with_lv_by_name vg old_name (fun lv ->
+    do_op vg Redo.Op.(LvRename (lv.Lv.id,{lvmv_new_name=new_name})))
 
 let resize vg name new_size =
   let new_size = bytes_to_extents new_size vg in
-  with_lv vg name
+  with_lv_by_name vg name
     (fun lv ->
       let current_size = Lv.size_in_extents lv in
       let to_allocate = Int64.sub new_size current_size in
       if to_allocate > 0L then match Pv.Allocator.find vg.free_space to_allocate with
       | `Ok extents ->
          let lvex_segments = Lv.Segment.linear current_size extents in
-         return Redo.Op.(LvExpand (name,{lvex_segments}))
+         return Redo.Op.(LvExpand (lv.Lv.id,{lvex_segments}))
       | `Error (`OnlyThisMuchFree free) ->
         `Error (`OnlyThisMuchFree free)
       else
-         return Redo.Op.(LvReduce (name,{lvrd_new_extent_count=new_size}))
+         return Redo.Op.(LvReduce (lv.Lv.id,{lvrd_new_extent_count=new_size}))
     ) >>= fun op ->
   do_op vg op
 
 let remove vg name =
-  do_op vg Redo.Op.(LvRemove name)
+  with_lv_by_name vg name (fun lv ->
+    do_op vg Redo.Op.(LvRemove lv.Lv.id))
 
 let add_tag vg name tag =
-  Name.open_error @@ Name.Tag.of_string tag >>= fun tag ->
-  do_op vg Redo.Op.(LvAddTag (name, tag))
+  with_lv_by_name vg name (fun lv ->
+    Name.open_error @@ Name.Tag.of_string tag >>= fun tag ->
+    do_op vg Redo.Op.(LvAddTag (lv.Lv.id, tag)))
 
 let remove_tag vg name tag =
-  Name.open_error @@ Name.Tag.of_string tag >>= fun tag ->
-  do_op vg Redo.Op.(LvRemoveTag (name, tag))
+  with_lv_by_name vg name (fun lv ->
+    Name.open_error @@ Name.Tag.of_string tag >>= fun tag ->
+    do_op vg Redo.Op.(LvRemoveTag (lv.Lv.id, tag)))
 
 let set_status vg name status =
-  do_op vg Redo.Op.(LvSetStatus (name,status))
+  with_lv_by_name vg name (fun lv ->
+  do_op vg Redo.Op.(LvSetStatus (lv.Lv.id,status)))
 
 module Make(Log: S.LOG)(Block: S.BLOCK)(Time: S.TIME)(Clock: S.CLOCK) = struct
 
@@ -403,7 +420,10 @@ let metadata_of vg = vg.metadata
 
 let find { metadata; devices } name =
   try
-     let lv = LVs.find name metadata.lvs in
+     let lv =
+       LVs.(filter (fun _ lv -> lv.Lv.name = name) metadata.lvs |> choose)
+       |> snd
+     in
      Some { Volume.metadata; devices; lv }
   with Not_found ->
      None
@@ -575,7 +595,7 @@ let read flush_interval devices flag : vg result Lwt.t =
   let free_space = List.fold_left (fun free_space lv -> 
     let lv_allocations = Lv.to_allocation lv in
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
-  let lvs = List.fold_left (fun acc lv -> LVs.add lv.Lv.name lv acc) LVs.empty lvs in
+  let lvs = List.fold_left (fun acc lv -> LVs.add lv.Lv.id lv acc) LVs.empty lvs in
   let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
   (* Segments reference PVs by name, not uuid, so we need to build up
      the name to device mapping. *)

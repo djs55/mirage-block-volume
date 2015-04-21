@@ -142,7 +142,7 @@ let map common filename lvname =
       with_block filename
         (fun x ->
           Vg_IO.connect [ x ] `RO >>|= fun vg ->
-          let lv = Vg.LVs.find lvname (Vg_IO.metadata_of vg).Vg.lvs in
+          let lv = Vg.LVs.find_by_name lvname (Vg_IO.metadata_of vg).Vg.lvs in
           List.iter (fun seg ->
             Printf.printf "start %Ld, count %Ld %s\n" seg.Lv.Segment.start_extent seg.Lv.Segment.extent_count
               (match seg.Lv.Segment.cls with

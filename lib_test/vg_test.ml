@@ -436,7 +436,7 @@ let lv_crop () =
             let space = Lv.to_allocation v_md in
             let name, (start, length) = List.hd space in
             (* remove the first segment *)
-            let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
+            let op = Redo.Op.(LvCrop(v_md.Lv.id, { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
@@ -538,6 +538,50 @@ let lv_lots_of_out_of_sync () =
       Lwt_main.run t)
 (*BISECT-IGNORE-END*)
 
+let lv_op_idempotence () =
+  let ok_or_failwith x = match Vg.error_to_msg x with
+  | `Ok x -> x
+  | `Error (`Msg m) -> failwith m
+  in
+  let test_op md op =
+    let (md', _) = Vg.do_op md op |> ok_or_failwith in
+    let (md'', _) = Vg.do_op md' op |> ok_or_failwith in
+    let printer m = Sexplib.Sexp.to_string_hum @@ Vg.sexp_of_metadata m in
+    let msg x =
+      Printf.sprintf "Expected %s op to be %s but %s observed"
+      (Sexplib.Sexp.to_string_hum @@ Redo.Op.sexp_of_t op)
+      (match x with `Potent -> "effectual" | `Impotent -> "ineffectual")
+      (match x with `Potent -> "no change" | `Impotent -> "change") in
+    assert_equal ~msg:(msg `Potent) ~printer ~cmp:(<>) md md';
+    assert_equal ~msg:(msg `Impotent) ~printer ~cmp:(=) md' md'';
+    md''
+  in
+  (* get some metadata to play around with *)
+  with_dummy (fun filename ->
+    with_block filename (fun block ->
+      Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
+      Vg_IO.connect ~flush_interval:5. [ block ] `RW >>|= fun vg ->
+      Vg_IO.metadata_of vg |> return
+    )
+  ) |> Lwt_main.run |> fun init_md ->
+  let open Lv.Segment in
+  let segment = {
+    start_extent=0L; extent_count=2L;
+    cls=Lv.Linear.(Linear {name=pv; start_extent=8L})
+  } in
+  let lv = Lv.({name="lv0"; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
+  let ops_to_test = [
+    Redo.Op.(LvCreate lv);
+    Redo.Op.(LvReduce(lv.Lv.id, {lvrd_new_extent_count=1L}));
+    Redo.Op.(LvExpand(lv.Lv.id, {lvex_segments=[segment]}));
+    Redo.Op.(LvCrop(lv.Lv.id, {lvc_segments=[{segment with extent_count=1L}]}));
+    Redo.Op.(LvAddTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok));
+    Redo.Op.(LvRemoveTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok));
+    Redo.Op.(LvSetStatus(lv.Lv.id, Lv.Status.([Read; Write; Visible])));
+    Redo.Op.(LvRename(lv.Lv.id, {lvmv_new_name="lv1"}));
+  ] in
+  List.fold_left test_op init_md ops_to_test |> ignore
+
 let lv_tags () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -617,6 +661,7 @@ let vg_suite = "Vg" >::: [
     "LV tags" >:: lv_tags;
     "LV status" >:: lv_status;
     "LV lots of ops" >:: lv_lots_of_ops;
+    "LV op idempotence" >:: lv_op_idempotence;
     (* XXX: this test fails on travis-- problem in the journal code?
     "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
     *)
