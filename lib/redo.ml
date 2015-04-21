@@ -33,14 +33,14 @@ module Op = struct
   (** First string corresponds to the name of the LV. *)
   type t =
     | LvCreate of Lv.t
-    | LvReduce of string * lvreduce_t
-    | LvCrop   of string * lvcrop_t
-    | LvExpand of string * lvexpand_t
-    | LvRename of string * lvrename_t
-    | LvRemove of string
-    | LvAddTag of string * Name.Tag.t
-    | LvRemoveTag of string * Name.Tag.t
-    | LvSetStatus of string * (Lv.Status.t list)
+    | LvReduce of Uuid.t * lvreduce_t
+    | LvCrop   of Uuid.t * lvcrop_t
+    | LvExpand of Uuid.t * lvexpand_t
+    | LvRename of Uuid.t * lvrename_t
+    | LvRemove of Uuid.t
+    | LvAddTag of Uuid.t * Name.Tag.t
+    | LvRemoveTag of Uuid.t * Name.Tag.t
+    | LvSetStatus of Uuid.t * (Lv.Status.t list)
   with sexp
 
   let of_cstruct x =

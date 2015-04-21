@@ -37,7 +37,10 @@ type error = [
   | `Msg of string
 ]
 
-module LVs : Map.S with type key = string
+module LVs : sig
+  include Map.S with type key = Uuid.t
+  val find_by_name : string -> Lv.t t -> Lv.t
+end
 
 type metadata = {
   name : string;                (** name given by the user *)

@@ -436,7 +436,7 @@ let lv_crop () =
             let space = Lv.to_allocation v_md in
             let name, (start, length) = List.hd space in
             (* remove the first segment *)
-            let op = Redo.Op.(LvCrop("name", { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
+            let op = Redo.Op.(LvCrop(v_md.Lv.id, { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
             let id = expect_some (Vg_IO.find vg "name") in
@@ -572,13 +572,13 @@ let lv_op_idempotence () =
   let lv = Lv.({name="lv0"; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
   let ops_to_test = [
     Redo.Op.(LvCreate lv);
-    Redo.Op.(LvReduce("lv0", {lvrd_new_extent_count=1L}));
-    Redo.Op.(LvExpand("lv0", {lvex_segments=[segment]}));
-    Redo.Op.(LvCrop("lv0", {lvc_segments=[{segment with extent_count=1L}]}));
-    Redo.Op.(LvAddTag("lv0", Name.Tag.of_string "tag" |> Result.get_ok));
-    Redo.Op.(LvRemoveTag("lv0", Name.Tag.of_string "tag" |> Result.get_ok));
-    Redo.Op.(LvSetStatus("lv0", Lv.Status.([Read; Write; Visible])));
-    Redo.Op.(LvRename("lv0", {lvmv_new_name="lv1"}));
+    Redo.Op.(LvReduce(lv.Lv.id, {lvrd_new_extent_count=1L}));
+    Redo.Op.(LvExpand(lv.Lv.id, {lvex_segments=[segment]}));
+    Redo.Op.(LvCrop(lv.Lv.id, {lvc_segments=[{segment with extent_count=1L}]}));
+    Redo.Op.(LvAddTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok));
+    Redo.Op.(LvRemoveTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok));
+    Redo.Op.(LvSetStatus(lv.Lv.id, Lv.Status.([Read; Write; Visible])));
+    Redo.Op.(LvRename(lv.Lv.id, {lvmv_new_name="lv1"}));
   ] in
   List.fold_left test_op init_md ops_to_test |> ignore
 
