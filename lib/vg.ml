@@ -204,9 +204,10 @@ let do_op vg op : (metadata * op) result =
       let free_space = Pv.Allocator.sub (Pv.Allocator.merge vg.free_space allocation) new_allocation in
       return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space},op))
   | LvRemove id ->
-    with_lv vg id (fun lv ->
+    begin match with_lv vg id (fun lv ->
       let allocation = Lv.to_allocation lv in
       return ({vg with lvs = LVs.remove lv.Lv.id vg.lvs; free_space = Pv.Allocator.merge vg.free_space allocation },op))
+    with | `Error (`UnknownLV _) -> return (vg, op) | r -> r end
   | LvRename (id, l) ->
     with_lv vg id (fun lv ->
       let lvs = LVs.(add id { lv with Lv.name = l.lvmv_new_name }

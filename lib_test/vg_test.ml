@@ -570,16 +570,21 @@ let lv_op_idempotence () =
     cls=Lv.Linear.(Linear {name=pv; start_extent=8L})
   } in
   let lv = Lv.({name="lv0"; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
+  let open Redo.Op in
   let ops_to_test = [
-    Redo.Op.(LvCreate lv);
-    Redo.Op.(LvReduce(lv.Lv.id, {lvrd_new_extent_count=1L}));
-    Redo.Op.(LvExpand(lv.Lv.id, {lvex_segments=[segment]}));
-    Redo.Op.(LvCrop(lv.Lv.id, {lvc_segments=[{segment with extent_count=1L}]}));
-    Redo.Op.(LvAddTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok));
-    Redo.Op.(LvRemoveTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok));
-    Redo.Op.(LvSetStatus(lv.Lv.id, Lv.Status.([Read; Write; Visible])));
-    Redo.Op.(LvRename(lv.Lv.id, {lvmv_new_name="lv1"}));
+    LvCreate lv;
+    LvReduce(lv.Lv.id, {lvrd_new_extent_count=1L});
+    LvExpand(lv.Lv.id, {lvex_segments=[segment]});
+    LvCrop(lv.Lv.id, {lvc_segments=[{segment with extent_count=1L}]});
+    LvAddTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok);
+    LvRemoveTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok);
+    LvSetStatus(lv.Lv.id, Lv.Status.([Read; Write; Visible]));
+    LvRename(lv.Lv.id, {lvmv_new_name="lv1"});
+    LvRemove(lv.Lv.id);
   ] in
+  let _ = function (* Just to make sure this test catches all the ops *)
+  | LvCreate _ | LvRemove _ | LvRename _ | LvReduce _ | LvCrop _ | LvExpand _
+  | LvAddTag _ | LvRemoveTag _ | LvSetStatus _ -> () in
   List.fold_left test_op init_md ops_to_test |> ignore
 
 let lv_tags () =
