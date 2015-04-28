@@ -59,6 +59,12 @@ module Make : functor(Block: S.BLOCK) -> sig
       at a fixed location. Any existing metadata on this device will
       be destroyed. *)
 
+  val wipe: Block.t -> unit result Lwt.t
+  (** [wipe device] hides labels and metadata from [device] *)
+
+  val unwipe: Block.t -> unit result Lwt.t
+  (** [unwipe device] attempts to restore hidden labels and metadata on [device] *)
+
   val read_metadata: Block.t -> Cstruct.t result Lwt.t
   (** [read_metadata device]: locates the metadata area on [device] and
       returns the volume group metadata. *)

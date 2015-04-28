@@ -115,6 +115,48 @@ let read_metadata device =
   Metadata_IO.read device (List.hd mdahs) 0 >>= fun mdt ->
   return mdt
 
+let rotate buf n =
+  for i = 0 to Cstruct.len buf - 1 do
+    let c = Cstruct.get_uint8 buf i in
+    Cstruct.set_uint8 buf i ((c + n) mod 256)
+  done
+
+let wipe device =
+  let open IO in
+  Label_IO.read device >>= fun label ->
+  let mda_locs = Label.get_metadata_locations label in
+  IO.FromResult.all (
+    Lwt_list.map_s (fun l ->
+      B.read device l.Label.Location.offset (Int64.to_int l.Label.Location.size)
+      >>= fun buf ->
+      rotate buf 1;
+      B.write device l.Label.Location.offset buf
+    ) mda_locs
+  ) >>= fun (_: unit list) ->
+  B.read device 0L Constants.label_scan_size
+  >>= fun buf ->
+  rotate buf 1;
+  B.write device 0L buf
+
+let unwipe device =
+  let open IO in
+  B.read device 0L Constants.label_scan_size
+  >>= fun buf ->
+  rotate buf (-1);
+  B.write device 0L buf
+  >>= fun () ->
+  Label_IO.read device >>= fun label ->
+  let mda_locs = Label.get_metadata_locations label in
+  IO.FromResult.all (
+    Lwt_list.map_s (fun l ->
+      B.read device l.Label.Location.offset (Int64.to_int l.Label.Location.size)
+      >>= fun buf ->
+      rotate buf (-1);
+      B.write device l.Label.Location.offset buf
+    ) mda_locs
+  ) >>= fun (_: unit list) ->
+  return ()
+
 let format device ?(magic=`Lvm) name =
   let open IO in
   B.get_size device >>= fun size ->
