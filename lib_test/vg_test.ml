@@ -296,6 +296,26 @@ let lv_not_formatted () =
       in
       Lwt_main.run t)
 
+let pv_wipe () =
+  let open Vg_IO in
+  let module Pv_IO = Lvm.Pv.Make(Block) in
+  with_dummy (fun filename ->
+      let t = 
+        with_block filename
+          (fun block ->
+            Vg_IO.format "vg" [ pv, block ] >>|= fun () ->
+            Pv_IO.wipe block >>= fun t ->
+            let _ = Result.get_ok t in
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>= fun t ->
+            let _ = Result.get_error t in
+            Pv_IO.unwipe block >>= fun t ->
+            let _ = Result.get_ok t in
+            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
+            Lwt.return ()
+          )
+      in
+      Lwt_main.run t)
+
 let lv_name_clash () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -656,6 +676,7 @@ let lv_status () =
 
 let vg_suite = "Vg" >::: [
     "LV not formatted" >:: lv_not_formatted;
+    "Wipe and unwipe a PV" >:: pv_wipe;
     "LV name clash" >:: lv_name_clash;
     "LV create without redo" >:: lv_create `Lvm;
     "LV create with redo" >:: lv_create `Journalled;
