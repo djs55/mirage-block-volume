@@ -1,3 +1,11 @@
+0.11.0 (30-Apr-2015)
+* Erase the redo log when it is created
+* Update to shared-block-ring.2.0.0
+* Avoid using bisect by default
+
+0.10.0 (29-Apr-2015)
+* Add PV wipe and PV unwipe
+
 0.9.2 (27-Apr-2015)
 * Ensure all redo-log operations are idempotent
 
