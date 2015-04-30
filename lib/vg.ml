@@ -659,7 +659,7 @@ let read flush_interval devices flag : vg result Lwt.t =
         | `Ok disk ->
           let open Lwt in
           Log.info "Enabling redo-log on volume group";
-          Redo_log.start ~flush_interval disk (fun ops -> Lwt.map error_to_msg (perform ops))
+          Redo_log.start ~name:_redo_log_name ~client:"mirage-block-volume" ~flush_interval disk (fun ops -> Lwt.map error_to_msg (perform ops))
           >>= fun r ->
           let open IO.FromResult in
           Redo_log.open_error r
