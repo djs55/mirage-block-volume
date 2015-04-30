@@ -519,7 +519,22 @@ let format name ?(magic = `Lvm) devices =
     | `Lvm -> return vg
     | `Journalled ->
       ( match create vg _redo_log_name _redo_log_size with
-        | `Ok (vg, _) -> Lwt.return (`Ok vg)
+        | `Ok (metadata, Redo.Op.LvCreate lv) ->
+          let module Eraser = EraseBlock.Make(Volume) in
+          begin let open Lwt in
+            let lv = { Volume.metadata; devices; lv } in
+            Volume.connect lv
+            >>= function
+            | `Ok disk ->
+              let open IO in
+              Eraser.erase ~pattern:"Block erased because this is the mirage-block-volume redo_log" disk
+              >>= fun () ->
+              return metadata
+            | `Error _ -> Lwt.return (`Error (`Msg "Failed to open the redo_log to erase it"))
+          end
+        | `Ok (_, _) ->
+          (* create guarantees to return a Redo.Op.LvCreate *)
+          assert false
         | `Error x -> Lwt.return (`Error x)
       )
   ) >>= fun metadata ->
