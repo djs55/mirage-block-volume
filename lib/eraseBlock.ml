@@ -26,27 +26,28 @@ module IO = struct
   | `Ok x -> f x
 end
 
+let block_size_pages = 1024
+
 module Make(B: S.BLOCK) = struct
   let erase ?(pattern = "This block has been erased by mirage-block-volume/lib/eraseBlock.ml") t =
     let open Lwt in
     B.get_info t
     >>= fun info ->
-    if info.B.sector_size > 4096
-    then return (`Error (`Msg (Printf.sprintf "eraseBlock can only cope with sector size <= 4096: got %d" info.B.sector_size)))
-    else begin
-      let page = Io_page.get 1 in
-      let sector = Cstruct.sub (Io_page.to_cstruct page) 0 info.B.sector_size in
-      for i = 0 to Cstruct.len sector - 1 do
-        Cstruct.set_char sector i (pattern.[i mod (String.length pattern)])
-      done;
-      let open IO in
-      let rec loop n =
-        if n = info.B.size_sectors
-        then return (`Ok ())
-        else
-          B.write t n [ sector ]
-          >>= fun () ->
-          loop (Int64.succ n) in
-      loop 0L
-    end
+    let pages = Io_page.get block_size_pages in
+    let buffer = Io_page.to_cstruct pages in
+    for i = 0 to Cstruct.len buffer - 1 do
+      Cstruct.set_char buffer i (pattern.[i mod (String.length pattern)])
+    done;
+    let open IO in
+    let rec loop n =
+      if n = info.B.size_sectors
+      then return (`Ok ())
+      else
+        let buffer_in_sectors = Cstruct.len buffer / info.B.sector_size in
+        let needed = Int64.to_int (min (Int64.sub info.B.size_sectors n) (Int64.of_int buffer_in_sectors)) in
+        let towrite = Cstruct.sub buffer 0 (needed * info.B.sector_size) in
+        B.write t n [ towrite ]
+        >>= fun () ->
+        loop (Int64.(add n (of_int needed))) in
+    loop 0L
 end
