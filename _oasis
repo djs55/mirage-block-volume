@@ -19,7 +19,7 @@ Library lvm_internal
 
 Library lvm
   Path: lib
-  Modules: Result, S, Monad, Expect, Allocator, Constants, Label, Metadata, Crc, IO, Lv, Uuid, Pv, Redo, Name, Utils, Vg, Magic, UnalignedBlock
+  Modules: Result, S, Monad, Expect, Allocator, Constants, Label, Metadata, Crc, IO, Lv, Uuid, Pv, Redo, Name, Utils, Vg, Magic, UnalignedBlock, EraseBlock
   Findlibname: lvm
   Pack: true
   BuildDepends: lvm_internal,sexplib.syntax,sexplib,uuidm,re.str,cstruct,mirage-types,lwt,io-page,shared-block-ring, bisect
