@@ -33,7 +33,7 @@ end
 type error = [
   | `UnknownLV of string
   | `DuplicateLV of string
-  | `OnlyThisMuchFree of int64
+  | `OnlyThisMuchFree of int64 (** needed *) * int64 (** available *)
   | `Msg of string
 ]
 

@@ -47,7 +47,7 @@ end
 type error = [
   | `UnknownLV of string
   | `DuplicateLV of string
-  | `OnlyThisMuchFree of int64
+  | `OnlyThisMuchFree of int64 (** needed *) * int64 (** available *)
   | `Msg of string
 ]
 
@@ -143,7 +143,7 @@ module type ALLOCATOR = sig
       total amount of space currently free, which is insufficient to satisfy
       the request.
       The expected use is to 'allocate' space for a logical volume. *)
-  val find : t -> int64 -> (t, [ `OnlyThisMuchFree of int64 ]) Result.result
+  val find : t -> int64 -> (t, [ `OnlyThisMuchFree of int64 * int64 ]) Result.result
 
   (** [merge t1 t2] returns a region [t] which contains all the physical
       space from both [t1] and [t2].
