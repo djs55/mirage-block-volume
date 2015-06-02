@@ -384,7 +384,7 @@ let lv_rename () =
             Vg.rename (Vg_IO.metadata_of vg) "name" "name2" >>*= fun (_, op) ->
             Vg_IO.update vg [ op ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            expect_some (Vg_IO.find vg "name2");
+            let _ = expect_some (Vg_IO.find vg "name2") in
             expect_none (Vg_IO.find vg "name");
             Lwt.return ()
           )
@@ -589,7 +589,7 @@ let lv_op_idempotence () =
     start_extent=0L; extent_count=2L;
     cls=Lv.Linear.(Linear {name=pv; start_extent=8L})
   } in
-  let lv = Lv.({name="lv0"; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
+  let lv = Lv.({name="lv0"; creation_host=""; creation_time=0L; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
   let open Redo.Op in
   let ops_to_test = [
     LvCreate lv;

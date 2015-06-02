@@ -235,7 +235,7 @@ let bytes_to_extents bytes vg =
   let extents_in_bytes = mul extents_in_sectors 512L in
   div (add bytes (sub extents_in_bytes 1L)) extents_in_bytes
 
-let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size : ('a, error) Result.result = 
+let create vg name ?(creation_host="unknown") ?(creation_time=0L) ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size : ('a, error) Result.result = 
   if LVs.exists (fun _ lv -> lv.Lv.name = name) vg.lvs
   then `Error (`DuplicateLV name)
   else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
@@ -243,7 +243,7 @@ let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size 
     let segments = Lv.Segment.sort (Lv.Segment.linear 0L lvc_segments) in
     let id = Uuid.create () in
     Name.open_error @@ all @@ List.map Name.Tag.of_string tags >>= fun tags ->
-    let lv = Lv.({ name; id; tags; status; segments }) in
+    let lv = Lv.({ name; id; tags; status; creation_host; creation_time; segments }) in
     do_op vg Redo.Op.(LvCreate lv)
   | `Error (`OnlyThisMuchFree free) ->
     `Error (`OnlyThisMuchFree free)

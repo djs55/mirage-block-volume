@@ -79,11 +79,12 @@ module type VOLUME = sig
 
   type 'a result = ('a, error) Result.result
  
-  val create: t -> name -> ?tags:tag list -> ?status:lv_status list -> int64 ->
+  val create: t -> name -> ?creation_host:string -> ?creation_time:int64 ->
+    ?tags:tag list -> ?status:lv_status list -> int64 ->
     (t * op) result
-  (** [create t name size] extends the volume group [t] with a new
-      volume named [name] with size at least [size] bytes. The actual
-      size of the volume may be rounded up. *)
+  (** [create t name creation_host creation_time size] extends the volume
+      group [t] with a new volume named [name] with size at least [size] bytes.
+      The actual size of the volume may be rounded up. *)
 
   val rename: t -> name -> name -> (t * op) result
   (** [rename t name new_name] returns a new volume group [t] where
