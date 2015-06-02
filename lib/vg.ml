@@ -520,7 +520,7 @@ let format name ?(creation_host="unknown") ?(creation_time=0L) ?(magic = `Lvm) d
   ( match magic with
     | `Lvm -> return vg
     | `Journalled ->
-      ( match create vg _redo_log_name _redo_log_size with
+      ( match create vg _redo_log_name _redo_log_size ~creation_host ~creation_time with
         | `Ok (metadata, Redo.Op.LvCreate lv) ->
           let module Eraser = EraseBlock.Make(Volume) in
           begin let open Lwt in
