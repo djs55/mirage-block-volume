@@ -45,6 +45,8 @@ end
 type metadata = {
   name : string;                (** name given by the user *)
   id : Uuid.t;                  (** arbitrary unique id *)
+  creation_host: string;        (** some host identifier *)
+  creation_time: int64;         (** seconds since epoch *)
   seqno : int;                  (** sequence number of the next operation *)
   status : Status.t list;       (** status flags *)
   extent_size : int64;          (** the size of a block ("extent") in 512 byte sectors *)
@@ -81,9 +83,10 @@ module Make(Log: S.LOG)(Block: S.BLOCK)(Time: S.TIME)(Clock: S.CLOCK) : sig
   val metadata_of: vg -> metadata
   (** Extract a snapshot of the volume group metadata *)
 
-  val format: string -> ?magic:Magic.t -> (Pv.Name.t * Block.t) list -> unit result Lwt.t
-  (** [format name devices_and_names] initialises a new volume group
-      with name [name], using physical volumes [devices] *)
+  val format: string -> ?creation_host:string -> ?creation_time:int64 ->
+      ?magic:Magic.t -> (Pv.Name.t * Block.t) list -> unit result Lwt.t
+  (** [format name ?creation_host ?creation_time ?magic devices_and_names]
+      initialises a new volume group with name [name], using physical volumes [devices] *)
 
   val connect: ?flush_interval:float -> Block.t list -> [ `RO | `RW ]
       -> vg result Lwt.t

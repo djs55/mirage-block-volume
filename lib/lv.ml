@@ -98,6 +98,8 @@ type t = {
   id : Uuid.t;
   tags : Name.Tag.t list;
   status : Status.t list;
+  creation_host: string;
+  creation_time: int64;
   segments : Segment.t list;
 } with sexp
 
@@ -119,6 +121,8 @@ let marshal lv b =
     (String.concat ", " (List.map (o quote Status.to_string) lv.status));
   if List.length lv.tags > 0 then 
     bprintf "tags = [%s]\n" (String.concat ", " (List.map (quote ++ Name.Tag.to_string) lv.tags));
+  bprintf "creation_host = \"%s\"\n" lv.creation_host;
+  bprintf "creation_time = %Ld\n" lv.creation_time;
   bprintf "segment_count = %d\n\n" (List.length lv.segments);
   let open Segment in
   iteri
@@ -146,12 +150,14 @@ let of_metadata name config =
    then map_expected_mapped_array "tags" (expect_string "tags") config
    else return []) >>= fun tags ->
   all @@ List.map Name.Tag.of_string tags >>= fun tags ->
+  expect_mapped_string "creation_host" config >>= fun creation_host ->
+  expect_mapped_int "creation_time" config >>= fun creation_time ->
   let segments = filter_structs config in
   Result.all (List.map (fun (a, _) ->
     expect_mapped_struct a segments >>= fun x ->
     Segment.of_metadata a x) segments) >>= fun segments ->
   let segments = Segment.sort segments in
-  return { name; id; status; tags; segments }
+  return { name; id; status; tags; creation_host; creation_time; segments }
 
 let to_allocation lv =
   List.flatten 

@@ -61,6 +61,8 @@ type t = {
   id : Uuid.t;               (** arbitrary unique id *)
   tags : Name.Tag.t list;    (** tags given by the user *)
   status : Status.t list;    (** status flags *)
+  creation_host: string;     (** some host identifier *)
+  creation_time: int64;      (** seconds since Jan 1 1970 when the LV was created *) 
   (* TODO: this must be written in ascending order of start_extent.
      Should we convert this into a Map? *)
   segments : Segment.ts;     (** an ordered list of blocks ('segments') *)

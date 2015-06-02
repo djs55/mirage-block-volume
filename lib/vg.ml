@@ -79,6 +79,8 @@ end
 type metadata = {
   name : string;
   id : Uuid.t;
+  creation_host: string;
+  creation_time: int64;
   seqno : int;
   status : Status.t list;
   extent_size : int64;
@@ -115,8 +117,8 @@ let marshal vg b =
   bprintf "contents = \"Text Format Volume Group\"\n";
   bprintf "version = 1\n\n";
   bprintf "description = \"\"\n\n";
-  bprintf "creation_host = \"%s\"\n" "<need uname!>";
-  bprintf "creation_time = %Ld\n\n" (Int64.of_float (Unix.time ()));
+  bprintf "creation_host = \"%s\"\n" vg.creation_host;
+  bprintf "creation_time = %Ld\n\n" vg.creation_time;
   !b
     
 (*************************************************************)
@@ -235,7 +237,7 @@ let bytes_to_extents bytes vg =
   let extents_in_bytes = mul extents_in_sectors 512L in
   div (add bytes (sub extents_in_bytes 1L)) extents_in_bytes
 
-let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size : ('a, error) Result.result = 
+let create vg name ?(creation_host="unknown") ?(creation_time=0L) ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size : ('a, error) Result.result = 
   if LVs.exists (fun _ lv -> lv.Lv.name = name) vg.lvs
   then `Error (`DuplicateLV name)
   else match Pv.Allocator.find vg.free_space (bytes_to_extents size vg) with
@@ -243,7 +245,7 @@ let create vg name ?(tags=[]) ?(status=Lv.Status.([Read; Write; Visible])) size 
     let segments = Lv.Segment.sort (Lv.Segment.linear 0L lvc_segments) in
     let id = Uuid.create () in
     Name.open_error @@ all @@ List.map Name.Tag.of_string tags >>= fun tags ->
-    let lv = Lv.({ name; id; tags; status; segments }) in
+    let lv = Lv.({ name; id; tags; status; creation_host; creation_time; segments }) in
     do_op vg Redo.Op.(LvCreate lv)
   | `Error (`OnlyThisMuchFree free) ->
     `Error (`OnlyThisMuchFree free)
@@ -498,7 +500,7 @@ let run metadata ops : metadata result Lwt.t =
 let _redo_log_name = "mirage_block_volume_redo_log"
 let _redo_log_size = Int64.(mul 32L (mul 1024L 1024L))
 
-let format name ?(magic = `Lvm) devices =
+let format name ?(creation_host="unknown") ?(creation_time=0L) ?(magic = `Lvm) devices =
   let open IO in
   let rec write_pv acc = function
     | [] -> return (List.rev acc)
@@ -512,7 +514,7 @@ let format name ?(magic = `Lvm) devices =
   >>= fun pvs ->
   let open IO in
   let free_space = List.flatten (List.map (fun pv -> Pv.Allocator.create pv.Pv.name pv.Pv.pe_count) pvs) in
-  let vg = { name; id=Uuid.create (); seqno=1; status=[Status.Read; Status.Write; Status.Resizeable];
+  let vg = { name; id=Uuid.create (); creation_host; creation_time; seqno=1; status=[Status.Read; Status.Write; Status.Resizeable];
     extent_size=Constants.extent_size_in_sectors; max_lv=0; max_pv=0; pvs;
     lvs=LVs.empty; free_space; } in
   ( match magic with
@@ -573,6 +575,8 @@ let read flush_interval devices flag : vg result Lwt.t =
     | _ -> `Error (`Msg "VG metadata contains multiple volume groups") ) >>= fun name ->
   expect_mapped_struct name vg >>= fun alist ->
   expect_mapped_string "id" alist >>= fun id ->
+  expect_mapped_string "creation_host" config >>= fun creation_host ->
+  expect_mapped_int "creation_time" config >>= fun creation_time ->
   (Uuid.of_string id :> Uuid.t result) >>= fun id ->
   expect_mapped_int "seqno" alist >>= fun seqno ->
   let seqno = Int64.to_int seqno in
@@ -612,7 +616,7 @@ let read flush_interval devices flag : vg result Lwt.t =
     let lv_allocations = Lv.to_allocation lv in
     Pv.Allocator.sub free_space lv_allocations) free_space lvs in
   let lvs = List.fold_left (fun acc lv -> LVs.add lv.Lv.id lv acc) LVs.empty lvs in
-  let vg = { name; id; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
+  let vg = { name; id; creation_host; creation_time; seqno; status; extent_size; max_lv; max_pv; pvs; lvs;  free_space; } in
   (* Segments reference PVs by name, not uuid, so we need to build up
      the name to device mapping. *)
   let id_to_name = List.map (fun pv -> pv.Pv.id, pv.Pv.name) pvs in
