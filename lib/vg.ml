@@ -130,7 +130,7 @@ type op = Redo.Op.t
 type error = [
   | `UnknownLV of string
   | `DuplicateLV of string
-  | `OnlyThisMuchFree of int64
+  | `OnlyThisMuchFree of int64 * int64
   | `Msg of string
 ]
 
@@ -142,8 +142,8 @@ let pp_error fmt = function
     Format.fprintf fmt "The LV %s was not found" x
   | `DuplicateLV x ->
     Format.fprintf fmt "The LV name already exists: %s" x
-  | `OnlyThisMuchFree x ->
-    Format.fprintf fmt "Only this much space free: %Ld" x
+  | `OnlyThisMuchFree(needed, available) ->
+    Format.fprintf fmt "Only this much space free: %Ld (needed %Ld)" available needed
 
 let error_to_msg = function
   | `Ok x -> `Ok x
@@ -247,8 +247,8 @@ let create vg name ?(creation_host="unknown") ?(creation_time=0L) ?(tags=[]) ?(s
     Name.open_error @@ all @@ List.map Name.Tag.of_string tags >>= fun tags ->
     let lv = Lv.({ name; id; tags; status; creation_host; creation_time; segments }) in
     do_op vg Redo.Op.(LvCreate lv)
-  | `Error (`OnlyThisMuchFree free) ->
-    `Error (`OnlyThisMuchFree free)
+  | `Error (`OnlyThisMuchFree (needed, available)) ->
+    `Error (`OnlyThisMuchFree (needed, available))
 
 let rename vg old_name new_name =
   with_lv_by_name vg old_name (fun lv ->
@@ -264,8 +264,8 @@ let resize vg name new_size =
       | `Ok extents ->
          let lvex_segments = Lv.Segment.linear current_size extents in
          return Redo.Op.(LvExpand (lv.Lv.id,{lvex_segments}))
-      | `Error (`OnlyThisMuchFree free) ->
-        `Error (`OnlyThisMuchFree free)
+      | `Error (`OnlyThisMuchFree (needed, available)) ->
+        `Error (`OnlyThisMuchFree (needed, available))
       else
          return Redo.Op.(LvReduce (lv.Lv.id,{lvrd_new_extent_count=new_size}))
     ) >>= fun op ->

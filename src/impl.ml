@@ -29,7 +29,7 @@ let require name arg = match arg with
 let (>>*=) m f = match m with
   | `Error (`Msg e) -> fail (Failure e)
   | `Error (`DuplicateLV x) -> fail (Failure (Printf.sprintf "%s is a duplicate LV name" x))
-  | `Error (`OnlyThisMuchFree x) -> fail (Failure (Printf.sprintf "There is only %Ld free" x))
+  | `Error (`OnlyThisMuchFree (needed, available)) -> fail (Failure (Printf.sprintf "This operation needs %Ld but there is only %Ld free" needed available))
   | `Error (`UnknownLV x) -> fail (Failure (Printf.sprintf "I couldn't find an LV named %s" x))
   | `Ok x -> f x
 let (>>|=) m f = m >>= fun x -> x >>*= f

@@ -146,7 +146,7 @@ let find (free_list : t) (newsize : int64) =
     match safe_alloc free_list newsize
     with  Some (x, _) -> `Ok x
 	| None ->
-          `Error (`OnlyThisMuchFree (size free_list))
+          `Error (`OnlyThisMuchFree (newsize, size free_list))
 
 (* Probably de-allocation won't be used much. *)
 let merge to_free free_list = normalize (combine to_free free_list)
