@@ -57,7 +57,14 @@ module Label_header = struct
     offset=32l;
     ty=(if magic = `Lvm then label_type else journalled_label_type);
   }
-    
+
+  let magic_of t =
+    if t.ty = label_type
+    then Some `Lvm
+    else if t.ty = journalled_label_type
+    then Some `Journalled
+    else None
+
   let unmarshal b0 =
     let id = Cstruct.(to_string (sub b0 0 8)) in
     let sector_xl = Cstruct.LE.get_uint64 b0 8 in
