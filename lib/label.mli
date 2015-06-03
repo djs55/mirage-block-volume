@@ -20,6 +20,10 @@ module Label_header : sig
 
   val create: Magic.t -> t
 
+  val magic_of: t -> Magic.t option
+  (** Return the magic of a particular label, or [None] if we don't
+      recognise the magic. *)
+
   include S.PRINT with type t := t
   include S.EQUALS with type t := t
   include S.MARSHAL with type t := t
