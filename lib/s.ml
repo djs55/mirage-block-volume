@@ -11,6 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
+open Sexplib.Std
 
 module type PRINT = sig
   type t
@@ -38,10 +39,18 @@ module type SEXPABLE = sig
   val sexp_of_t: t -> Sexplib.Sexp.t
 end
 
+type traced_operation = [
+  | `Set of string * string * [ `Producer | `Consumer | `Suspend | `Suspend_ack ] * [ `Int64 of int64 | `Bool of bool ]
+  | `Get of string * string * [ `Producer | `Consumer | `Suspend | `Suspend_ack ] * [ `Int64 of int64 | `Bool of bool ]
+] with sexp
+type traced_operation_list = traced_operation list with sexp
+
 module type LOG = sig
   val debug : ('a, unit, string, unit) format4 -> 'a
   val info  : ('a, unit, string, unit) format4 -> 'a
   val error : ('a, unit, string, unit) format4 -> 'a
+
+  val trace: traced_operation list -> unit
 end
 
 type error = [
