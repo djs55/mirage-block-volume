@@ -22,6 +22,8 @@ module Log = struct
   let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
   let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
 
+  let trace _ = ()
+
   let _ =
     debug "This is the debug output";
     info "This is the info output";
