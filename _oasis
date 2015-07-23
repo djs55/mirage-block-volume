@@ -6,7 +6,7 @@
 
 OASISFormat:  0.3
 Name:         mlvm
-Version:      0.11.0
+Version:      0.12.0
 Synopsis:     Pure OCaml volume manager, compatible with Linux LVM
 License:      LGPL-2.1 with OCaml linking exception
 Authors:      various
