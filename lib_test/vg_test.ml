@@ -38,6 +38,10 @@ let expect_none = function
   | Some _ -> raise (Invalid_argument "Some")
   | None -> ()
 
+let ok_or_failwith x = match Vg.error_to_msg x with
+  | `Ok x -> x
+  | `Error (`Msg m) -> failwith m
+
 let good_magic = " LVM2 x[5A%r0N*>"
 let unmarshal_good_magic () =
   let open Magic in
@@ -441,7 +445,7 @@ let lv_resize () =
       in
       Lwt_main.run t)
 
-let lv_crop () =
+let lv_transfer () =
   let open Vg_IO in
   with_dummy (fun filename ->
       let t = 
@@ -449,21 +453,32 @@ let lv_crop () =
           (fun block ->
             Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
             Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
-            Vg.create (Vg_IO.metadata_of vg) "name" bigger >>*= fun (_,op) ->
-            Vg_IO.update vg [ op ] >>|= fun () ->
+            Vg.create (Vg_IO.metadata_of vg) "lv1" bigger >>*= fun (md,op1) ->
+            Vg.create md "lv2" bigger >>*= fun (_,op2) ->
+            Vg_IO.update vg [ op1; op2 ] >>|= fun () ->
             Vg_IO.sync vg >>|= fun () ->
-            let id = expect_some (Vg_IO.find vg "name") in
-            let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer:Int64.to_string bigger_extents (Pv.Allocator.size (Lv.to_allocation v_md));
-            let space = Lv.to_allocation v_md in
+            let id1 = expect_some (Vg_IO.find vg "lv1") in
+            let v_md1 = Vg_IO.Volume.metadata_of id1 in
+            let id2 = expect_some (Vg_IO.find vg "lv2") in
+            let v_md2 = Vg_IO.Volume.metadata_of id2 in
+            let space = Lv.to_allocation v_md1 in
             let name, (start, length) = List.hd space in
-            (* remove the first segment *)
-            let op = Redo.Op.(LvCrop(v_md.Lv.id, { lvc_segments = Lv.Segment.linear 0L [ name, (start, 1L) ] })) in
-            Vg_IO.update vg [ op ] >>|= fun () ->
-            Vg_IO.sync vg >>|= fun () ->
-            let id = expect_some (Vg_IO.find vg "name") in
-            let v_md = Vg_IO.Volume.metadata_of id in
-            assert_equal ~printer:Int64.to_string small_extents (Pv.Allocator.size (Lv.to_allocation v_md));
+            (* transfer the first segment of lv1 to lv2 *)
+            let op = Redo.Op.(LvTransfer(v_md1.Lv.id, v_md2.Lv.id, Lv.Segment.linear bigger_extents [ name, (start, 1L) ] )) in
+            let md = Vg_IO.metadata_of vg in
+            let (md', _) = Vg.do_op md op |> ok_or_failwith in
+            let free_space = md'.Vg.free_space in
+            let v_md1' = Vg.LVs.find_by_name "lv1" md'.Vg.lvs in
+            let v_md2' = Vg.LVs.find_by_name "lv2" md'.Vg.lvs in
+            let used_blocks = Lv.to_allocation v_md2' in
+            let intersect t t' = 
+              let open Pv.Allocator in
+              let whole = merge t t' in
+              sub whole @@ merge (sub t t') (sub t' t) in
+            Pv.Allocator.(assert_equal ~printer:Int64.to_string 0L (size (intersect free_space used_blocks)));
+            assert_equal ~printer:Int64.to_string (Int64.succ bigger_extents) (Pv.Allocator.size (Lv.to_allocation v_md2'));
+            let space' = Pv.Allocator.size (Lv.to_allocation v_md1') in
+            assert_equal ~printer:Int64.to_string (Int64.pred (Pv.Allocator.size space)) space';
             Lwt.return ()
           )
       in
@@ -591,13 +606,19 @@ let lv_op_idempotence () =
     start_extent=0L; extent_count=2L;
     cls=Lv.Linear.(Linear {name=pv; start_extent=8L})
   } in
+  let segment' = {
+    start_extent=9L; extent_count=2L;
+    cls=Lv.Linear.(Linear {name=pv; start_extent=8L})
+  } in
   let lv = Lv.({name="lv0"; creation_host=""; creation_time=0L; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
+  let lv' = Lv.({name="lv1"; creation_host=""; creation_time=0L; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment']}) in
   let open Redo.Op in
   let ops_to_test = [
     LvCreate lv;
+    LvCreate lv';
     LvReduce(lv.Lv.id, {lvrd_new_extent_count=1L});
     LvExpand(lv.Lv.id, {lvex_segments=[segment]});
-    LvCrop(lv.Lv.id, {lvc_segments=[{segment with extent_count=1L}]});
+    LvTransfer(lv.Lv.id, lv'.Lv.id, [segment]);
     LvAddTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok);
     LvRemoveTag(lv.Lv.id, Name.Tag.of_string "tag" |> Result.get_ok);
     LvSetStatus(lv.Lv.id, Lv.Status.([Read; Write; Visible]));
@@ -605,8 +626,8 @@ let lv_op_idempotence () =
     LvRemove(lv.Lv.id);
   ] in
   let _ = function (* Just to make sure this test catches all the ops *)
-  | LvCreate _ | LvRemove _ | LvRename _ | LvReduce _ | LvCrop _ | LvExpand _
-  | LvAddTag _ | LvRemoveTag _ | LvSetStatus _ -> () in
+  | LvCreate _ | LvRemove _ | LvRename _ | LvReduce _ | LvExpand _
+  | LvAddTag _ | LvRemoveTag _ | LvSetStatus _ | LvTransfer _ -> () in
   List.fold_left test_op init_md ops_to_test |> ignore
 
 let lv_tags () =
@@ -684,8 +705,8 @@ let vg_suite = "Vg" >::: [
     "LV create with redo" >:: lv_create `Journalled;
     "LV rename" >:: lv_rename;
     "LV resize" >:: lv_resize;
-    "LV crop" >:: lv_crop;
     "LV remove" >:: lv_remove;
+    "LV transfer" >:: lv_transfer;
     "LV tags" >:: lv_tags;
     "LV status" >:: lv_status;
     "LV lots of ops" >:: lv_lots_of_ops;

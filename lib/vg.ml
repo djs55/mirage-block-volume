@@ -162,42 +162,47 @@ let with_lv_by_name vg lv_name fn =
   try LVs.find_by_name lv_name vg.lvs |> fn
   with Not_found -> `Error (`UnknownLV (lv_name))
 
+let expand vg id segments =
+  let open Redo.Op in
+  with_lv vg id (fun lv ->
+    (* Compute the new physical extents, remove from free space *)
+    let extents = List.fold_left (fun acc x ->
+      Pv.Allocator.merge acc (Lv.Segment.to_allocation x)
+    ) [] segments in
+    let free_space = Pv.Allocator.sub vg.free_space extents in
+    (* This operation is idempotent so we assume that segments may be
+        duplicated. We remove the duplicates here. *)
+    let segments =
+          Lv.Segment.sort (segments @ lv.Lv.segments)
+      |> List.fold_left (fun (last_start, acc) segment ->
+            (* Check if the segments are identical *)
+            if segment.Lv.Segment.start_extent = last_start
+            then last_start, acc
+            else segment.Lv.Segment.start_extent, segment :: acc
+          ) (-1L, [])
+      |> snd
+      |> List.rev in
+    let lv = {lv with Lv.segments} in
+    return {vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space=free_space}
+  )
+
 let do_op vg op : (metadata * op) result =
   let open Redo.Op in
   match op with
   | LvCreate lv ->
     let new_free_space = Pv.Allocator.sub vg.free_space (Lv.to_allocation lv) in
     return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space = new_free_space},op)
-  | LvExpand (id, l) ->
-    with_lv vg id (fun lv ->
-      (* Compute the new physical extents, remove from free space *)
-      let extents = List.fold_left (fun acc x ->
-        Pv.Allocator.merge acc (Lv.Segment.to_allocation x)
-      ) [] l.lvex_segments in
-      let free_space = Pv.Allocator.sub vg.free_space extents in
-      (* This operation is idempotent so we assume that segments may be
-         duplicated. We remove the duplicates here. *)
-      let segments =
-           Lv.Segment.sort (l.lvex_segments @ lv.Lv.segments)
-        |> List.fold_left (fun (last_start, acc) segment ->
-             (* Check if the segments are identical *)
-             if segment.Lv.Segment.start_extent = last_start
-             then last_start, acc
-             else segment.Lv.Segment.start_extent, segment :: acc
-           ) (-1L, [])
-        |> snd
-        |> List.rev in
-      let lv = {lv with Lv.segments} in
-      return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space=free_space},op))
-  | LvCrop (id, l) ->
-    with_lv vg id (fun lv ->
-      let current = Lv.to_allocation lv in
-      let to_free = List.fold_left Pv.Allocator.merge [] (List.map Lv.Segment.to_allocation l.lvc_segments) in
+  | LvExpand (id, l) -> expand vg id l.lvex_segments >>= fun vg -> return (vg, op)
+  | LvTransfer (src, dst, segments) ->
+    with_lv vg src (fun src_lv ->
+      let current = Lv.to_allocation src_lv in
+      let to_free = List.fold_left Pv.Allocator.merge [] (List.map Lv.Segment.to_allocation segments) in
       let reduced = Pv.Allocator.sub current to_free in
-      let free_space = Pv.Allocator.merge vg.free_space to_free in
-      let segments = Lv.Segment.linear 0L reduced in
-      let lv = { lv with Lv.segments } in
-      return ({vg with lvs = LVs.add lv.Lv.id lv vg.lvs; free_space},op))
+      let segments' = Lv.Segment.linear 0L reduced in
+      let src_lv = { src_lv with Lv.segments = segments } in
+      let vg = {vg with lvs = LVs.add src_lv.Lv.id src_lv vg.lvs} in
+      expand vg dst segments >>= fun vg -> return (vg, op)
+    )
   | LvReduce (id, l) ->
     with_lv vg id (fun lv ->
       let allocation = Lv.to_allocation lv in

@@ -22,10 +22,6 @@ module Op = struct
     lvrd_new_extent_count : int64;
   }
 
-  and lvcrop_t = {
-    lvc_segments: Lv.Segment.t list;
-  }
-
   and lvexpand_t = {
     lvex_segments : Lv.Segment.t list;
   } with sexp
@@ -34,13 +30,13 @@ module Op = struct
   type t =
     | LvCreate of Lv.t
     | LvReduce of Uuid.t * lvreduce_t
-    | LvCrop   of Uuid.t * lvcrop_t
     | LvExpand of Uuid.t * lvexpand_t
     | LvRename of Uuid.t * lvrename_t
     | LvRemove of Uuid.t
     | LvAddTag of Uuid.t * Name.Tag.t
     | LvRemoveTag of Uuid.t * Name.Tag.t
     | LvSetStatus of Uuid.t * (Lv.Status.t list)
+    | LvTransfer of Uuid.t * Uuid.t * Lv.Segment.t list
   with sexp
 
   let of_cstruct x =
