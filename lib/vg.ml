@@ -199,7 +199,7 @@ let do_op vg op : (metadata * op) result =
       let to_free = List.fold_left Pv.Allocator.merge [] (List.map Lv.Segment.to_allocation segments) in
       let reduced = Pv.Allocator.sub current to_free in
       let segments' = Lv.Segment.linear 0L reduced in
-      let src_lv = { src_lv with Lv.segments = segments } in
+      let src_lv = { src_lv with Lv.segments = segments' } in
       let vg = {vg with lvs = LVs.add src_lv.Lv.id src_lv vg.lvs} in
       expand vg dst segments >>= fun vg -> return (vg, op)
     )
