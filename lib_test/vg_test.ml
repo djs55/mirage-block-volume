@@ -484,6 +484,62 @@ let lv_transfer () =
       in
       Lwt_main.run t)
 
+let lv_expand () =
+  (* get some metadata to play around with *)
+  let md =
+    with_dummy (fun filename ->
+      with_block filename (fun block ->
+        Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
+        Vg_IO.connect ~flush_interval:5. [ block ] `RW >>|= fun vg ->
+        Vg_IO.metadata_of vg |> return
+      )
+    ) |> Lwt_main.run in
+  (* Make some LVs *)
+  let open Lv.Segment in
+  let lv0 =
+    let segment = {
+      start_extent=0L; extent_count=5L;
+      cls=Lv.Linear.(Linear {name=pv; start_extent=10L})
+    } in
+    Lv.({name="lv0"; creation_host=""; creation_time=0L; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
+  let lv1 =
+    let segment = {
+      start_extent=0L; extent_count=5L;
+      cls=Lv.Linear.(Linear {name=pv; start_extent=15L})
+    } in
+    {lv0 with Lv.name="lv1"; id=(Uuid.create ()); segments=[segment]} in
+  let open Redo.Op in
+  (* Helper monad for applying operations to metadata *)
+  let (>>!=) m f = match Vg.error_to_msg m with
+  | `Ok (md', _) -> f md'
+  | `Error (`Msg m) -> failwith m in
+  (* Create the two LVs *)
+  Vg.do_op md (LvCreate lv0) >>!= fun md ->
+  Vg.do_op md (LvCreate lv1) >>!= fun md ->
+  (* Check they exist (2 LVs + 1 LV for the redo log) *)
+  assert_equal ~msg:"Couldn't create LVs" ~printer:string_of_int
+    3 (LVs.cardinal md.Vg.lvs);
+  (* Extend lv0 with a new segment *)
+  let free_space = md.Vg.free_space in
+  let segment = {
+    start_extent=5L; extent_count=5L;
+    cls=Lv.Linear.(Linear {name=pv; start_extent=20L})
+  } in
+  Vg.do_op md (LvExpand (lv0.Lv.id, {lvex_segments=[segment]})) >>!= fun md ->
+  (* Check there is less free_space *)
+  let open Pv.Allocator in
+  assert_equal ~msg:"LvExpand lv0 did not reduce free_space" ~printer:Int64.to_string
+    (Int64.sub (size free_space) 5L) (size md.Vg.free_space);
+  (* Check the size of the lv0 allocation has increased by the right amount *)
+  let alloc_of_segs ss = List.map to_allocation ss |> List.fold_left merge [] in
+  let expected_lv0_alloc = alloc_of_segs (segment::lv0.Lv.segments) in
+  let actual_lv0_alloc = alloc_of_segs (LVs.find lv0.Lv.id md.Vg.lvs).Lv.segments in
+  assert_equal ~msg:"LvExpand lv0 did not increase lv0 size" ~printer:Int64.to_string
+    (Int64.add (size (alloc_of_segs lv0.Lv.segments)) 5L) (size (actual_lv0_alloc));
+  (* Check that the allocation is _exactly_ what we expect *)
+  assert_equal ~msg:"LvExpand lv0 did not give expected allocation" ~printer:to_string
+    expected_lv0_alloc actual_lv0_alloc
+
 let lv_remove () =
   let open Vg_IO in
   with_dummy (fun filename ->
@@ -711,6 +767,7 @@ let vg_suite = "Vg" >::: [
     "LV status" >:: lv_status;
     "LV lots of ops" >:: lv_lots_of_ops;
     "LV op idempotence" >:: lv_op_idempotence;
+    "LV expand" >:: lv_expand;
     (* XXX: this test fails on travis-- problem in the journal code?
     "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
     *)
