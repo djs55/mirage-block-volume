@@ -445,44 +445,77 @@ let lv_resize () =
       in
       Lwt_main.run t)
 
-let lv_transfer () =
-  let open Vg_IO in
-  with_dummy (fun filename ->
-      let t = 
-        with_block filename
-          (fun block ->
-            Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
-            Vg_IO.connect ~flush_interval:0. [ block ] `RW >>|= fun vg ->
-            Vg.create (Vg_IO.metadata_of vg) "lv1" bigger >>*= fun (md,op1) ->
-            Vg.create md "lv2" bigger >>*= fun (_,op2) ->
-            Vg_IO.update vg [ op1; op2 ] >>|= fun () ->
-            Vg_IO.sync vg >>|= fun () ->
-            let id1 = expect_some (Vg_IO.find vg "lv1") in
-            let v_md1 = Vg_IO.Volume.metadata_of id1 in
-            let id2 = expect_some (Vg_IO.find vg "lv2") in
-            let v_md2 = Vg_IO.Volume.metadata_of id2 in
-            let space = Lv.to_allocation v_md1 in
-            let name, (start, length) = List.hd space in
-            (* transfer the first segment of lv1 to lv2 *)
-            let op = Redo.Op.(LvTransfer(v_md1.Lv.id, v_md2.Lv.id, Lv.Segment.linear bigger_extents [ name, (start, 1L) ] )) in
-            let md = Vg_IO.metadata_of vg in
-            let (md', _) = Vg.do_op md op |> ok_or_failwith in
-            let free_space = md'.Vg.free_space in
-            let v_md1' = Vg.LVs.find_by_name "lv1" md'.Vg.lvs in
-            let v_md2' = Vg.LVs.find_by_name "lv2" md'.Vg.lvs in
-            let used_blocks = Lv.to_allocation v_md2' in
-            let intersect t t' = 
-              let open Pv.Allocator in
-              let whole = merge t t' in
-              sub whole @@ merge (sub t t') (sub t' t) in
-            Pv.Allocator.(assert_equal ~printer:Int64.to_string 0L (size (intersect free_space used_blocks)));
-            assert_equal ~printer:Int64.to_string (Int64.succ bigger_extents) (Pv.Allocator.size (Lv.to_allocation v_md2'));
-            let space' = Pv.Allocator.size (Lv.to_allocation v_md1') in
-            assert_equal ~printer:Int64.to_string (Int64.pred (Pv.Allocator.size space)) space';
-            Lwt.return ()
-          )
-      in
-      Lwt_main.run t)
+let lv_expand_transfer () =
+  (* get some metadata to play around with *)
+  let md =
+    with_dummy (fun filename ->
+      with_block filename (fun block ->
+        Vg_IO.format ~magic:`Journalled "vg" [ pv, block ] >>|= fun () ->
+        Vg_IO.connect ~flush_interval:5. [ block ] `RW >>|= fun vg ->
+        Vg_IO.metadata_of vg |> return
+      )
+    ) |> Lwt_main.run in
+  (* Make some LVs *)
+  let open Lv.Segment in
+  let lv0 =
+    let segment = {
+      start_extent=0L; extent_count=5L;
+      cls=Lv.Linear.(Linear {name=pv; start_extent=10L})
+    } in
+    Lv.({name="lv0"; creation_host=""; creation_time=0L; id=(Uuid.create ()); tags=[]; status=[]; segments=[segment]}) in
+  let lv1 =
+    let segment = {
+      start_extent=0L; extent_count=5L;
+      cls=Lv.Linear.(Linear {name=pv; start_extent=15L})
+    } in
+    {lv0 with Lv.name="lv1"; id=(Uuid.create ()); segments=[segment]} in
+  let open Redo.Op in
+  (* Helper monad for applying operations to metadata *)
+  let (>>!=) m f = match Vg.error_to_msg m with
+  | `Ok (md', _) -> f md'
+  | `Error (`Msg m) -> failwith m in
+  (* Create the two LVs *)
+  Vg.do_op md (LvCreate lv0) >>!= fun md ->
+  Vg.do_op md (LvCreate lv1) >>!= fun md ->
+  (* Check they exist (2 LVs + 1 LV for the redo log) *)
+  assert_equal ~msg:"Couldn't create LVs" ~printer:string_of_int
+    3 (LVs.cardinal md.Vg.lvs);
+  (* Extend lv0 with a new segment *)
+  let free_space = md.Vg.free_space in
+  let segment = {
+    start_extent=5L; extent_count=5L;
+    cls=Lv.Linear.(Linear {name=pv; start_extent=20L})
+  } in
+  Vg.do_op md (LvExpand (lv0.Lv.id, {lvex_segments=[segment]})) >>!= fun md ->
+  (* Check there is less free_space *)
+  let open Pv.Allocator in
+  let free_space' = md.Vg.free_space in
+  assert_equal ~msg:"LvExpand lv0 did not reduce free_space" ~printer:Int64.to_string
+    (Int64.sub (size free_space) 5L) (size free_space');
+  (* Check the size of the lv0 allocation has increased by the right amount *)
+  let alloc_of_segs ss = List.map to_allocation ss |> List.fold_left merge [] in
+  let expected_lv0_alloc = alloc_of_segs (segment::lv0.Lv.segments) in
+  let actual_lv0_alloc = alloc_of_segs (LVs.find lv0.Lv.id md.Vg.lvs).Lv.segments in
+  assert_equal ~msg:"LvExpand lv0 did not increase lv0 size" ~printer:Int64.to_string
+    (Int64.add (size (alloc_of_segs lv0.Lv.segments)) 5L) (size (actual_lv0_alloc));
+  (* Check that the allocation is _exactly_ what we expect *)
+  assert_equal ~msg:"LvExpand lv0 did not give expected allocation" ~printer:to_string
+    expected_lv0_alloc actual_lv0_alloc;
+  (* Transfer the segment from lv0 to lv1 *)
+  Vg.do_op md (LvTransfer (lv0.Lv.id, lv1.Lv.id, [segment])) >>!= fun md ->
+  (* Check that the free_space is unchanged *)
+  assert_equal ~msg:"LvTransfer lv0->lv1 changed the free_space" ~printer:to_string
+    free_space' md.Vg.free_space;
+  (* Check that the segments are in lv1 *)
+  let expected_lv1_alloc = alloc_of_segs (segment::lv1.Lv.segments) in
+  let actual_lv1_alloc = alloc_of_segs (LVs.find lv1.Lv.id md.Vg.lvs).Lv.segments in
+  assert_equal ~msg:"LvTransfer lv0->lv1 didn't add segs to lv1" ~printer:to_string
+    expected_lv1_alloc actual_lv1_alloc;
+  (* Check that the segments are not in lv0 *)
+  assert_equal ~msg:"LvTransfer lv0->lv1 didn't remove segs from lv0"
+    ~printer:(fun x -> Lv.sexp_of_t x |> Sexplib.Sexp.to_string_hum)
+    lv0 (LVs.find lv0.Lv.id md.Vg.lvs);
+  ()
 
 let lv_remove () =
   let open Vg_IO in
@@ -706,11 +739,11 @@ let vg_suite = "Vg" >::: [
     "LV rename" >:: lv_rename;
     "LV resize" >:: lv_resize;
     "LV remove" >:: lv_remove;
-    "LV transfer" >:: lv_transfer;
     "LV tags" >:: lv_tags;
     "LV status" >:: lv_status;
     "LV lots of ops" >:: lv_lots_of_ops;
     "LV op idempotence" >:: lv_op_idempotence;
+    "LV expand and transfer" >:: lv_expand_transfer;
     (* XXX: this test fails on travis-- problem in the journal code?
     "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
     *)
