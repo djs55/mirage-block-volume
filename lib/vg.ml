@@ -420,6 +420,7 @@ type vg = {
   devices: devices;
   redo_log: Redo_log.t option;
   mutable wait_for_flush_t: unit -> unit Lwt.t;
+  mutable trigger_flush_now: unit -> unit;
   m: Lwt_mutex.t;
   flag: [ `RO | `RW ];
 }
@@ -646,8 +647,17 @@ let read flush_interval devices flag : vg result Lwt.t =
 
   let redo_log = None in
   let wait_for_flush_t () = Lwt.return () in
+  let trigger_flush_now () = () in
   let m = Lwt_mutex.create () in
-  let t = { metadata = vg; devices = name_to_devices; redo_log; wait_for_flush_t; m; flag } in
+  let t = {
+    metadata = vg;
+    devices = name_to_devices;
+    redo_log;
+    wait_for_flush_t;
+    trigger_flush_now;
+    m;
+    flag
+  } in
 
   (* Assuming the PV headers all have the same magic *)
   if flag = `RO
@@ -705,7 +715,9 @@ let update vg ops : unit result Lwt.t =
           let open Lwt in
           (* we only need the last waiter *)
           ( match List.rev waiters with
-            | last :: _ -> vg.wait_for_flush_t <- last
+            | last :: _ ->
+              vg.wait_for_flush_t <- last.Redo_log.sync;
+              vg.trigger_flush_now <- last.Redo_log.flush
             | [] -> () );
           return (`Ok ()) ) >>= fun () ->
       (* Update our cache of the metadata *)
@@ -715,6 +727,7 @@ let update vg ops : unit result Lwt.t =
 
 let sync vg =
   let open Lwt in
+  vg.trigger_flush_now ();
   vg.wait_for_flush_t ()
   >>= fun () ->
   let open IO in
