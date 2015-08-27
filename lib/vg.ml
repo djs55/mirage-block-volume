@@ -465,7 +465,7 @@ let write metadata devices : unit result Lwt.t =
     | [] -> return (List.rev acc)
     | m :: ms ->
       if not(List.mem_assoc pv.Pv.id id_to_devices)
-      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))))
+      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find device corresponding to PV %s: found [ %s ]" (Uuid.to_string pv.Pv.id) (String.concat ";" (List.map (fun x -> Uuid.to_string (fst x)) id_to_devices)) )))
       else begin
         let open Lwt in
         Metadata_IO.write (List.assoc pv.Pv.id id_to_devices) m md >>= fun h ->
@@ -478,7 +478,7 @@ let write metadata devices : unit result Lwt.t =
     | [] -> return (List.rev acc)
     | pv :: pvs ->
       if not(List.mem_assoc pv.Pv.id id_to_devices)
-      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find device corresponding to PV %s" (Uuid.to_string pv.Pv.id))))
+      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find device corresponding to PV %s: found [ %s ]" (Uuid.to_string pv.Pv.id) (String.concat ";" (List.map (fun x -> Uuid.to_string (fst x)) id_to_devices))  )))
       else begin
         let open Lwt in
         Label_IO.write (List.assoc pv.Pv.id id_to_devices) pv.Pv.label >>= fun r ->
@@ -606,7 +606,7 @@ let read flush_interval devices flag : vg result Lwt.t =
     match Uuid.of_string id with
     | `Ok id ->
       if not(List.mem_assoc id id_to_devices)
-      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find a device containing PV with id %s" (Uuid.to_string id))))
+      then Lwt.return (`Error (`Msg (Printf.sprintf "Unable to find a device containing PV with id %s: got [ %s ]" (Uuid.to_string id) (String.concat ";" (List.map (fun x -> Uuid.to_string (fst x)) id_to_devices))  )))
       else Pv_IO.read (List.assoc id id_to_devices) a x
     | `Error x -> fail x
   ) pvs) :> Pv.t list result Lwt.t) >>= fun pvs ->
