@@ -2,4 +2,9 @@ language: c
 install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
 script: cp .travis.oasis _oasis && bash -ex .travis-opam.sh && bash -ex .coveralls.sh
 env:
-  - OCAML_VERSION=4.02 PACKAGE=mirage-block-volume EXTRA_REMOTES=git://github.com/xapi-project/thin-lvhd-opam-repo
+  global:
+    - PACKAGE=mirage-block-volume
+    - OCAML_VERSION=4.02
+    - TESTS=true
+    - EXTRA_REMOTES=git://github.com/xapi-project/opam-repo-dev
+    - PINS="shared-block-ring:git://github.com/mirage/shared-block-ring"
