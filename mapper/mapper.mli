@@ -13,10 +13,10 @@
  *)
 open Lvm
 
-val name_of: Vg.metadata -> Lv.t -> string
-(** [name_of vg lv] returns the conventional name used for a device mapper
-    device corresponding to [lv]. Device mapper devices are arbitrary but this
-    is the naming convention that LVM uses. *)
+val name_of: string -> string -> string
+(** [name_of vgname lvname] returns the conventional name used for a device
+    mapper device corresponding to [lvname]. Device mapper devices are
+    arbitrary but this is the naming convention that LVM uses. *)
 
 val vg_lv_of_name: string -> string * string
 (** [vg_lv_of_name filename] returns the (vg name, lv name) of the device mapper
