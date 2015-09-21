@@ -94,10 +94,10 @@ let to_targets id_to_device vg lv =
 
 let dash = Re_str.regexp_string "-"
 
-let name_of vg lv =
-  let vgname = String.concat "--" (Re_str.split_delim dash vg.name) in
-  let lvname = String.concat "--" (Re_str.split_delim dash lv.Lv.name) in
-  Printf.sprintf "%s-%s" vgname lvname
+let name_of vgname lvname =
+  let vgname' = String.concat "--" (Re_str.split_delim dash vgname) in
+  let lvname' = String.concat "--" (Re_str.split_delim dash lvname) in
+  Printf.sprintf "%s-%s" vgname' lvname'
 
 let single_dash = Re_str.regexp "[^-]-[^-]"
 let double_dash = Re_str.regexp_string "--"
