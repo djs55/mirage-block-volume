@@ -669,32 +669,31 @@ let read flush_interval devices flag : vg result Lwt.t =
     | `Journalled ->
       begin match find t _redo_log_name with
       | None ->
-        Log.error "VG is set to Journalled mode but there is no %s" _redo_log_name;
-        return t
+        Lwt.bind (Log.error "VG is set to Journalled mode but there is no %s" _redo_log_name) (fun () ->
+            return t)
       | Some lv ->
         begin let open Lwt in
         Volume.connect lv
         >>= function
         | `Ok disk ->
           let open Lwt in
-          Log.info "Enabling redo-log on volume group";
-          Redo_log.start ~name:_redo_log_name ~client:"mirage-block-volume" ~flush_interval disk (fun ops -> Lwt.map error_to_msg (perform ops))
-          >>= fun r ->
-          let open IO.FromResult in
-          Redo_log.open_error r
-          >>= fun r ->
-          (* NB the metadata we read in is already out of date! *)
-          return { t with metadata = !on_disk_metadata; redo_log = Some r }
+          Lwt.bind (Log.info "Enabling redo-log on volume group") (fun () ->
+              Redo_log.start ~name:_redo_log_name ~client:"mirage-block-volume" ~flush_interval disk (fun ops -> Lwt.map error_to_msg (perform ops))
+              >>= fun r ->
+              let open IO.FromResult in
+              Redo_log.open_error r
+              >>= fun r ->
+              (* NB the metadata we read in is already out of date! *)
+              return { t with metadata = !on_disk_metadata; redo_log = Some r })
         | `Error _ ->
           let open IO in
-          Log.error "Failed to connect to the redo log volume";
-          return t
+          Lwt.bind (Log.error "Failed to connect to the redo log volume") (fun () -> return t)
         end
       end
     end
   | _ ->
-    Log.error "Failed to read headers to discover whether we're in Journalled mode";
-    return t
+    Lwt.bind (Log.error "Failed to read headers to discover whether we're in Journalled mode") 
+      (fun () -> return t)
 
 let connect ?(flush_interval=120.) devices flag = read flush_interval devices flag
 

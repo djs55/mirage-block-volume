@@ -89,11 +89,11 @@ let with_block filename f =
     Lwt.catch (fun () -> f x) (fun e -> Block.disconnect x >>= fun () -> fail e)
 
 module Log = struct
-  let debug fmt = Printf.ksprintf (fun s -> print_endline s) fmt
-  let info  fmt = Printf.ksprintf (fun s -> print_endline s) fmt
-  let error fmt = Printf.ksprintf (fun s -> print_endline s) fmt
+  let debug fmt = Lwt_log.debug_f fmt
+  let info fmt = Lwt_log.info_f fmt
+  let error fmt = Lwt_log.error_f fmt
 
-  let trace _ = ()
+  let trace _ = Lwt.return ()
 end
 
 let read common filename =
