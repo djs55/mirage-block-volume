@@ -22,7 +22,6 @@ depends: [
   "mirage-types"
   "ounit"
   "kaputt"
-  "bisect"
   "oasis"
   "io-page" {> "1.2.0"}
   "mirage-block-unix"

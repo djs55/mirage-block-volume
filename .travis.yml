@@ -1,6 +1,8 @@
 language: c
-install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
-script: cp .travis.oasis _oasis && bash -ex .travis-opam.sh && bash -ex .coveralls.sh
+install:
+  - wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
+  - wget https://raw.githubusercontent.com/simonjbeaumont/ocaml-travis-coveralls/master/travis-coveralls.sh
+script: bash -ex .travis-opam.sh && bash -ex travis-coveralls.sh
 env:
   global:
     - PACKAGE=mirage-block-volume
@@ -8,3 +10,4 @@ env:
     - TESTS=true
     - EXTRA_REMOTES=git://github.com/xapi-project/opam-repo-dev
     - PINS="shared-block-ring:git://github.com/mirage/shared-block-ring"
+    - COV_CONF="ocaml setup.ml -configure --enable-tests"

@@ -39,12 +39,13 @@ setup.data: setup.ml
 configure:
 	$(SETUP) -configure $(CONFIGUREFLAGS)
 
-coverage:
-	rm -f _build/*.out
-	BISECT_FILE=_build/coverage ./vg_test.native
-	(cd _build; bisect-report co*.out -summary-only -html /vagrant/report/)
+travis-coveralls.sh:
+	wget https://raw.githubusercontent.com/simonjbeaumont/ocaml-travis-coveralls/master/$@
 
-.PHONY: build doc test all install uninstall reinstall clean distclean configure
+coverage: travis-coveralls.sh
+	COV_CONF="ocaml setup.ml -configure --enable-tests" bash travis-coveralls.sh
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure coverage
 
 config.mk:
 	./configure

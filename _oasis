@@ -56,5 +56,5 @@ Executable vg_test
   BuildDepends:       lvm, oUnit, io-page.unix, io-page, mirage-block-unix, mirage-clock-unix, io-page.unix
 
 Test vg_test
-  Command:            ./vg_test.native
+  Command:            $vg_test -runner sequential
   Run:                true
