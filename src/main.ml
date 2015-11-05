@@ -162,6 +162,7 @@ let cmds = [read_cmd; format_cmd; create_cmd; rename_cmd; resize_cmd;
             add_tag_cmd; remove_tag_cmd; remove_cmd; map_cmd]
 
 let _ =
+  Random.self_init ();
   match Term.eval_choice default_cmd cmds with 
   | `Error _ -> exit 1
   | _ -> exit 0
