@@ -558,12 +558,10 @@ let lv_lots_of_ops () =
               Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] name ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
               Vg_IO.update vg [ op ] >>|= fun () ->
               Vg_IO.sync vg >>|= fun () ->
-              let (_: Vg_IO.Volume.id) = expect_some (Vg_IO.find vg name) in
-              Vg.remove (Vg_IO.metadata_of vg) name >>*= fun (_, op) ->
-              Vg_IO.update vg [ op ] >>|= fun () ->
-              Vg_IO.sync vg >>|= fun () ->
+              Vg_IO.connect [ block ] `RO >>|= fun vg' ->
+              let (_: Vg_IO.Volume.id) = expect_some (Vg_IO.find vg' name) in
               loop (n - 1) in
-            loop 1000 (* hopefully this fills up the 10M metadata area *)
+            loop 400 (* this fills up the 10M metadata area twice *)
           )
       in
       Lwt_main.run t)
