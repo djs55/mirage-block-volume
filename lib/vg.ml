@@ -452,7 +452,7 @@ let id_to_devices devices : 'a result Lwt.t =
     Lwt.return (`Ok (label.Label.pv_header.Label.Pv_header.id, device))
   ) devices)
 
-let write metadata devices : unit result Lwt.t =
+let write metadata devices =
   let devices = List.map snd devices in
   id_to_devices devices
   >>= fun id_to_devices ->
@@ -491,7 +491,7 @@ let write metadata devices : unit result Lwt.t =
       end in
   let open IO in
   write_vg [] metadata.pvs >>= fun _pvs ->
-  return ()
+  return { metadata with pvs = _pvs }
 
 let run metadata ops : metadata result Lwt.t =
   let open Result in
@@ -546,7 +546,7 @@ let format name ?(creation_host="unknown") ?(creation_time=0L) ?(magic = `Lvm) d
         | `Error x -> Lwt.return (`Error x)
       )
   ) >>= fun metadata ->
-  write metadata devices >>= fun () ->
+  write metadata devices >>= fun _ ->
   return ()
 
 let read flush_interval devices flag : vg result Lwt.t =
@@ -641,7 +641,7 @@ let read flush_interval devices flag : vg result Lwt.t =
     run !on_disk_metadata ops
     >>|= fun metadata ->
     write metadata name_to_devices
-    >>|= fun () ->
+    >>|= fun metadata ->
     on_disk_metadata := metadata;
     return (`Ok ()) in
 
@@ -718,7 +718,7 @@ let update vg ops : unit result Lwt.t =
               vg.wait_for_flush_t <- last.Redo_log.sync;
               vg.trigger_flush_now <- last.Redo_log.flush
             | [] -> () );
-          return (`Ok ()) ) >>= fun () ->
+          return (`Ok metadata) ) >>= fun metadata ->
       (* Update our cache of the metadata *)
       vg.metadata <- metadata;
       return ()
