@@ -211,7 +211,12 @@ let write device mdah md =
   let absnewpos = Int64.add mrl_offset mdah.mdah_start in
   let open IO in
   B.write device absnewpos firstbitbuf >>= fun () ->
-  B.write device (Int64.add mdah.mdah_start 512L) secondbitbuf >>= fun () ->
+  begin
+    if secondbit>0
+    then B.write device (Int64.add mdah.mdah_start 512L) secondbitbuf
+    else Lwt.return (`Ok ())
+  end
+  >>= fun () ->
 
   (* Now we have to update the crc and pointer to the metadata *)
     

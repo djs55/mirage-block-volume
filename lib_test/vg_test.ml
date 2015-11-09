@@ -360,6 +360,9 @@ let lv_create magic () =
             Vg_IO.sync vg >>|= fun () ->
             let md' = Vg_IO.metadata_of vg in
             let md' = Vg.metadata_of_sexp (Vg.sexp_of_metadata md') in
+            (* Ignore the location of the metadata *)
+            let md = {md with Vg.pvs = List.map (fun pv -> {pv with Pv.headers = []}) md.pvs } in
+            let md' = {md' with Vg.pvs = List.map (fun pv -> {pv with Pv.headers = []}) md'.pvs } in
             assert_equal (Vg.to_string md) (Vg.to_string md');
             let id = expect_some (Vg_IO.find vg "name") in
             let v_md = Vg_IO.Volume.metadata_of id in
@@ -555,12 +558,10 @@ let lv_lots_of_ops () =
               Vg.create (Vg_IO.metadata_of vg) ~tags:[tag] name ~status:Lv.Status.([Read; Write; Visible]) small >>*= fun (_,op) ->
               Vg_IO.update vg [ op ] >>|= fun () ->
               Vg_IO.sync vg >>|= fun () ->
-              let (_: Vg_IO.Volume.id) = expect_some (Vg_IO.find vg name) in
-              Vg.remove (Vg_IO.metadata_of vg) name >>*= fun (_, op) ->
-              Vg_IO.update vg [ op ] >>|= fun () ->
-              Vg_IO.sync vg >>|= fun () ->
+              Vg_IO.connect [ block ] `RO >>|= fun vg' ->
+              let (_: Vg_IO.Volume.id) = expect_some (Vg_IO.find vg' name) in
               loop (n - 1) in
-            loop 1000 (* hopefully this fills up the 10M metadata area *)
+            loop 400 (* this fills up the 10M metadata area twice *)
           )
       in
       Lwt_main.run t)
