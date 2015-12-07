@@ -747,9 +747,7 @@ let vg_suite = "Vg" >::: [
     "LV lots of ops" >:: lv_lots_of_ops;
     "LV op idempotence" >:: lv_op_idempotence;
     "LV expand and transfer" >:: lv_expand_transfer;
-    (* XXX: this test fails on travis-- problem in the journal code?
     "LV lots of out-of-sync" >:: lv_lots_of_out_of_sync;
-    *)
   ]
 
 open Pv.Allocator
